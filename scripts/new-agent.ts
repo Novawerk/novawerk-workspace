@@ -1,5 +1,7 @@
 #!/usr/bin/env tsx
-// Scaffold a new agent: agents/<id>/index.ts + .github/workflows/agent-<id>.yml.
+// Scaffold a new agent: writes agents/<id>/index.ts and prints its workflow.
+// The workflow lives in the private repo (Novawerk/novawerk/.github/workflows/agent-<id>.yml,
+// NB-ADR-0012): it checks out this repo at the root and the private one under ops/.
 // Put the real logic in a package under packages/ and call it from the agent.
 //
 // Usage: pnpm new:agent <kebab-id>
@@ -67,12 +69,22 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/agent-setup
+        with:
+          repository: Novawerk/novawerk-workspace
+      - uses: actions/checkout@v4
+        with:
+          path: ops
+      - uses: ./ops/.github/actions/agent-setup
 
       - name: pnpm agent ${id}
         env:
           ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
         run: pnpm agent ${id}
+
+      # Only if the agent writes records/ (and then contents: write above):
+      # - uses: ./ops/.github/actions/commit-records
+      #   with:
+      #     message: "${id}: TODO"
 `;
 }
 
@@ -84,25 +96,23 @@ async function main(): Promise<void> {
   }
 
   const agentPath = join(ROOT, "agents", id, "index.ts");
-  const workflowPath = join(ROOT, ".github", "workflows", `agent-${id}.yml`);
-  for (const p of [agentPath, workflowPath]) {
-    if (await exists(p)) {
-      console.error(`Refusing to overwrite ${p}`);
-      process.exit(1);
-    }
+  if (await exists(agentPath)) {
+    console.error(`Refusing to overwrite ${agentPath}`);
+    process.exit(1);
   }
 
   await mkdir(dirname(agentPath), { recursive: true });
   await writeFile(agentPath, agentSource(id), "utf8");
-  await writeFile(workflowPath, workflowSource(id), "utf8");
 
   console.log(`Created agents/${id}/index.ts`);
-  console.log(`Created .github/workflows/agent-${id}.yml`);
   console.log("");
+  console.log(`Add this workflow to the private repo as Novawerk/novawerk/.github/workflows/agent-${id}.yml:`);
+  console.log("");
+  console.log(workflowSource(id));
   console.log("Next:");
   console.log("  1. Put the logic in a package under packages/ (with tests) and call it from the agent.");
   console.log("  2. Keep the workflow's schedule and secrets in step with the agent's triggers and needs");
-  console.log("     (agents/agents.test.ts checks this; add the new id to its list).");
+  console.log("     (agents/agents.test.ts checks this in the private repo's agents-check; add the new id to its list).");
   console.log(`  3. Try it: pnpm agent ${id} --dry-run`);
 }
 

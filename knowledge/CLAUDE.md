@@ -1,7 +1,7 @@
 # CLAUDE.md — knowledge/
 
 Guidance for working inside `knowledge/`, the canonical facts about Novawerk.
-Read the root `CLAUDE.md` first for the monorepo as a whole.
+Read the root `CLAUDE.md` first for the repo as a whole.
 
 ## What this folder is
 
@@ -21,21 +21,23 @@ this folder in October 2026.
 - **Agents** read it for brand voice and facts (`packages/kb`).
 - **People**, on GitHub.
 
-The website must never read `records/` (confidential). If something is internal,
-it belongs in `records/`, not here.
+This folder is public, like the rest of this repo. The website must never read
+`records/` (confidential, in the private repo `Novawerk/novawerk`). If something is
+internal (partner research, minutes, names of people who haven't agreed to be
+named), it belongs in `records/`, not here.
 
 ## What does not belong here
 
 - The portfolio list and project details → `projects` table in Postgres (admin panel).
 - Submissions, applications, members, partners, money → Postgres.
-- Meeting minutes, ADRs, finance notes → `records/`.
+- Meeting minutes, ADRs, finance notes, partner pipeline → `records/` (private repo).
 
 ## The fact-file convention
 
 ```markdown
 ---
 title: <fact name>
-category: culture | brand | operations | community | partnerships | legal | meta
+category: culture | brand | operations | community | legal | meta
 status: stable | evolving
 summary: <one or two sentences; optional, used by the website and agents>
 source:

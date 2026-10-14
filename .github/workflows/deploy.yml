@@ -1,7 +1,7 @@
 name: Deploy
 
-# Production deploys for apps/web, apps/admin and apps/api. Vercel's Hobby plan can't connect
-# a private repo owned by an organization, so we deploy from here: every push to main uploads
+# Production deploys for apps/web, apps/admin and apps/api. Vercel isn't linked to GitHub,
+# so we deploy from here: every push to main uploads
 # the repo (minus .vercelignore) and Vercel builds each project with its own settings and
 # env. There are no preview deployments.
 #

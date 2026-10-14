@@ -1,9 +1,12 @@
-# CLAUDE.md — Novawerk monorepo
+# CLAUDE.md — Novawerk workspace
 
-Novawerk's single, **private** repo: the public website, the admin panel, the API, the agents,
-the knowledge base and the internal records. Read this before working here.
+Novawerk's code, in the open (MIT): the public website, the admin panel, the API, the agents'
+code, the knowledge base, posts and videos. Read this before working here.
 
-Architecture doc (decisions D1–D9, data model): https://claude.ai/artifact/CJKW8eHLcbz1U1hNYrTF6B
+Contributors work here. Records and account details are never in this repo: they live in the
+private repo `Novawerk/novawerk`, with the agent workflows (NB-ADR-0012).
+
+Architecture doc (decisions D1–D9, data model; members only): https://claude.ai/artifact/CJKW8eHLcbz1U1hNYrTF6B
 
 In the repo, `docs/`: `architecture.md` (agents and records), `infra.md` (environments,
 accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `analytics.md`,
@@ -16,14 +19,14 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
 | `apps/web` | Public site: `/` (portfolio), `/about`, forms `/submit` and `/join`, `/imprint`, `/privacy`; `POST /api/revalidate` (the API marks the `projects` cache stale) | Next.js 16 App Router, Tailwind v4 |
 | `apps/admin` | Internal admin panel (admin.novawerk.io) | React 19 SPA, Vite+, TanStack Router + Query, shadcn (Base UI, `base-vega`), AI Elements |
 | `apps/api` | The only entry to the database from the internet: `/public` (forms, portfolio, intake chat, visit events), `/auth`, `/admin` (incl. the assistant chat), `/cron`, `/webhooks` | Hono on Vercel Functions |
-| `agents/` | Agent entry points + runner (`pnpm agent <id>`); one `.github/workflows/agent-<id>.yml` each | TypeScript on GitHub Actions |
+| `agents/` | Agent entry points + runner (`pnpm agent <id>`). Their workflows (`agent-<id>.yml`) live in the private repo and check this one out | TypeScript on GitHub Actions |
 | `packages/db` | **All** Postgres tables (Drizzle schema + migrations) and the agents' query surface | Drizzle, node-postgres |
 | `packages/contracts` | Zod schemas + DTOs shared by web, admin and api (form inputs, `PublicProject`) | zod 4 |
 | `packages/ui` | Shared shadcn components: `core/`, `compound/`, `ai-elements/` | shadcn base-vega, Tailwind v4 |
 | `packages/*` (others) | `config`, `email`, `agent-core`, `agent-harness` (chat agent loop), `intake`, `promo` (project lifecycle, posts and their pictures), `ceremonies`, `partners`, `kb`, `jira`, `records`, `object-store`, `types` | TypeScript |
 | `knowledge/` | Canonical facts: who we are, how we work (Markdown + frontmatter). The website reads it. | — |
 | `posts/` | Posts written in the repo, one folder each (`posts/README.md`); synced to Postgres on merge | `pnpm post` |
-| `records/` | Internal narrative: minutes, ADRs, finance notes, partner history. **Confidential by default.** | — |
+| `records/` | Not in this repo. Minutes, ADRs, finance notes, partner history live in the private repo; link them locally (see Commands). Gitignored here. | — |
 | `videos/` | Short videos made in code, one folder per video in `projects/`; shared `kit/` and `BRAND.md` (what a video may say). Not in the pnpm workspace: `cd videos && pnpm install --ignore-workspace` (`videos/README.md`) | Remotion, `pnpm video` |
 
 ## Where data lives
@@ -36,7 +39,8 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
   the browser straight to Blob with a short-lived token from the API (`@nw/object-store`).
   CVs attached on `/submit` and `/join` live in the private store under `_resumes/`, linked from
   the pitch or application row; `/cron/resume-cleanup` deletes the ones never sent.
-- `apps/web` may read `knowledge/`; it must **never** read `records/`.
+- **Records** (minutes, ADRs, partner history) → `records/` in the private repo, never here.
+  `apps/web` may read `knowledge/`; it must **never** read `records/`.
 - **Visit counts** (no cookies, no IP) → `analytics_events`, through `track()` in
   `apps/web/lib/analytics.ts` and the event catalog in `@nw/contracts`. Never put what a
   visitor typed into an event. See `docs/analytics.md`.
@@ -62,8 +66,11 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
   `POST /webhooks/resend`; the API checks the signature and posts one card to the Slack channel
   `#info-inbox` (`apps/api/src/inbound-mail.ts`). Gmail stays the inbox; replies go from there.
   Setup: `docs/infra.md`, "info@ in Slack".
-- Agents write only `records/**/*.md`; the workflow commits them as `novawerk-bot`. Agent
-  logic lives in packages (`intake`, `ceremonies`, `partners`…); `agents/<id>/index.ts` only wires it.
+- Agents write only `records/**/*.md`. Each agent workflow lives in the private repo: it checks
+  out this repo, puts the private one under `ops/`, links `ops/records` to `records/`, runs
+  `pnpm agent <id>` and commits the records there as `novawerk-bot`. Agent logic lives in
+  packages (`intake`, `ceremonies`, `partners`…); `agents/<id>/index.ts` only wires it.
+- Nothing from the private repo comes here: no record text, account ids, owners or addresses.
 - The API runs the intake agent's code itself right after each form (`apps/api/src/agents.ts`,
   NB-ADR-0010); the agent's 6-hourly cron on GitHub Actions is the safety net.
 - The API runs the promo agent's code the same way after a project's status or launch date
@@ -99,8 +106,9 @@ pnpm db:up && pnpm db:migrate && pnpm db:seed:dev   # local Postgres (Docker)
 pnpm db:studio    # browse the database; pnpm db:down stops the container
 pnpm agent --list                      # agents and what they do
 pnpm agent <id> [--input json] [--dry-run|--help]
-pnpm new:agent <id>                    # scaffold agents/<id> + its workflow
-pnpm new:record <category> <slug> ["Title"]   # a record with the right frontmatter
+pnpm new:agent <id>                    # scaffold agents/<id>; prints its workflow for the private repo
+ln -s ../novawerk/records records      # members: link the private repo's records (clones side by side)
+pnpm new:record <category> <slug> ["Title"]   # a record with the right frontmatter (needs the link)
 pnpm post new|check|render|sync|pull   # posts written in the repo (posts/README.md)
 pnpm video list|new|<project> render   # videos in videos/projects (videos/README.md)
 pnpm provision:member <id> "<Name>" <google-email> [--admin]   # prints SQL; runs nothing
@@ -116,7 +124,7 @@ Use pnpm (10.x) and Node 22+. One lockfile at the root.
 - `jira` — NB board, project key `NB`, board `34`, site `novawerk-teams.atlassian.net`.
 - `shadcn` / UI work in `apps/admin` writes components into `packages/ui` (style `base-vega`,
   Base UI primitives). AI Elements live in `packages/ui/src/ai-elements/`.
-- `nw-back-office` — records, agents and the outbox gate.
+- `nw-back-office` — agents, the outbox gate, and records (in the private repo).
 - `nw-posts` — write a post in `posts/` (format, voice, `pnpm post render | check`).
 - `nw-videos` — make or change a short video in `videos/` (brief → storyboard → stills → music
   and sound → films, cover, post copy; platform rules for 小红书).

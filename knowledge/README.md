@@ -4,7 +4,7 @@ Canonical facts about the **Novawerk** organisation — who we are, what we
 believe, how we work, what we're building. Optimised for humans skimming on
 GitHub and for AI agents that need a ground-truth source.
 
-This repo answers questions like:
+This folder answers questions like:
 
 - *What is Novawerk's tagline / mission / brand voice?*
 - *What are the three principles?*
@@ -14,7 +14,7 @@ This repo answers questions like:
 It does **not** try to answer:
 
 - *Which projects are in the portfolio right now?* — that lives in the `projects` table, edited in the admin panel and shown on `novawerk.io`.
-- *What does the website look like?* — see `apps/web` in this monorepo.
+- *What does the website look like?* — see `apps/web` in this repo.
 - *Who specifically is on the team?* — see [`culture/team/`](./culture/team/) (placeholder for now).
 
 ---
@@ -67,11 +67,6 @@ Who's there, when, and where to talk.
 
 - [Portfolio overview](./projects/overview.md) — **historical snapshot (May 2026)**; the live portfolio is in the database
 
-### Partnerships
-
-Potential collaboration partners and opportunities. The one section *not* sourced from `nw-web-portal` — internal research and working notes, not shipped facts.
-
-
 ### Legal
 
 - [Legal](./legal/) — *placeholder for terms, privacy, code of conduct, licensing*
@@ -85,7 +80,7 @@ Every fact file uses the same shape:
 ```markdown
 ---
 title: <fact name>
-category: culture | brand | operations | community | projects | partnerships | legal | meta
+category: culture | brand | operations | community | projects | legal | meta
 status: stable | evolving
 source:
   - nw-web-portal/<relative/path>
@@ -108,7 +103,7 @@ updated: YYYY-MM-DD
   expect periodic refresh (stats, channels, things still being designed).
 - **`updated:`** — ISO date (`YYYY-MM-DD`). Set whenever the file's body changes.
 
-## How to use this repo
+## How to use this folder
 
 ### As a human
 
@@ -124,8 +119,8 @@ than a quarter.
 
 ### From another repo
 
-Use the `nw-knowledge-base` skill (in the monorepo's `.claude/skills/`). It
-sparse-clones just this folder. The other Novawerk skills (`jira`,
+Use the `nw-knowledge-base` skill (in `.claude/skills/` of
+`Novawerk/novawerk-workspace`). It sparse-clones just this folder. The other Novawerk skills (`jira`,
 `nw-bootstrap-project`) live there too.
 
 ### The website reads this folder
@@ -150,4 +145,4 @@ For the record:
 
 ---
 
-*Imported into the novawerk monorepo on 2026-10-03. Earlier snapshot date: 2026-05-22, sourced from the now-archived `nw-web-portal`.*
+*Imported into the novawerk monorepo on 2026-10-03; public in `Novawerk/novawerk-workspace` since 2026-10-14. Earlier snapshot date: 2026-05-22, sourced from the now-archived `nw-web-portal`. Partnership notes moved to the private records.*

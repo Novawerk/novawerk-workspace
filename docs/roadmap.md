@@ -1,6 +1,6 @@
 # Roadmap — agents and records
 
-The plan of record for the back-office side of the monorepo. Read this first if you're picking
+The plan of record for the back-office side. Read this first if you're picking
 up agent work in a fresh session. Companion docs: [`architecture.md`](architecture.md) (the
 design), [`runbook.md`](runbook.md) (operations), [`security.md`](security.md).
 
@@ -8,19 +8,20 @@ design), [`runbook.md`](runbook.md) (operations), [`security.md`](security.md).
 
 Novawerk is an early-stage open non-profit community (founded 2025, a handful of members,
 tagline *"An open workshop for early ideas"*). Canonical facts live in `knowledge/`. The private
-layer — minutes, finances, contracts, member and partner records — lives in `records/` and
-Postgres. The agents do the repetitive work around it; anything that leaves Novawerk waits for a
-member.
+layer — minutes, finances, contracts, member and partner records — lives in `records/` in the
+private repo `Novawerk/novawerk`, and in Postgres. This repo holds the code, in the open. The
+agents do the repetitive work around it; anything that leaves Novawerk waits for a member.
 
 ## Decisions of record
 
 - **Runtime: GitHub Actions** — one workflow per agent, no server
-  ([NB-ADR-0004](../records/operations/decisions/NB-ADR-0004-agents-on-github-actions.md),
+  (NB-ADR-0004,
   reversing the Windmill choice in NB-ADR-0001).
 - **Approvals: the `outbox` table.** Agents queue; a member approves in the admin panel; only
   `sendApproved()` sends, once. Discovery and drafting stay autonomous
-  ([NB-ADR-0003](../records/operations/decisions/NB-ADR-0003-autonomous-discovery-gated-send.md)).
-- **Storage tiers:** narrative → `records/`; structured → Postgres (Neon); binary → Vercel Blob.
+  (NB-ADR-0003).
+- **Two repos** (NB-ADR-0012): code here, public; records and agent workflows in the private repo.
+- **Storage tiers:** narrative → `records/` (private repo); structured → Postgres (Neon); binary → Vercel Blob.
 - **Agents:** logic in tested `packages/*`; `agents/<id>/index.ts` only wires config + packages.
 - **Everyone is a Member.** No titles; `can_admin` is a permission.
 
@@ -38,7 +39,9 @@ member.
   admin panel; pictures assembled from templates by `POST /admin/cards`.
 - Member sign-in (NB-ADR-0008): every member signs in with Google or an emailed code; a
   project's team edits its content, deliverables, posts and files; admins keep the rest.
-- One workflow per agent; least-secret env; records committed as `novawerk-bot`.
+- One workflow per agent (in the private repo); least-secret env; records committed as
+  `novawerk-bot`.
+- The code moved to this public repo; records and agent workflows stayed private (NB-ADR-0012).
 - Windmill, the VM stack and the flow bundler removed.
 
 **Next (needs people / other parts of the repo)**
