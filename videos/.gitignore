@@ -1,0 +1,5 @@
+node_modules/
+# Generated: music.wav by `pnpm video <project> music`, stills and single shots for review.
+projects/*/public/*.wav
+projects/*/out/stills/
+projects/*/out/shots/

@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push to a PR cancels the run it replaces.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # Turbo's cache carried between runs: a package whose inputs did not change replays its
+      # typecheck/test result instead of running again.
+      - uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      # The migrated test database that @nw/db/testing saves on first boot, so test files load it
+      # instead of running initdb and the migrations.
+      - uses: actions/cache@v4
+        with:
+          path: packages/db/node_modules/.cache/nw-test-db
+          key: nw-test-db-${{ hashFiles('packages/db/migrations/**', 'pnpm-lock.yaml') }}
+
+      # One run, so typecheck and tests share the runner's two cores instead of queueing. Three
+      # tasks at a time: Turbo's default of ten only stretches each task (and its timeouts).
+      - run: pnpm turbo run typecheck test --concurrency=3
+        env:
+          TURBO_TELEMETRY_DISABLED: 1
+
+      # Posts written in the repo merge as approved: none may have errors or placeholders left.
+      - run: pnpm post check

@@ -1,0 +1,18 @@
+# What `vercel deploy` (run by .github/workflows/deploy.yml) must not upload.
+# A leading / means the repo root only. Without it, `posts/` also drops apps/admin/src/components/posts/.
+# records/ is confidential and no app needs it.
+/records/
+.claude/
+# Repo posts reach the apps through the database and the file store (pnpm post sync), not the deploy.
+/posts/
+# Videos and their rendered films are for social media; no app needs them.
+/videos/
+.local-files/
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules/
+**/.next/
+**/dist/
+**/.turbo/
+**/.vercel/

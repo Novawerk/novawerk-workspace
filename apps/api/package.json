@@ -1,0 +1,52 @@
+{
+  "name": "@nw/api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The only entry to Postgres from the internet: public portfolio and form routes, the Intake Agent chat, admin routes.",
+  "type": "module",
+  "types": "./src/app.ts",
+  "exports": {
+    ".": "./src/app.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsup",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.3",
+    "@hono/zod-validator": "^0.9.1",
+    "@nw/agent-core": "workspace:*",
+    "@nw/agent-harness": "workspace:*",
+    "@nw/contracts": "workspace:*",
+    "@nw/db": "workspace:*",
+    "@nw/email": "workspace:*",
+    "@nw/intake": "workspace:*",
+    "@nw/kb": "workspace:*",
+    "@nw/object-store": "workspace:*",
+    "@nw/promo": "workspace:*",
+    "@vercel/blob": "^2.8.0",
+    "@vercel/functions": "^3.9.11",
+    "@vercel/og": "^0.11.1",
+    "drizzle-orm": "^0.45.3",
+    "hono": "^4.13.12",
+    "jose": "^6.2.12",
+    "mammoth": "^1.13.0",
+    "openai": "^7.27.0",
+    "pg": "^8.13.1",
+    "resend": "^4.0.1",
+    "unpdf": "^1.8.1",
+    "yaml": "^2.9.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "tsup": "^8.5.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

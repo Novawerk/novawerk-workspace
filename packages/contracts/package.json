@@ -1,0 +1,23 @@
+{
+  "name": "@nw/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared Zod schemas and DTOs between the website, the admin panel and the API.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

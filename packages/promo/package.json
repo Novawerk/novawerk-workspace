@@ -1,0 +1,32 @@
+{
+  "name": "@nw/promo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The public story of Novawerk and its projects: which posts are due when, Claude's bilingual drafts, the picture templates, and posts written in the repo.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./lifecycle": "./src/lifecycle.ts",
+    "./cards": "./src/cards/index.ts",
+    "./repo": "./src/repo/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nw/agent-core": "workspace:*",
+    "@nw/contracts": "workspace:*",
+    "@nw/db": "workspace:*",
+    "@vercel/og": "^0.11.1",
+    "drizzle-orm": "^0.45.3",
+    "yaml": "^2.9.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

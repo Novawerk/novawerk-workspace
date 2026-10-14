@@ -1,0 +1,215 @@
+# Infrastructure
+
+What runs where, on which accounts, and how we test and release. Last checked on 2026-10-03.
+Companion docs: [`architecture.md`](architecture.md), [`runbook.md`](runbook.md),
+[`security.md`](security.md).
+
+This file lists names, never secret values. Real values live in Vercel, GitHub Actions secrets
+or a local `.env` (ignored by git).
+
+## At a glance
+
+| Piece | Runs on | Production address |
+|-------|---------|--------------------|
+| `apps/web` | Vercel (Next.js) | novawerk.io |
+| `apps/admin` | Vercel (static Vite build) | admin.novawerk.io |
+| `apps/api` | Vercel Function (`api/index.js` serving the tsup bundle of `src/index.ts`) | api.novawerk.io |
+| Database | Neon Postgres, Frankfurt | — |
+| Agents | GitHub Actions, `.github/workflows/agent-*.yml` | — |
+| Files | Vercel Blob, Frankfurt: `novawerk-private` for documents and visitors' CVs, `novawerk-public` for project images | — |
+| Outgoing email | Resend (EU, Ireland), sends as `info@novawerk.io` | — |
+| Incoming email | Google Workspace | info@novawerk.io |
+| info@ in Slack | Resend receiving → `POST /webhooks/resend` on the API → Slack | `#info-inbox` |
+| Chat model (intake chat, admin assistant, post writer) | Anthropic Claude (`LLM_PROVIDER`, default `anthropic`) | — |
+| Agents' model | Anthropic Claude | — |
+| Ceremonies board | Jira, novawerk-teams.atlassian.net, project NB | — |
+
+## Where we are today
+
+- **novawerk.io serves the new site** since 2026-10-03; the test-phase banner came down on
+  2026-10-12. The chat assistant runs on Claude since 2026-10-11 (it ran on DeepSeek before).
+  `www.novawerk.io` redirects to it (308).
+- **admin.novawerk.io and api.novawerk.io are live**, on the new Neon database. New pitches and
+  applications email info@novawerk.io through Resend.
+- **The old site is parked.** The Vercel project `nw-web-portal` (Payload CMS) has no custom
+  domain any more and keeps its own Neon database, untouched, until we've exported what we
+  keep. To roll back, move `novawerk.io` and `www.novawerk.io` back to it.
+- The web build still refuses to run in production if `knowledge/legal/*.md` has
+  `{{placeholders}}`, and the Deploy workflow then skips the web.
+- **Email DNS is done** (2026-10-03): Google receives mail, and Resend is verified to send it.
+- **stories.novawerk.io** is a separate Vercel project (`stories-about-chinese-in-germany`).
+  Nothing here touches it.
+
+## Two environments: local and production
+
+We have no staging. We test locally, then release to production.
+
+| | Local | Production |
+|---|---|---|
+| Git branch | any | `main` |
+| Web | localhost:3000 | novawerk.io (`www` redirects) |
+| Admin | localhost:5173 | admin.novawerk.io |
+| API | localhost:8787 | api.novawerk.io |
+| Database | Docker Postgres 17 (`compose.yaml`), seed data | Neon |
+| Email | logged to the console (no key) | Resend |
+| Intake chat, admin assistant, post writer | your own `ANTHROPIC_API_KEY`, or `LLM_PROVIDER=mock` | production key |
+| Agents | `pnpm agent <id> --dry-run` | GitHub Actions |
+| Admin sign-in | `DEV_LOGIN`, real Google (localhost is an allowed origin), or an email code printed to the API log | Google, or an email code via Resend |
+
+### Rules
+
+1. **Test locally first.** The whole stack runs on a laptop: `pnpm db:up`, `pnpm db:migrate`,
+   `pnpm db:seed:dev`, `pnpm dev`. The README has the details.
+2. **Local never uses production data.** Don't put the production `DATABASE_URL` in your
+   `.env`. Migrations reach production through the Deploy workflow, not from a laptop.
+3. **No previews.** `.github/workflows/deploy.yml` deploys production on every push to `main`,
+   and nothing else deploys. (Vercel's Hobby plan can't connect a private repo owned by an
+   organization, so Vercel isn't linked to GitHub. Each app's `vercel.json` also skips
+   non-production builds, in case it ever is.)
+4. **Keep a way back.** Before a risky migration, create a Neon branch from production. It is
+   an instant copy we can restore from. For code, Vercel's Instant Rollback switches back to
+   the previous deployment.
+5. **Migrations go first and must not break live code.** The Deploy workflow applies new
+   migrations, then deploys. For a minute the old code runs on the new schema, so a migration
+   must work with the code that is already live: add first, remove in a later release.
+
+### Release flow
+
+1. Work on a branch. Try it locally. `pnpm typecheck && pnpm test`.
+2. Open a PR. CI runs the same checks.
+3. If the PR has a risky migration, create a restore-point branch in Neon first.
+4. Merge into `main`. The Deploy workflow applies new migrations (`pnpm db:migrate` with the
+   `DATABASE_URL` secret; Drizzle skips the ones already applied), then uploads the repo and
+   Vercel builds all three apps. If the migration fails, nothing deploys. `.vercelignore` keeps
+   `records/` and local files out of the upload.
+5. Check the live site. If something is wrong, roll back in Vercel and fix it on a new branch.
+
+## Domains and DNS
+
+DNS for novawerk.io is on Vercel DNS, in the Vercel team `novawerk`:
+`vercel dns ls novawerk.io --scope novawerk`.
+
+| Name | Type | Value | For |
+|------|------|-------|-----|
+| `@` | MX | `1 smtp.google.com` | Google Workspace receives our mail |
+| `@` | TXT | `v=spf1 include:_spf.google.com ~all` | SPF for mail sent from Google |
+| `@` | TXT | `google-site-verification=…` | Workspace domain verification |
+| `google._domainkey` | TXT | DKIM public key | Google DKIM |
+| `resend._domainkey` | TXT | DKIM public key | Resend DKIM |
+| `send` | MX | `10 feedback-smtp.eu-west-1.amazonses.com` | Resend bounces |
+| `send` | TXT | `v=spf1 include:amazonses.com ~all` | Resend SPF (return path) |
+| `_dmarc` | TXT | `v=DMARC1; p=none;` | DMARC, monitoring only |
+| `@`, `*` | ALIAS | Vercel | websites |
+
+**novawerk.ai** (bought 2026-10-12, registrar and DNS on Vercel, same team): `novawerk.ai` and
+`www.novawerk.ai` are domains on `novawerk-web` that redirect to `novawerk.io` (308). No mail on it.
+
+Resend's return path is on `send.novawerk.io`, so it never touches how Google receives mail.
+`admin` and `api` need no new records: we add them as domains on their Vercel projects, and the
+`*` record already points at Vercel.
+
+## Accounts
+
+Which account holds each service, its owners and ids are in the private repo
+(`Novawerk/novawerk`, `docs/infra-private.md`). We use Vercel (hosting, DNS, Blob), Neon
+(Postgres, Frankfurt), Resend (email, EU), Google Workspace (inboxes), Google Cloud (admin
+sign-in), Slack, Anthropic and Atlassian.
+
+## Variables
+
+Every app's `.env.example` explains each variable. This table shows what differs between local
+and production. "—" means unset.
+
+**API** (`apps/api`, Vercel env)
+
+| Variable | Local | Production |
+|----------|-------|------------|
+| `DATABASE_URL` | Docker | Neon |
+| `GOOGLE_CLIENT_ID` | any placeholder, or the real client | OAuth client |
+| `SESSION_SECRET` | any 32+ characters | its own, never reused |
+| `DEV_LOGIN` | `true` | — (the API refuses to start with it on Vercel) |
+| `RESEND_API_KEY` | — | production key |
+| `ALLOWED_ORIGINS` | default | `https://novawerk.io,https://www.novawerk.io,https://admin.novawerk.io` |
+| `ADMIN_ORIGINS` | default | `https://admin.novawerk.io` |
+| `WEB_REVALIDATE_URL` | — | `https://novawerk.io/api/revalidate` |
+| `WEB_REVALIDATE_SECRET` | — | same as the web's `REVALIDATE_SECRET` |
+| `ANTHROPIC_API_KEY` | — (the crons on GitHub Actions do the work) | a key from the Novawerk Console workspace |
+| `LLM_PROVIDER` | — (Claude, with `ANTHROPIC_API_KEY`), or `mock` | — (Claude) |
+| `BLOB_PUBLIC_READ_WRITE_TOKEN`, `BLOB_PRIVATE_READ_WRITE_TOKEN` | `vercel env pull` (same stores as production), or unset | set by connecting the stores |
+| `CRON_SECRET` | — | set; Vercel Cron sends it to `/cron/*` |
+| `RESEND_WEBHOOK_SECRET`, `RESEND_RECEIVING_API_KEY`, `SLACK_INBOX_WEBHOOK_URL` | — | set; see "info@ in Slack" |
+
+Set both origin lists explicitly in production. The built-in defaults include `localhost`,
+which is only meant for local development.
+
+**Web** (`apps/web`): `API_URL`, `NEXT_PUBLIC_API_URL`, `REVALIDATE_SECRET`. The Next.js
+build bakes `NEXT_PUBLIC_API_URL` in, so changing it means a redeploy.
+
+**Admin** (`apps/admin`): `VITE_API_URL` and `VITE_GOOGLE_CLIENT_ID`. Sample data is **off**
+unless `VITE_USE_SAMPLE_DATA=true` (for UI work without the API); never set it in production.
+`VITE_DEV_LOGIN` is ignored in production builds.
+
+**Deploys** (GitHub Actions repository secrets): `VERCEL_TOKEN`, a Vercel token with access to
+the `novawerk` team, and `DATABASE_URL`, Neon production with the direct (not pooled)
+connection, for the migration step and the post sync. The agents use the same `DATABASE_URL`.
+`BLOB_PUBLIC_READ_WRITE_TOKEN` (the public file store's token, as on the API) lets the post sync
+upload the pictures of posts written in the repo. The project and team ids in `deploy.yml` aren't
+secret.
+
+**Agents** (GitHub Actions repository secrets): `ANTHROPIC_API_KEY`, `DATABASE_URL` (production),
+`JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, plus the variable `JIRA_BOARD`. Never
+`RESEND_API_KEY`: `agents/agents.test.ts` fails if an agent workflow gets it.
+
+## info@ in Slack
+
+Everyone in `#info-inbox` sees each email to info@novawerk.io, a few seconds after it arrives.
+Slack's free plan can't give a channel its own email address, so we relay it ourselves:
+
+1. The Google group sends each email to its members, and one member is an address on Resend's
+   receiving domain (`<name>@<id>.resend.app`).
+2. Resend calls `POST https://api.novawerk.io/webhooks/resend` (event `email.received`).
+3. The API checks the signature, fetches the email from Resend, and posts it to the channel
+   as one card through a Slack incoming webhook: the subject, sender → recipient, the first
+   1,500 characters, the attachment names and an "Open in Gmail" link. It posts only mail with the group's `List-ID: <info.novawerk.io>`, because the
+   Resend domain accepts mail for any address. Code: `apps/api/src/inbound-mail.ts`.
+
+Nothing is stored in our database. Gmail stays the inbox: reply from there, and use the Slack
+thread to say who answers. Resend keeps its own copy of each received email.
+
+### Set it up
+
+1. **Slack.** Create the private channel `#info-inbox`. At api.slack.com/apps, create the app
+   "Novawerk Mail" in the Novawerk workspace, turn on Incoming Webhooks, and add a webhook for
+   `#info-inbox`. Copy its URL.
+2. **Resend.** Emails → Receiving → ⋯ → Receiving address shows the `<id>.resend.app` domain.
+   Ours is in `docs/infra-private.md` in the private repo.
+   Under Webhooks, add the endpoint
+   `https://api.novawerk.io/webhooks/resend` with only `email.received`, and copy its signing
+   secret. Under API keys, create "novawerk-api receiving" with **Full access**: reading a
+   received email needs it. Keep the sending-only `RESEND_API_KEY` as it is.
+3. **Vercel.** On `novawerk-api` (Production) set `SLACK_INBOX_WEBHOOK_URL`,
+   `RESEND_WEBHOOK_SECRET` and `RESEND_RECEIVING_API_KEY`, then redeploy. The API refuses to
+   start with only some of them.
+4. **Google.** In the Admin console, Apps → Google Workspace → Groups for Business: allow group
+   owners to add external members. In the group "Novawerk Info": turn on "Allow members outside
+   your organization", then add the Resend address directly as a member, subscribed to each
+   email.
+5. **Test.** Email info@novawerk.io from a personal address. It should show up in
+   `#info-inbox` within a minute.
+
+### When an email doesn't show up
+
+- Resend → Webhooks → the endpoint lists each delivery and its answer. Fix the cause, then
+  press Replay.
+- `401`: the signing secret on Vercel doesn't match the webhook's. `502`: Resend or Slack
+  failed; the Vercel log line `[api] inbound email <id> not posted to Slack` says which, and
+  Resend retries for about a day.
+- `200 {"result":"not-from-list"}`: the email didn't carry the group's list id. Resend shows
+  it in the email's Raw view as the `list` header, `{"id":{"name":"info.novawerk.io"}}`.
+  Check that it came through the group, or set `INBOUND_LIST_ID`.
+- Nothing in Resend at all: the address is no longer a member of the group, or Google held
+  the email as spam (it then reaches no member).
+
+## Before launch
+
+The open checklist is in the private repo (`docs/infra-private.md`).

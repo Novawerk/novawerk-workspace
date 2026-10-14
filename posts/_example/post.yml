@@ -1,0 +1,10 @@
+# A Novawerk post. The format: posts/README.md. Check it with pnpm post check.
+# An example: folders that start with _ are never synced. Copy it, or run pnpm post new.
+kind: custom
+name: Call for builders
+date: 2026-10-20
+platforms: [xiaohongshu, linkedin, discord]
+card: true
+# images:
+#   - file: screenshot.png
+#     alt: The map on a phone

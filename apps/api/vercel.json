@@ -1,0 +1,39 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "[ \"$VERCEL_ENV\" != production ]",
+  "regions": [
+    "fra1"
+  ],
+  "framework": null,
+  "buildCommand": "pnpm build",
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "dist/{prompts,knowledge}/**"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/cron/intake-cleanup",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/cron/analytics-cleanup",
+      "schedule": "15 3 * * *"
+    },
+    {
+      "path": "/cron/resume-cleanup",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/cron/sign-in-cleanup",
+      "schedule": "45 3 * * *"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@nw/agent-harness",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A small, storage-agnostic agent loop: provider-neutral messages, tool registry, hooks, traces. Ported from edu-agent.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "openai": "^7.27.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

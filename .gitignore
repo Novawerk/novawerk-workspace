@@ -1,0 +1,52 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+*.tsbuildinfo
+.turbo/
+
+# secrets — never commit real values
+.env
+.env.*
+!.env.example
+*.local.*
+
+# private escape hatch: ultra-sensitive items stored out-of-band, referenced by pointer
+records/**/*.private.md
+records/**/*.private/
+
+# binary documents never live in git — they belong in R2
+records/**/*.pdf
+records/**/*.docx
+records/**/*.xlsx
+records/**/*.png
+records/**/*.jpg
+records/**/*.jpeg
+
+# agent run traces / scratch
+.traces/
+tmp/
+
+# OS / editor
+.DS_Store
+.jira.yml
+.vscode/
+.idea/
+
+# generated build output
+build/
+
+# Next.js / Vite / Vercel
+.next/
+next-env.d.ts
+.vercel/
+*.tsbuildinfo
+
+# Claude Code agent worktrees
+.claude/worktrees/
+
+# posts/: cards rendered for a local look (pnpm post render), and pictures the local sync serves
+posts/**/.render/
+.local-files/

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 120">
+  <title>Novawerk — horizontal lockup (black &amp; white)</title>
+  <style>
+    @import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800&amp;display=swap');
+    .wm {
+      font-family: 'Cabinet Grotesk', 'Inter Tight', system-ui, sans-serif;
+      font-weight: 800;
+      font-size: 74px;
+      letter-spacing: -3.2px;
+      fill: #0f0f0f;
+    }
+  </style>
+  <g transform="translate(20 28)">
+    <path d="M32 0 L35.2 28.8 L64 32 L35.2 35.2 L32 64 L28.8 35.2 L0 32 L28.8 28.8 Z" fill="#0f0f0f"/>
+    <path d="M32 23.04 L32.896 31.104 L40.96 32 L32.896 32.896 L32 40.96 L31.104 32.896 L23.04 32 L31.104 31.104 Z" fill="#ffffff"/>
+  </g>
+  <text x="108" y="86" class="wm">Novawerk</text>
+</svg>

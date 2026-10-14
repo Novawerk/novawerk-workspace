@@ -1,0 +1,27 @@
+# Local Postgres for development (Docker / OrbStack). Production uses Neon.
+#   pnpm db:up        start it (waits until healthy)
+#   pnpm db:migrate   apply migrations   (DATABASE_URL from apps/api/.env or the shell)
+#   pnpm db:seed:dev  sample admin + the two current projects
+#   pnpm db:down      stop it (data stays in the volume)
+name: novawerk
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: novawerk-db
+    environment:
+      POSTGRES_USER: novawerk
+      POSTGRES_PASSWORD: novawerk
+      POSTGRES_DB: novawerk
+    ports:
+      - "5432:5432"
+    volumes:
+      - novawerk-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U novawerk -d novawerk"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  novawerk-db:

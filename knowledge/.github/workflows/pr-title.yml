@@ -1,0 +1,114 @@
+name: PR title
+
+# Enforces the repo's PR-title convention:
+#
+#     [NB-<number>: ] <Verb> <summary>
+#     e.g.  Add titles & roles design
+#           NB-13: Add titles & roles design
+#
+# A leading Jira key is OPTIONAL — but if you use one it must be an uppercase
+# NB key followed by ": " (colon + space). The summary always starts with a
+# capitalized imperative verb. No trailing period; sensible length.
+#
+# Re-runs whenever the title (or PR) changes, so editing the title clears
+# a failed check without pushing a commit.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  check-title:
+    name: Validate title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title
+        shell: bash
+        env:
+          # Passed via env (never interpolated into the script) so a crafted
+          # title can't inject shell commands.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          title="$PR_TITLE"
+
+          # Allowed leading imperative verbs. Extend this list freely — it's
+          # the single source of truth for the rule.
+          verbs="Add Update Fix Remove Delete Drop Rename Move Reorg Reorganize \
+                 Restructure Refactor Document Clarify Correct Revise Rewrite \
+                 Mark Bump Revert Merge Split Replace Deprecate Archive Restore \
+                 Tidy Polish Expand Simplify Improve Standardize Standardise \
+                 Sync Link Note Capture Consolidate Migrate Adjust Tweak Set \
+                 Enable Disable Wire Point Reword Trim Group Pin Unpin Annotate"
+
+          errors=()
+          warnings=()
+
+          # A leading Jira key is optional. If present it must be an uppercase
+          # "NB-<number>: " (colon + space) — then the verb rule applies to the
+          # rest. A key-like prefix in any other shape is rejected outright.
+          if [[ "$title" =~ ^NB-[0-9]+:\ (.+)$ ]]; then
+            body="${BASH_REMATCH[1]}"          # valid key → check the summary
+          elif [[ "$title" =~ ^\[?[Nn][Bb]-[0-9] ]]; then
+            body=""                            # key-like but malformed
+            errors+=("If you start the title with an NB ticket, format it exactly as \"NB-13: …\" — uppercase NB, a number, a colon, then a space. Or drop the key and just start with a verb.")
+          else
+            body="$title"                      # no key → plain verb-first title
+          fi
+          first_word="${body%% *}"
+
+          # --- hard rules ---------------------------------------------------
+          if [ "${#title}" -lt 10 ]; then
+            errors+=("Title is only ${#title} characters — write a descriptive summary (≥10).")
+          fi
+
+          case "$title" in
+            *.) errors+=("Title must not end with a period.");;
+          esac
+
+          # Only check the verb once a valid key prefix was found; otherwise the
+          # key error above already tells the contributor what to fix.
+          if [ -n "$body" ]; then
+            found=0
+            for v in $verbs; do
+              [ "$first_word" = "$v" ] && { found=1; break; }
+            done
+            if [ "$found" -ne 1 ]; then
+              errors+=("After the NB key, the summary must start with a capitalized imperative verb (got \"$first_word\"). Examples: Add, Fix, Update, Remove, Mark, Refactor — full list lives in .github/workflows/pr-title.yml.")
+            fi
+          fi
+
+          # --- soft nudges (do not fail the check) --------------------------
+          if [ "${#title}" -gt 72 ]; then
+            warnings+=("Title is ${#title} chars — consider trimming to ≤72 so GitHub doesn't truncate it in lists.")
+          fi
+
+          # --- report -------------------------------------------------------
+          {
+            echo "## PR title check"
+            echo
+            echo "**Title:** \`$title\`"
+            echo
+            if [ "${#warnings[@]}" -gt 0 ]; then
+              echo "### ⚠️ Suggestions"
+              for w in "${warnings[@]}"; do echo "- $w"; done
+              echo
+            fi
+            if [ "${#errors[@]}" -gt 0 ]; then
+              echo "### ❌ Must fix"
+              for e in "${errors[@]}"; do echo "- $e"; done
+              echo
+              echo "Edit the PR title (no commit needed) and this check re-runs automatically."
+            else
+              echo "### ✅ Title looks good"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${#errors[@]}" -gt 0 ]; then
+            echo "::error title=PR title::$(IFS='; '; echo "${errors[*]}")"
+            exit 1
+          fi
+          echo "PR title OK: $title"

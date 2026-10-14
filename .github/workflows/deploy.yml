@@ -1,0 +1,114 @@
+name: Deploy
+
+# Production deploys for apps/web, apps/admin and apps/api. Vercel's Hobby plan can't connect
+# a private repo owned by an organization, so we deploy from here: every push to main uploads
+# the repo (minus .vercelignore) and Vercel builds each project with its own settings and
+# env. There are no preview deployments.
+#
+# New database migrations run first, then the apps deploy. Drizzle records applied migrations
+# in the database, so this only runs the new ones. If a migration fails, nothing deploys.
+# Migrations must work with the code that is live until the deploy finishes (add first,
+# remove in a later release) — see docs/infra.md.
+#
+# After the migrations, the posts written in the repo (posts/) are synced into the database, their
+# pictures into the public file store (`pnpm post sync`, NB-ADR-0009). It doesn't hold up the apps.
+#
+# Needs the repository secrets VERCEL_TOKEN (a Vercel token with access to the novawerk team),
+# DATABASE_URL (Neon production, direct connection) and BLOB_PUBLIC_READ_WRITE_TOKEN (the public
+# file store, for the posts' pictures).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: migrate database
+    runs-on: ubuntu-latest
+    concurrency: migrate-production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --filter @nw/db
+
+      - name: Apply new migrations
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Add the DATABASE_URL repository secret (Neon production, direct connection)."
+            exit 1
+          fi
+          pnpm db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  posts:
+    name: sync posts
+    needs: migrate
+    runs-on: ubuntu-latest
+    concurrency: sync-posts
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: pnpm post sync
+        run: pnpm post sync
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BLOB_PUBLIC_READ_WRITE_TOKEN: ${{ secrets.BLOB_PUBLIC_READ_WRITE_TOKEN }}
+
+  deploy:
+    name: deploy ${{ matrix.app }}
+    needs: migrate
+    runs-on: ubuntu-latest
+    concurrency: deploy-${{ matrix.app }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: web
+            project: prj_kQUs5oK2ZiOcm17OHMaSYk1dsdhT
+          - app: admin
+            project: prj_ZUOkQlwGCbQk9okjMI4sjmRIBm1X
+          - app: api
+            project: prj_FFwYXVBqQySzN6eJQgO6CeMHYqzK
+    env:
+      VERCEL_ORG_ID: team_kL8aMoCBNc91QQD9nItFxHsW
+      VERCEL_PROJECT_ID: ${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The web build refuses to run in production while the imprint or privacy notice still
+      # has {{placeholders}} (apps/web/lib/knowledge.ts). Skip it with a notice until then.
+      - name: Legal pages filled in?
+        id: legal
+        if: matrix.app == 'web'
+        run: |
+          if grep -lE '\{\{ *[a-z0-9_]+ *\}\}' knowledge/legal/*.md; then
+            echo "::warning::Web deploy skipped: knowledge/legal still has {{placeholders}}."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy to production
+        if: steps.legal.outputs.skip != 'true'
+        run: npx --yes vercel@50.1.6 deploy --prod --yes --token "$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

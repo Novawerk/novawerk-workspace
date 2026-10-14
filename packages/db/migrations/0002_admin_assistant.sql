@@ -1,0 +1,2 @@
+ALTER TABLE "agent_sessions" ADD COLUMN "member_id" text;--> statement-breakpoint
+ALTER TABLE "agent_sessions" ADD CONSTRAINT "agent_sessions_member_id_members_id_fk" FOREIGN KEY ("member_id") REFERENCES "public"."members"("id") ON DELETE cascade ON UPDATE no action;

@@ -1,0 +1,1124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Novawerk — Logo & Visual Identity</title>
+
+<link rel="icon" type="image/svg+xml" href="../brand-assets/nova-star.svg">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@500,700,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --cream:   #efe9d8;
+    --ink:     #0f0f0f;
+    --mute:    #7a7468;
+    --green:   #1f7a4a;
+    --green-deep: #155a36;
+    --green-core: #0a3920;
+    --blue:    #2a5dc8;
+    --rule:    rgba(15, 15, 15, 0.12);
+  }
+
+  html, body { background: var(--cream); }
+  .reveal { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: var(--ink); }
+  .reveal .slides { text-align: left; }
+  .reveal section { padding: 0 4vw; }
+  .reveal h1, .reveal h2, .reveal h3 {
+    font-family: 'Cabinet Grotesk', 'Inter Tight', system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    text-transform: none;
+    line-height: 1.04;
+    margin: 0;
+  }
+  .reveal h1 { font-size: 5.2rem; }
+  .reveal h2 { font-size: 3.4rem; }
+  .reveal h3 { font-size: 1.6rem; font-weight: 700; }
+  .reveal p, .reveal li { font-size: 1.45rem; line-height: 1.5; color: var(--ink); }
+  .reveal .eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--mute);
+    font-weight: 500;
+    margin-bottom: 1.2rem;
+  }
+  .reveal em, .reveal .accent { font-style: italic; color: var(--green); font-weight: 500; }
+  .reveal a { color: var(--green); }
+  .reveal code, .reveal pre, .reveal .mono {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.95rem;
+    background: rgba(15, 15, 15, 0.05);
+    padding: 0.2em 0.45em;
+    border-radius: 4px;
+  }
+  .reveal pre {
+    padding: 1rem 1.2rem;
+    background: var(--ink);
+    color: var(--cream);
+    border-radius: 12px;
+    line-height: 1.55;
+    font-size: 0.9rem;
+  }
+  .reveal pre code { background: none; padding: 0; color: inherit; }
+
+  /* Reveal controls + progress in brand colors */
+  .reveal .controls { color: var(--green); }
+  .reveal .progress { color: var(--green); height: 4px; background: rgba(15,15,15,0.08); }
+
+  /* Layout helpers */
+  .row { display: flex; gap: 3rem; align-items: center; }
+  .row.col2 > * { flex: 1; }
+  .row.stretch { align-items: stretch; }
+  .stack > * + * { margin-top: 1.1rem; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2.2rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6rem; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; }
+  .center { text-align: center; }
+  .muted { color: var(--mute); }
+  .small { font-size: 1.05rem; }
+  .x-small { font-size: 0.9rem; }
+  .tight { letter-spacing: -0.025em; }
+  .right-rule { border-right: 1px solid var(--rule); padding-right: 2.2rem; }
+  .pad-l { padding-left: 2.2rem; }
+
+  /* Cover */
+  .cover {
+    display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+    min-height: 80vh;
+  }
+  .cover .lockup { margin-bottom: 2.2rem; }
+
+  /* Lockup */
+  .lockup { display: inline-flex; align-items: center; gap: 0.6em; }
+  .lockup .wm {
+    font-family: 'Cabinet Grotesk', system-ui, sans-serif;
+    font-weight: 800;
+    font-size: 4.2rem;
+    letter-spacing: -0.05em;
+    color: var(--green);
+    line-height: 1;
+  }
+  .lockup.bw .wm, .lockup.bw .mark path:first-child { fill: var(--ink); color: var(--ink); }
+  .lockup.bw .mark path:last-child { fill: #fff; }
+
+  /* Swatches */
+  .swatch {
+    border-radius: 12px;
+    padding: 1.2rem 1.3rem;
+    min-height: 140px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    border: 1px solid var(--rule);
+  }
+  .swatch .name { font-weight: 700; font-family: 'Cabinet Grotesk', sans-serif; font-size: 1.1rem; }
+  .swatch .hex { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; opacity: 0.8; }
+
+  /* Cards */
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 1.6rem 1.8rem;
+    border: 1px solid var(--rule);
+  }
+  .card.dark { background: var(--ink); color: var(--cream); }
+  .card.dark h3 { color: var(--cream); }
+  .card.green { background: var(--green); color: var(--cream); border: none; }
+  .card.green h3 { color: var(--cream); }
+
+  /* Token table */
+  .tokens { width: 100%; border-collapse: collapse; font-size: 1.05rem; }
+  .tokens td, .tokens th { padding: 0.65rem 0.5rem; text-align: left; border-bottom: 1px solid var(--rule); }
+  .tokens th { font-family: 'Cabinet Grotesk', sans-serif; font-weight: 700; }
+  .tokens .mono { background: none; padding: 0; }
+
+  /* Spinning brand mark */
+  .spin { animation: nw-spin 14s linear infinite; transform-origin: 50% 50%; }
+  @keyframes nw-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+
+  /* Breathing emphasis */
+  .breathe { animation: nw-breathe 5.5s ease-in-out infinite; transform-origin: 50% 50%; }
+  @keyframes nw-breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+  }
+
+  /* Big display */
+  .big-mark { width: 360px; height: 360px; }
+
+  /* Don't crossed-out */
+  .dont { position: relative; opacity: 0.65; }
+  .dont::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(to top right, transparent calc(50% - 2px), #c0392b calc(50% - 1px), #c0392b calc(50% + 1px), transparent calc(50% + 2px));
+    pointer-events: none;
+  }
+
+  /* Mockups */
+  .mockup-frame {
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid var(--rule);
+    overflow: hidden;
+    aspect-ratio: 16 / 10;
+    display: flex; flex-direction: column;
+  }
+  .mockup-header {
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid var(--rule);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .mockup-nav { display: flex; gap: 1.2rem; }
+  .mockup-nav span { font-size: 0.8rem; color: var(--ink); opacity: 0.7; font-weight: 500; }
+  .mockup-cta {
+    background: var(--green); color: var(--cream);
+    padding: 0.45rem 0.95rem; border-radius: 999px;
+    font-size: 0.75rem; font-weight: 600;
+  }
+  .mockup-body { flex: 1; padding: 1.5rem; }
+  .mockup-body .h-skeleton { background: rgba(15,15,15,0.08); border-radius: 6px; height: 0.6rem; margin-bottom: 0.5rem; }
+  .mockup-body .h-skeleton.w70 { width: 70%; }
+  .mockup-body .h-skeleton.w40 { width: 40%; }
+
+  .card-mockup {
+    background: var(--cream); border: 1px solid var(--rule);
+    border-radius: 14px; padding: 1.2rem 1.4rem;
+    aspect-ratio: 5 / 3; display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .card-mockup.dark { background: var(--ink); color: var(--cream); border: none; }
+  .card-mockup .name { font-family: 'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 1.15rem; letter-spacing: -0.03em; }
+  .card-mockup .role { font-size: 0.78rem; opacity: 0.7; }
+  .card-mockup .contact { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; opacity: 0.75; line-height: 1.6; }
+
+  .avatar-mockup {
+    width: 92px; height: 92px; border-radius: 999px;
+    background: var(--cream); border: 1px solid var(--rule);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .avatar-mockup.dark { background: var(--ink); border: none; }
+  .avatar-mockup.green { background: var(--green); border: none; }
+
+  .favicon-strip { display: flex; gap: 1.4rem; align-items: flex-end; }
+  .favicon-cell { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
+  .favicon-cell .label { font-size: 0.7rem; color: var(--mute); font-family: 'JetBrains Mono', monospace; }
+  .favicon-cell .frame {
+    background: #fff; border: 1px solid var(--rule); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; padding: 6px;
+  }
+
+  /* Footer */
+  .footer-meta {
+    position: absolute; bottom: 22px; left: 4vw; right: 4vw;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--mute);
+  }
+  .footer-meta .left { display: flex; align-items: center; gap: 0.6em; }
+  .footer-meta .mini-mark { width: 16px; height: 16px; }
+
+  /* Override reveal black bg */
+  .reveal .slide-background { background: var(--cream); }
+  .reveal .slide-background.dark { background: var(--ink); }
+
+  .dark-slide, .reveal section.dark-slide {
+    background: var(--ink);
+    color: var(--cream);
+  }
+  .dark-slide h1, .dark-slide h2, .dark-slide h3 { color: var(--cream); }
+  .dark-slide p, .dark-slide li { color: var(--cream); }
+  .dark-slide .eyebrow { color: rgba(239, 233, 216, 0.6); }
+  .dark-slide .muted { color: rgba(239, 233, 216, 0.65); }
+  .dark-slide .lockup .wm { color: var(--cream); }
+
+  /* Quote slide */
+  .pull-quote {
+    font-family: 'Cabinet Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 4rem;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    max-width: 18ch;
+  }
+  .pull-quote .accent { color: var(--green); font-style: italic; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="reveal">
+<div class="slides">
+
+<!-- ============================================================ -->
+<!-- 01 · COVER                                                    -->
+<!-- ============================================================ -->
+<section data-background-color="#efe9d8">
+  <div class="cover">
+    <div class="lockup">
+      <svg class="mark" width="120" height="120" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+        <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+      </svg>
+      <span class="wm">Novawerk</span>
+    </div>
+    <p class="eyebrow">Logo · Visual identity · Design notes</p>
+    <h1 class="tight">A mark that <em class="accent">pulls<br>and radiates</em>.</h1>
+    <p class="muted small" style="margin-top: 2.2rem;">2026 — first edition · drafted from <span class="mono">nw-knowledge-base</span></p>
+  </div>
+  <div class="footer-meta">
+    <div class="left"><span>Novawerk</span> · Logo &amp; VI</div>
+    <div>← / → to navigate</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 02 · WHY THIS EXISTS                                          -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">01 / Context</p>
+  <h2 class="tight" style="max-width: 22ch;">Novawerk is a <em class="accent">workshop</em>,<br>not a startup.</h2>
+  <div class="row col2" style="margin-top: 2.4rem;">
+    <div class="right-rule">
+      <h3>Open. Non-profit. Community.</h3>
+      <p class="small muted">An open hub for people turning meaningful ideas into positive change. Founded 2025. Tagline: <em class="accent">An open workshop for early ideas.</em></p>
+    </div>
+    <div class="pad-l">
+      <h3>The brand has to feel that.</h3>
+      <p class="small muted">It can't read corporate, accelerator, or tech-bro. The visual system is plain-spoken, warm at the edges, intentional in motion.</p>
+    </div>
+  </div>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 01</span>
+    </div>
+    <div>2 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 03 · THE MARK                                                 -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">02 / The mark</p>
+  <div class="row col2" style="min-height: 60vh;">
+    <div style="display:flex; justify-content:center; align-items:center;">
+      <svg class="big-mark spin" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+        <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+      </svg>
+    </div>
+    <div class="stack">
+      <h2 class="tight">The Nova Star.</h2>
+      <p>A four-pointed star with sharp pinches — outer points at N/E/S/W, inner arms tightly compressed near the centre.</p>
+      <p class="muted small">It functions as <em class="accent">favicon</em>, <em class="accent">inline accent</em>, and the principle-card icon throughout Novawerk surfaces.</p>
+    </div>
+  </div>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 02</span>
+    </div>
+    <div>3 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 04 · EVOLUTION                                                -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">03 / Evolution</p>
+  <h2 class="tight">From <em class="accent">tile</em>, to <em class="accent">star</em>, to <em class="accent">depth</em>.</h2>
+  <div class="grid-3" style="margin-top: 2.6rem;">
+    <div class="card">
+      <h3>v0 — Favicon tile</h3>
+      <div style="margin: 1.2rem 0; display:flex; justify-content:center;">
+        <svg width="140" height="140" viewBox="0 0 100 100">
+          <rect width="100" height="100" rx="22" fill="#1f7a4a"/>
+          <path d="M50 14 L53.5 46.5 L86 50 L53.5 53.5 L50 86 L46.5 53.5 L14 50 L46.5 46.5 Z" fill="#efe9d8"/>
+        </svg>
+      </div>
+      <p class="x-small muted">Rounded green tile with a cream star. Reads as <em>favicon</em>, not as <em>logo</em>.</p>
+    </div>
+    <div class="card">
+      <h3>v1 — Bare star</h3>
+      <div style="margin: 1.2rem 0; display:flex; justify-content:center;">
+        <svg width="140" height="140" viewBox="0 0 100 100">
+          <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+        </svg>
+      </div>
+      <p class="x-small muted">Removed the tile. Cleaner — but flat. No sense of <em>gravity</em>.</p>
+    </div>
+    <div class="card green">
+      <h3>v2 — Depth core</h3>
+      <div style="margin: 1.2rem 0; display:flex; justify-content:center;">
+        <svg width="140" height="140" viewBox="0 0 100 100">
+          <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#efe9d8"/>
+          <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+        </svg>
+      </div>
+      <p class="x-small" style="color: rgba(239,233,216,0.85);">Two concentric layers. The star feels like it has a centre — a <em>somewhere</em> it's pulling toward.</p>
+    </div>
+  </div>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 03</span>
+    </div>
+    <div>4 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 05 · BLACK HOLE QUESTION                                      -->
+<!-- ============================================================ -->
+<section class="dark-slide" data-background-color="#0f0f0f">
+  <p class="eyebrow">04 / The question</p>
+  <div class="row col2 stretch" style="min-height: 70vh; align-items: center;">
+    <div>
+      <p class="pull-quote">Is it <span class="accent">contracting</span>, or is it <span class="accent">expanding?</span></p>
+      <p class="small muted" style="margin-top: 2.2rem; max-width: 36ch;">A mark that holds the question is more interesting than one that answers it. The deeper-green core reads as <em>recession</em>; the breathing motion reads as <em>arrival</em>. Both are correct.</p>
+    </div>
+    <div style="display:flex; justify-content:center; align-items:center;">
+      <svg class="big-mark breathe" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+        <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#020a05"/>
+      </svg>
+    </div>
+  </div>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span style="color: rgba(239,233,216,0.6);">Novawerk · 04</span>
+    </div>
+    <div style="color: rgba(239,233,216,0.6);">5 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 06 · CONSTRUCTION                                             -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">05 / Construction</p>
+  <h2 class="tight">Two paths. One mark.</h2>
+  <div class="row col2 stretch" style="margin-top: 2rem; gap: 4rem;">
+    <div style="display:flex; justify-content:center; align-items:center;">
+      <svg width="320" height="320" viewBox="0 0 100 100" aria-hidden="true">
+        <g opacity="0.18">
+          <line x1="50" y1="0" x2="50" y2="100" stroke="#0f0f0f" stroke-width="0.3"/>
+          <line x1="0" y1="50" x2="100" y2="50" stroke="#0f0f0f" stroke-width="0.3"/>
+          <circle cx="50" cy="50" r="14" fill="none" stroke="#0f0f0f" stroke-width="0.3"/>
+          <circle cx="50" cy="50" r="50" fill="none" stroke="#0f0f0f" stroke-width="0.3"/>
+        </g>
+        <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+        <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+      </svg>
+    </div>
+    <div class="stack">
+      <p class="small">Both stars share the same four-point geometry. The core is <strong>28%</strong> the size of the outer star, same rotation, deeper green.</p>
+<pre><code>// Outer star — 100×100 viewBox
+M50 0  L55 45  L100 50  L55 55
+L50 100  L45 55  L0 50  L45 45  Z
+
+// Inner core — 28% scale
+M50 36  L51.4 48.6  L64 50  L51.4 51.4
+L50 64  L48.6 51.4  L36 50  L48.6 48.6  Z</code></pre>
+      <p class="x-small muted">Below 16 px the core is dropped — single solid star for legibility.</p>
+    </div>
+  </div>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 05</span>
+    </div>
+    <div>6 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 07 · COLOR                                                    -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">06 / Colour</p>
+  <h2 class="tight">Small palette. <em class="accent">Earned</em> contrast.</h2>
+  <div class="grid-3" style="margin-top: 2.4rem;">
+    <div class="swatch" style="background: #1f7a4a; color: #efe9d8;">
+      <div class="name">Accent green</div>
+      <div>
+        <div class="hex" style="color: rgba(239,233,216,0.8);">#1f7a4a</div>
+        <div class="x-small" style="color: rgba(239,233,216,0.7);">Outer star, accent words, CTAs</div>
+      </div>
+    </div>
+    <div class="swatch" style="background: #0a3920; color: #efe9d8;">
+      <div class="name">Core depth</div>
+      <div>
+        <div class="hex" style="color: rgba(239,233,216,0.8);">#0a3920</div>
+        <div class="x-small" style="color: rgba(239,233,216,0.7);">Inner core only — never for type</div>
+      </div>
+    </div>
+    <div class="swatch" style="background: #efe9d8; color: #0f0f0f;">
+      <div class="name">Cream</div>
+      <div>
+        <div class="hex">#efe9d8</div>
+        <div class="x-small muted">The page. The room.</div>
+      </div>
+    </div>
+    <div class="swatch" style="background: #0f0f0f; color: #efe9d8;">
+      <div class="name">Ink</div>
+      <div>
+        <div class="hex" style="color: rgba(239,233,216,0.8);">#0f0f0f</div>
+        <div class="x-small" style="color: rgba(239,233,216,0.7);">Body, deep CTAs, contrast</div>
+      </div>
+    </div>
+    <div class="swatch" style="background: #2a5dc8; color: #efe9d8;">
+      <div class="name">Blue</div>
+      <div>
+        <div class="hex" style="color: rgba(239,233,216,0.8);">#2a5dc8</div>
+        <div class="x-small" style="color: rgba(239,233,216,0.7);">Expressive secondary — links, charts</div>
+      </div>
+    </div>
+    <div class="swatch" style="background: #7a7468; color: #efe9d8;">
+      <div class="name">Mute</div>
+      <div>
+        <div class="hex" style="color: rgba(239,233,216,0.8);">#7a7468</div>
+        <div class="x-small" style="color: rgba(239,233,216,0.7);">Captions, metadata, dividers</div>
+      </div>
+    </div>
+  </div>
+  <p class="x-small muted" style="margin-top: 1.4rem;">Rule: <em class="accent">one loud accent per surface</em>. Cream is a colour, not a default.</p>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 06</span>
+    </div>
+    <div>7 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 08 · BLACK & WHITE                                            -->
+<!-- ============================================================ -->
+<section class="dark-slide" data-background-color="#0f0f0f">
+  <p class="eyebrow">07 / Mono</p>
+  <h2 class="tight">In one ink, the core becomes a <em class="accent">cutout</em>.</h2>
+  <div class="row col2" style="margin-top: 2.2rem;">
+    <div style="display:flex; justify-content:center; align-items:center; padding: 2.2rem;">
+      <svg class="big-mark" viewBox="0 0 100 100">
+        <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#efe9d8"/>
+        <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0f0f0f"/>
+      </svg>
+    </div>
+    <div class="stack" style="align-self: center;">
+      <h3>Same construction, different reading.</h3>
+      <p class="muted">In colour, the dark core reads as <em class="accent">depth</em>. In mono, it reads as a <em class="accent">hole</em> — the event horizon's edge.</p>
+      <p class="x-small muted">Use for single-ink print, partner contexts, dark UIs, embroidery, and accessibility fallbacks.</p>
+    </div>
+  </div>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#efe9d8"/></svg>
+      <span style="color: rgba(239,233,216,0.6);">Novawerk · 07</span>
+    </div>
+    <div style="color: rgba(239,233,216,0.6);">8 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 09 · WORDMARK                                                 -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">08 / Wordmark</p>
+  <div style="margin-top: 3rem; text-align: center;">
+    <div style="font-family: 'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 12rem; letter-spacing: -0.06em; color: var(--green); line-height: 0.9;">Novawerk</div>
+  </div>
+  <p class="small muted center" style="margin-top: 2.2rem;">
+    <span class="mono">Cabinet Grotesk · 800 · letter-spacing -0.05em</span>
+  </p>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 08</span>
+    </div>
+    <div>9 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 10 · WHY CABINET GROTESK                                      -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">09 / Why this type</p>
+  <h2 class="tight">Industrial. <em class="accent">Structured.</em><br>The "werk" in the name.</h2>
+  <div class="grid-3" style="margin-top: 2.6rem;">
+    <div class="card">
+      <h3>Geometric grotesque</h3>
+      <p class="small muted">Modern grotesque with character. Reads as confident, builderly, contemporary — not corporate-tech.</p>
+    </div>
+    <div class="card">
+      <h3>Display weight</h3>
+      <p class="small muted">800 gives the wordmark mass without going slab-blocky. Holds up at favicon size and on a billboard.</p>
+    </div>
+    <div class="card">
+      <h3>Free + accessible</h3>
+      <p class="small muted">Ships from Fontshare under a commercial-free licence. No licensing friction for partners or community.</p>
+    </div>
+  </div>
+  <p class="x-small muted" style="margin-top: 1.8rem;">Considered and rejected: Inter Tight (too neutral), Fraunces (editorial, too soft for "werk").</p>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 09</span>
+    </div>
+    <div>10 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 11 · HORIZONTAL LOCKUP                                        -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">10 / Horizontal lockup</p>
+  <div style="margin-top: 2rem; padding: 3rem; background: #fff; border-radius: 18px; border: 1px solid var(--rule); text-align: center;">
+    <div class="lockup" style="position: relative;">
+      <svg class="mark" width="160" height="160" viewBox="0 0 100 100">
+        <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+        <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+      </svg>
+      <span class="wm" style="font-size: 6.5rem;">Novawerk</span>
+    </div>
+  </div>
+  <div class="grid-3 small" style="margin-top: 2rem;">
+    <div><strong>Gap</strong><br><span class="muted x-small">~½ the star's height between mark and wordmark.</span></div>
+    <div><strong>Clear space</strong><br><span class="muted x-small">1× star-height on all four sides.</span></div>
+    <div><strong>Minimum width</strong><br><span class="muted x-small">120 px. Below that, fall back to the mark.</span></div>
+  </div>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 10</span>
+    </div>
+    <div>11 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 11b · LOCKUP VARIANTS                                         -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">10b / Variants</p>
+  <h2 class="tight">Four lockups for four <em class="accent">rooms</em>.</h2>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; margin-top: 2rem;">
+
+    <!-- colour default -->
+    <div class="card" style="padding: 1.2rem 1.4rem;">
+      <h3 style="font-size: 1rem; margin-bottom: 0.6rem;">Colour — default</h3>
+      <div style="background: #efe9d8; border-radius: 10px; padding: 1.2rem 1.4rem; display:flex; align-items:center; gap: 0.5em;">
+        <svg width="56" height="56" viewBox="0 0 100 100">
+          <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+          <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+        </svg>
+        <span style="font-family:'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 2.2rem; letter-spacing: -0.05em; color: #1f7a4a;">Novawerk</span>
+      </div>
+      <p class="x-small muted" style="margin-top: 0.7rem;">Green mark + green wordmark on cream. The canonical lockup.</p>
+    </div>
+
+    <!-- mixed -->
+    <div class="card" style="padding: 1.2rem 1.4rem;">
+      <h3 style="font-size: 1rem; margin-bottom: 0.6rem;">Mixed — green + ink</h3>
+      <div style="background: #efe9d8; border-radius: 10px; padding: 1.2rem 1.4rem; display:flex; align-items:center; gap: 0.5em;">
+        <svg width="56" height="56" viewBox="0 0 100 100">
+          <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+          <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+        </svg>
+        <span style="font-family:'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 2.2rem; letter-spacing: -0.05em; color: #0f0f0f;">Novawerk</span>
+      </div>
+      <p class="x-small muted" style="margin-top: 0.7rem;">Mark keeps the brand. Wordmark takes ink for long-form legibility.</p>
+    </div>
+
+    <!-- single ink -->
+    <div class="card" style="padding: 1.2rem 1.4rem;">
+      <h3 style="font-size: 1rem; margin-bottom: 0.6rem;">Single ink — mono</h3>
+      <div style="background: #efe9d8; border-radius: 10px; padding: 1.2rem 1.4rem; display:flex; align-items:center; gap: 0.5em;">
+        <svg width="56" height="56" viewBox="0 0 100 100">
+          <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#0f0f0f"/>
+          <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#ffffff"/>
+        </svg>
+        <span style="font-family:'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 2.2rem; letter-spacing: -0.05em; color: #0f0f0f;">Novawerk</span>
+      </div>
+      <p class="x-small muted" style="margin-top: 0.7rem;">For single-ink print and accessibility fallbacks.</p>
+    </div>
+
+    <!-- dark -->
+    <div class="card" style="padding: 1.2rem 1.4rem;">
+      <h3 style="font-size: 1rem; margin-bottom: 0.6rem;">Dark — reverse</h3>
+      <div style="background: #0f0f0f; border-radius: 10px; padding: 1.2rem 1.4rem; display:flex; align-items:center; gap: 0.5em;">
+        <svg width="56" height="56" viewBox="0 0 100 100">
+          <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#efe9d8"/>
+          <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0f0f0f"/>
+        </svg>
+        <span style="font-family:'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 2.2rem; letter-spacing: -0.05em; color: #efe9d8;">Novawerk</span>
+      </div>
+      <p class="x-small muted" style="margin-top: 0.7rem;">Dark surfaces. The core punches through to the ink ground — pure void.</p>
+    </div>
+
+  </div>
+
+  <p class="x-small muted" style="margin-top: 1.4rem;">Each variant has a matching mark-only file for favicons and avatars.</p>
+
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 10b</span>
+    </div>
+    <div>11½ / 21</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 12 · TYPE SYSTEM                                              -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">11 / Type system</p>
+  <h2 class="tight">Two families, <em class="accent">three voices</em>.</h2>
+  <table class="tokens" style="margin-top: 2rem;">
+    <thead><tr><th>Role</th><th>Family</th><th>Weight</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span style="font-family:'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 1.5rem; letter-spacing: -0.03em;">Display</span></td>
+        <td>Cabinet Grotesk</td>
+        <td class="mono">700 · 800</td>
+        <td class="muted x-small">Wordmark, hero lines, section openers</td>
+      </tr>
+      <tr>
+        <td><span style="font-family:'Inter', sans-serif; font-weight: 400; font-size: 1.4rem;">Body</span></td>
+        <td>Inter</td>
+        <td class="mono">400 · 500</td>
+        <td class="muted x-small">Paragraphs, UI labels, captions</td>
+      </tr>
+      <tr>
+        <td><span style="font-style: italic; color: var(--green); font-size: 1.4rem;">accent</span></td>
+        <td>Inter italic</td>
+        <td class="mono">400 · 500</td>
+        <td class="muted x-small">One word per sentence — the meaning-bearer</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="x-small muted" style="margin-top: 2rem;">No all-caps headlines. Display sets tight (−2 to −3.5px letter-spacing). Italic accent only ever pairs with <span class="mono">--color-accent</span>.</p>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 11</span>
+    </div>
+    <div>12 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 13 · SHAPE                                                    -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">12 / Shape</p>
+  <h2 class="tight">The mark is <em class="accent">sharp</em>.<br>Everything around it gets <em class="accent">soft</em>.</h2>
+  <div class="grid-3" style="margin-top: 2.4rem;">
+    <div class="card" style="text-align:center; padding: 1.8rem 1.4rem;">
+      <svg width="64" height="64" viewBox="0 0 100 100" style="margin-bottom: 0.8rem;">
+        <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+        <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+      </svg>
+      <h3>Mark</h3>
+      <p class="x-small muted">Sharp, geometric, never enclosed</p>
+    </div>
+    <div class="card" style="text-align:center; padding: 1.8rem 1.4rem;">
+      <div style="width: 80px; height: 56px; background: var(--green); border-radius: 16px; margin: 0 auto 0.8rem;"></div>
+      <h3>Cards</h3>
+      <p class="x-small muted">16 px radius — M3 "large"</p>
+    </div>
+    <div class="card" style="text-align:center; padding: 1.8rem 1.4rem;">
+      <div style="display:inline-flex; padding: 0.6rem 1.4rem; background: var(--ink); color: var(--cream); border-radius: 999px; font-size: 0.85rem; margin-bottom: 0.8rem;">Button →</div>
+      <h3>Pills</h3>
+      <p class="x-small muted">999 px — for CTAs and pills</p>
+    </div>
+  </div>
+  <p class="x-small muted" style="margin-top: 2rem;">The contrast is the point: the mark's eight tips against soft surroundings. Don't enclose the mark. Don't square-corner the cards.</p>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 12</span>
+    </div>
+    <div>13 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 14 · MOTION                                                   -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">13 / Motion</p>
+  <h2 class="tight"><em class="accent">Springy</em>, not snappy.</h2>
+  <div class="row col2" style="margin-top: 2.4rem;">
+    <div class="stack">
+      <div class="card">
+        <h3>Star spin — 14 s linear</h3>
+        <p class="x-small muted">The signature. For "this is the brand speaking" moments — hero loaders, decorative low-opacity marks.</p>
+      </div>
+      <div class="card">
+        <h3>UI transitions — 180–240 ms</h3>
+        <p class="x-small muted"><span class="mono">cubic-bezier(.2, .8, .2, 1)</span> — chrome, dropdowns, modals.</p>
+      </div>
+      <div class="card">
+        <h3>Emphasis spring — 280–360 ms</h3>
+        <p class="x-small muted"><span class="mono">cubic-bezier(.34, 1.56, .64, 1)</span> — confirm states, hero entrance, the accent word landing.</p>
+      </div>
+    </div>
+    <div style="display:flex; justify-content:center; align-items:center;">
+      <svg class="big-mark spin" viewBox="0 0 100 100" style="width: 280px; height: 280px;">
+        <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+        <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+      </svg>
+    </div>
+  </div>
+  <p class="x-small muted" style="margin-top: 1.6rem;">All motion respects <span class="mono">prefers-reduced-motion: reduce</span> — instant transitions, no spin.</p>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 13</span>
+    </div>
+    <div>14 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 15 · M3 EXPRESSIVE LINEAGE                                    -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">14 / Lineage</p>
+  <h2 class="tight">Material 3 Expressive — <em class="accent">five elements</em>.</h2>
+  <p class="muted small" style="margin-top: 0.6rem; max-width: 50ch;">M3 Expressive's thesis: design that <em>makes you feel something</em>, achieved through deliberate use of these five. The Novawerk VI inherits the framework, not the look.</p>
+  <div class="grid-3" style="margin-top: 2rem; grid-template-columns: repeat(5, 1fr); gap: 1rem;">
+    <div class="card" style="padding: 1.2rem 1rem;">
+      <h3 style="font-size: 1.1rem;">Colour</h3>
+      <p class="x-small muted">Strategic vibrancy. One loud accent per surface.</p>
+    </div>
+    <div class="card" style="padding: 1.2rem 1rem;">
+      <h3 style="font-size: 1.1rem;">Shape</h3>
+      <p class="x-small muted">Sharp mark against soft container shapes.</p>
+    </div>
+    <div class="card" style="padding: 1.2rem 1rem;">
+      <h3 style="font-size: 1.1rem;">Size</h3>
+      <p class="x-small muted">Few sizes, big contrast — display vs body.</p>
+    </div>
+    <div class="card" style="padding: 1.2rem 1rem;">
+      <h3 style="font-size: 1.1rem;">Motion</h3>
+      <p class="x-small muted">Spring easing for emphasis. The 14 s spin signature.</p>
+    </div>
+    <div class="card" style="padding: 1.2rem 1rem;">
+      <h3 style="font-size: 1.1rem;">Containment</h3>
+      <p class="x-small muted">Cards over panels. Grouping by shape, not by line.</p>
+    </div>
+  </div>
+  <p class="x-small muted" style="margin-top: 2rem;">Reference: <span class="mono">m3.material.io/blog/building-with-m3-expressive</span></p>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 14</span>
+    </div>
+    <div>15 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 16 · LAYOUT                                                   -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">15 / Layout</p>
+  <h2 class="tight">One hero. <em class="accent">One accent.</em> The rest reads quietly.</h2>
+  <div class="grid-2" style="margin-top: 2.4rem;">
+    <div class="card">
+      <h3>Generous vertical rhythm</h3>
+      <p class="small muted">96–128 px section padding on desktop, 48–64 px on mobile. Breathing room is part of the brand.</p>
+    </div>
+    <div class="card">
+      <h3>Asymmetry is allowed</h3>
+      <p class="small muted">Don't force a centred lockup if the composition wants left-anchored. Off-centre is more expressive.</p>
+    </div>
+    <div class="card">
+      <h3>Cards over banded sections</h3>
+      <p class="small muted">Group related content in soft-edged cards (16 px radius) on cream — not full-width colour bands.</p>
+    </div>
+    <div class="card green">
+      <h3>Earn the loud moment</h3>
+      <p class="small" style="color: rgba(239,233,216,0.85);">Each surface gets one moment of full brand voice — a loud headline, an accent block, the spinning mark. Pick that moment carefully.</p>
+    </div>
+  </div>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 15</span>
+    </div>
+    <div>16 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 17 · DO                                                       -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">16 / Do</p>
+  <h2 class="tight"><em class="accent">Do</em> these.</h2>
+  <div class="grid-2" style="margin-top: 2.2rem;">
+    <div class="card">
+      <h3>✓ Lockup in headers</h3>
+      <p class="small muted">Horizontal lockup for full surfaces; mark alone for compact contexts (favicon, avatar, inline accent).</p>
+    </div>
+    <div class="card">
+      <h3>✓ Cream as a colour</h3>
+      <p class="small muted">Not a default. <span class="mono">#efe9d8</span> is the room the brand lives in.</p>
+    </div>
+    <div class="card">
+      <h3>✓ Sharp mark, soft UI</h3>
+      <p class="small muted">Pair the eight tips with cards (16 px) and pills (999 px). Contrast is the read.</p>
+    </div>
+    <div class="card">
+      <h3>✓ Animate sparingly</h3>
+      <p class="small muted">Spring easings, short durations, reduced-motion fallback. The spin earns attention by being rare.</p>
+    </div>
+  </div>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 16</span>
+    </div>
+    <div>17 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 18 · DON'T                                                    -->
+<!-- ============================================================ -->
+<section class="dark-slide" data-background-color="#0f0f0f">
+  <p class="eyebrow">17 / Don't</p>
+  <h2 class="tight"><em class="accent">Avoid</em> these.</h2>
+  <div class="grid-4" style="margin-top: 2.2rem;">
+    <div style="text-align:center;">
+      <div class="dont" style="background: var(--cream); border-radius: 12px; padding: 1.4rem; margin-bottom: 0.8rem;">
+        <svg width="84" height="84" viewBox="0 0 100 100">
+          <rect width="100" height="100" rx="22" fill="#1f7a4a"/>
+          <path d="M50 14 L53.5 46.5 L86 50 L53.5 53.5 L50 86 L46.5 53.5 L14 50 L46.5 46.5 Z" fill="#efe9d8"/>
+        </svg>
+      </div>
+      <p class="x-small muted">No tile or rounded square around the mark.</p>
+    </div>
+    <div style="text-align:center;">
+      <div class="dont" style="background: var(--cream); border-radius: 12px; padding: 1.4rem; margin-bottom: 0.8rem;">
+        <svg width="84" height="84" viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="bad-grad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#1f7a4a"/>
+              <stop offset="100%" stop-color="#2a5dc8"/>
+            </linearGradient>
+          </defs>
+          <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="url(#bad-grad)"/>
+        </svg>
+      </div>
+      <p class="x-small muted">No gradients on the outer mark.</p>
+    </div>
+    <div style="text-align:center;">
+      <div class="dont" style="background: var(--cream); border-radius: 12px; padding: 1.4rem; margin-bottom: 0.8rem; display:flex; justify-content:center; align-items:center; min-height: 116px;">
+        <span style="font-family:'Times New Roman', serif; font-weight: 700; font-style: italic; font-size: 1.7rem; color: var(--green);">Novawerk</span>
+      </div>
+      <p class="x-small muted">No re-lettering the wordmark.</p>
+    </div>
+    <div style="text-align:center;">
+      <div class="dont" style="background: var(--cream); border-radius: 12px; padding: 1.4rem; margin-bottom: 0.8rem; display:flex; justify-content:center; align-items:center; min-height: 116px;">
+        <span style="font-family:'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 1.4rem; color: var(--green); letter-spacing: 0.18em; text-transform: uppercase;">NOVAWERK</span>
+      </div>
+      <p class="x-small muted">No all-caps, no tracked-out display.</p>
+    </div>
+  </div>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span style="color: rgba(239,233,216,0.6);">Novawerk · 17</span>
+    </div>
+    <div style="color: rgba(239,233,216,0.6);">18 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 19 · USE CASES                                                -->
+<!-- ============================================================ -->
+<section>
+  <p class="eyebrow">18 / In the wild</p>
+  <h2 class="tight">Where the system shows up.</h2>
+  <div class="grid-2" style="margin-top: 2rem; gap: 2rem;">
+    <!-- Site header mockup -->
+    <div class="mockup-frame">
+      <div class="mockup-header">
+        <div class="lockup">
+          <svg width="32" height="32" viewBox="0 0 100 100">
+            <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+            <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+          </svg>
+          <span class="wm" style="font-size: 1.3rem;">Novawerk</span>
+        </div>
+        <div class="mockup-nav">
+          <span>About</span><span>Projects</span><span>Community</span>
+          <div class="mockup-cta">Join the workshop</div>
+        </div>
+      </div>
+      <div class="mockup-body">
+        <p style="font-family:'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 1.8rem; letter-spacing: -0.03em; line-height: 1.05; margin-bottom: 1rem;">Turn meaningful ideas into <em style="color: var(--green); font-style: italic;">real positive change</em>.</p>
+        <div class="h-skeleton w70"></div>
+        <div class="h-skeleton w40"></div>
+      </div>
+    </div>
+
+    <!-- Business card mockup -->
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+      <div class="card-mockup">
+        <svg width="36" height="36" viewBox="0 0 100 100">
+          <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+          <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+        </svg>
+        <div>
+          <div class="name">Haodong Ju</div>
+          <div class="role" style="color: var(--mute);">Builder · Novawerk</div>
+          <div class="contact" style="margin-top: 0.4rem; color: var(--ink);">novawerk.io<br>hello@novawerk.io</div>
+        </div>
+      </div>
+      <div class="card-mockup dark">
+        <svg width="36" height="36" viewBox="0 0 100 100">
+          <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#efe9d8"/>
+          <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0f0f0f"/>
+        </svg>
+        <div>
+          <div class="name">Haodong Ju</div>
+          <div class="role" style="opacity: 0.7;">Builder · Novawerk</div>
+          <div class="contact" style="margin-top: 0.4rem;">novawerk.io<br>hello@novawerk.io</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Avatars row -->
+    <div class="card">
+      <h3>Avatars</h3>
+      <div style="display:flex; gap: 1.4rem; margin-top: 1.2rem; align-items: center;">
+        <div class="avatar-mockup">
+          <svg width="46" height="46" viewBox="0 0 100 100">
+            <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+            <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+          </svg>
+        </div>
+        <div class="avatar-mockup dark">
+          <svg width="46" height="46" viewBox="0 0 100 100">
+            <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#efe9d8"/>
+            <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0f0f0f"/>
+          </svg>
+        </div>
+        <div class="avatar-mockup green">
+          <svg width="46" height="46" viewBox="0 0 100 100">
+            <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#efe9d8"/>
+            <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Favicons -->
+    <div class="card">
+      <h3>Favicon at scale</h3>
+      <div class="favicon-strip" style="margin-top: 1.2rem;">
+        <div class="favicon-cell">
+          <div class="frame" style="width: 28px; height: 28px;">
+            <svg width="16" height="16" viewBox="0 0 100 100">
+              <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+            </svg>
+          </div>
+          <span class="label">16 px</span>
+        </div>
+        <div class="favicon-cell">
+          <div class="frame" style="width: 44px; height: 44px;">
+            <svg width="32" height="32" viewBox="0 0 100 100">
+              <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+              <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+            </svg>
+          </div>
+          <span class="label">32 px</span>
+        </div>
+        <div class="favicon-cell">
+          <div class="frame" style="width: 72px; height: 72px;">
+            <svg width="58" height="58" viewBox="0 0 100 100">
+              <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+              <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+            </svg>
+          </div>
+          <span class="label">64 px</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span>Novawerk · 18</span>
+    </div>
+    <div>19 / 20</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 20 · CODA                                                     -->
+<!-- ============================================================ -->
+<section class="dark-slide" data-background-color="#0f0f0f">
+  <div class="cover">
+    <div style="margin-bottom: 3rem;">
+      <svg width="120" height="120" viewBox="0 0 100 100" class="spin" aria-hidden="true">
+        <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/>
+        <path d="M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z" fill="#0a3920"/>
+      </svg>
+    </div>
+    <h1 class="tight" style="max-width: 17ch;">An open <em class="accent">workshop</em><br>for early ideas.</h1>
+    <p class="small muted" style="margin-top: 2.2rem;">Single source of truth: <span class="mono">identity/visual-identity.md</span> in the Novawerk knowledge base.</p>
+  </div>
+  <div class="footer-meta">
+    <div class="left">
+      <svg class="mini-mark" viewBox="0 0 100 100"><path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#1f7a4a"/></svg>
+      <span style="color: rgba(239,233,216,0.6);">Novawerk · 2026</span>
+    </div>
+    <div style="color: rgba(239,233,216,0.6);">20 / 20</div>
+  </div>
+</section>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    transition: 'slide',
+    transitionSpeed: 'default',
+    backgroundTransition: 'fade',
+    width: 1440,
+    height: 900,
+    margin: 0.06,
+    minScale: 0.2,
+    maxScale: 2.0,
+    controls: true,
+    progress: true,
+    slideNumber: false,
+    center: false,
+  });
+</script>
+
+</body>
+</html>
