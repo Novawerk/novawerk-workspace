@@ -1,10 +1,12 @@
 # Infrastructure
 
-What runs where, on which accounts, and how we test and release. Last checked on 2026-10-03.
+What runs where, on which accounts, and how we test and release. Last checked on 2026-10-14.
 Companion docs: [`architecture.md`](architecture.md), [`runbook.md`](runbook.md),
 [`security.md`](security.md).
 
-This file lists names, never secret values. Real values live in Vercel, GitHub Actions secrets
+Two repos (NB-ADR-0012): this public one, `Novawerk/novawerk-workspace`, holds the code and
+deploys the apps; the private `Novawerk/novawerk` holds records, the agent workflows and the
+account details. This file lists names, never secret values. Real values live in Vercel, GitHub Actions secrets
 or a local `.env` (ignored by git).
 
 ## At a glance
@@ -15,7 +17,7 @@ or a local `.env` (ignored by git).
 | `apps/admin` | Vercel (static Vite build) | admin.novawerk.io |
 | `apps/api` | Vercel Function (`api/index.js` serving the tsup bundle of `src/index.ts`) | api.novawerk.io |
 | Database | Neon Postgres, Frankfurt | — |
-| Agents | GitHub Actions, `.github/workflows/agent-*.yml` | — |
+| Agents | GitHub Actions in the private repo, `.github/workflows/agent-*.yml`; they check out this repo | — |
 | Files | Vercel Blob, Frankfurt: `novawerk-private` for documents and visitors' CVs, `novawerk-public` for project images | — |
 | Outgoing email | Resend (EU, Ireland), sends as `info@novawerk.io` | — |
 | Incoming email | Google Workspace | info@novawerk.io |
@@ -53,7 +55,7 @@ We have no staging. We test locally, then release to production.
 | Database | Docker Postgres 17 (`compose.yaml`), seed data | Neon |
 | Email | logged to the console (no key) | Resend |
 | Intake chat, admin assistant, post writer | your own `ANTHROPIC_API_KEY`, or `LLM_PROVIDER=mock` | production key |
-| Agents | `pnpm agent <id> --dry-run` | GitHub Actions |
+| Agents | `pnpm agent <id> --dry-run` | GitHub Actions (private repo) |
 | Admin sign-in | `DEV_LOGIN`, real Google (localhost is an allowed origin), or an email code printed to the API log | Google, or an email code via Resend |
 
 ### Rules
@@ -63,9 +65,8 @@ We have no staging. We test locally, then release to production.
 2. **Local never uses production data.** Don't put the production `DATABASE_URL` in your
    `.env`. Migrations reach production through the Deploy workflow, not from a laptop.
 3. **No previews.** `.github/workflows/deploy.yml` deploys production on every push to `main`,
-   and nothing else deploys. (Vercel's Hobby plan can't connect a private repo owned by an
-   organization, so Vercel isn't linked to GitHub. Each app's `vercel.json` also skips
-   non-production builds, in case it ever is.)
+   and nothing else deploys. (Vercel isn't linked to GitHub. Each app's `vercel.json` also
+   skips non-production builds, in case it ever is.)
 4. **Keep a way back.** Before a risky migration, create a Neon branch from production. It is
    an instant copy we can restore from. For code, Vercel's Instant Rollback switches back to
    the previous deployment.
@@ -81,7 +82,7 @@ We have no staging. We test locally, then release to production.
 4. Merge into `main`. The Deploy workflow applies new migrations (`pnpm db:migrate` with the
    `DATABASE_URL` secret; Drizzle skips the ones already applied), then uploads the repo and
    Vercel builds all three apps. If the migration fails, nothing deploys. `.vercelignore` keeps
-   `records/` and local files out of the upload.
+   a locally linked `records/` and local files out of the upload.
 5. Check the live site. If something is wrong, roll back in Vercel and fix it on a new branch.
 
 ## Domains and DNS
@@ -149,16 +150,18 @@ build bakes `NEXT_PUBLIC_API_URL` in, so changing it means a redeploy.
 unless `VITE_USE_SAMPLE_DATA=true` (for UI work without the API); never set it in production.
 `VITE_DEV_LOGIN` is ignored in production builds.
 
-**Deploys** (GitHub Actions repository secrets): `VERCEL_TOKEN`, a Vercel token with access to
+**Deploys** (GitHub Actions repository secrets on this repo): `VERCEL_TOKEN`, a Vercel token with access to
 the `novawerk` team, and `DATABASE_URL`, Neon production with the direct (not pooled)
-connection, for the migration step and the post sync. The agents use the same `DATABASE_URL`.
+connection, for the migration step and the post sync. The agents use the same `DATABASE_URL`,
+set on the private repo.
 `BLOB_PUBLIC_READ_WRITE_TOKEN` (the public file store's token, as on the API) lets the post sync
 upload the pictures of posts written in the repo. The project and team ids in `deploy.yml` aren't
 secret.
 
-**Agents** (GitHub Actions repository secrets): `ANTHROPIC_API_KEY`, `DATABASE_URL` (production),
+**Agents** (GitHub Actions repository secrets on the private repo): `ANTHROPIC_API_KEY`, `DATABASE_URL` (production),
 `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, plus the variable `JIRA_BOARD`. Never
-`RESEND_API_KEY`: `agents/agents.test.ts` fails if an agent workflow gets it.
+`RESEND_API_KEY`: the private repo's `agents-check` runs `agents/agents.test.ts` and fails if an
+agent workflow gets it.
 
 ## info@ in Slack
 

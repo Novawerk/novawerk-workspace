@@ -1,19 +1,22 @@
 # Architecture — agents and records
 
-How the back-office side of the monorepo works: the agents that run the org and the private
-records they write. The web, admin and API apps are described in the root `CLAUDE.md`.
+How the back-office side works: the agents that run the org and the private records they
+write. The web, admin and API apps are described in the root `CLAUDE.md`.
+
+Two repos (NB-ADR-0012). This one, `Novawerk/novawerk-workspace`, is public and holds the code.
+The private repo `Novawerk/novawerk` holds `records/`, the agent workflows and account details.
+ADRs (`NB-ADR-####`) are records, so they live there too.
 
 ## The shape
 
 ```
-┌──────────────────────────── novawerk (private monorepo) ────────────────────────────┐
-│                                                                                       │
+┌──────────────────── novawerk-workspace (public, this repo) ─────────────────────────┐
 │  agents/<id>/       thin defineAgent(...) per agent — wires config + packages         │
 │  packages/*         the real, tested logic (intake, ceremonies, partners, email, …)   │
+│  knowledge/         canonical facts the agents read (brand voice, meeting design)     │
+├──────────────────── novawerk (private), checked out under ops/ ─────────────────────┤
 │  .github/workflows/ agent-<id>.yml — WHEN each agent runs (cron / button / dispatch)  │
 │  records/           narrative docs the agents write; the workflow commits them        │
-│  knowledge/         canonical facts the agents read (brand voice, meeting design)     │
-│                                                                                       │
 └─────────────┬────────────────────────┬────────────────────────┬──────────────────────┘
               │ structured data         │ binaries               │ outside world
               ▼                         ▼                        ▼
@@ -24,17 +27,20 @@ records they write. The web, admin and API apps are described in the root `CLAUD
 
 ## Runtime: GitHub Actions
 
-Each agent is one workflow, `.github/workflows/agent-<id>.yml`. It checks out the repo, installs
-dependencies, and runs `pnpm agent <id>`. Triggers:
+Each agent is one workflow, `agent-<id>.yml`, in the private repo. It checks out this repo at
+the root and the private one under `ops/`, links `ops/records` to `records/`, installs
+dependencies and runs `pnpm agent <id>`. Agents that write records commit them back to the
+private repo as `novawerk-bot`. The private repo's `agents-check` workflow runs
+`agents/agents.test.ts` from here against those workflows. Triggers:
 
 - **cron** (UTC) for the regular jobs,
 - **workflow_dispatch** — the "Run workflow" button, with inputs,
 - On request, the API runs `intake` and `promo` itself (`apps/api/src/agents.ts`): the same
   package code, right after the response, so a summary or a draft lands in seconds. Their
-  workflows keep the button and the cron as the safety net ([NB-ADR-0010](../records/operations/decisions/NB-ADR-0010-intake-and-promo-run-in-the-api.md)).
+  workflows keep the button and the cron as the safety net (NB-ADR-0010).
 
-No server to run or deploy: merge to `main` and the next run uses the new code. Logs and run
-history are in the Actions tab. Decision: [NB-ADR-0004](../records/operations/decisions/NB-ADR-0004-agents-on-github-actions.md).
+No server to run or deploy: merge to `main` here and the next run uses the new code. Logs and
+run history are in the private repo's Actions tab. Decision: NB-ADR-0004.
 
 | Agent | Trigger | Does | Changes in the world |
 |-------|---------|------|----------------------|
@@ -84,7 +90,7 @@ time. Each post goes `planned → drafted → approved → published` (or `skipp
 
 Pictures are assembled, never generated: `POST /admin/cards` renders a template from
 `@nw/promo/cards` (satori via `@vercel/og`) with the card text and one of the project's own
-pictures, in 3:4, 1:1, 1.91:1 or 16:9. Decision: [NB-ADR-0007](../records/operations/decisions/NB-ADR-0007-project-lifecycle-and-posts.md).
+pictures, in 3:4, 1:1, 1.91:1 or 16:9. Decision: NB-ADR-0007.
 
 Beyond the six moments, a post can be anything (`custom`, named by its `label`), about a project
 or about Novawerk itself (no project), in one or both languages, for the platforms it names, with
@@ -95,20 +101,20 @@ the folders; after a merge to `main` the deploy workflow runs `pnpm post sync`, 
 new or changed folder into `posts` as **approved** (the pull request was the review) and its
 pictures into the public file store. The admin panel doesn't edit a repo post's text; "Continue in
 the repo" turns any post into a folder (`pnpm post pull`, a signed 30-minute link). Decision:
-[NB-ADR-0009](../records/operations/decisions/NB-ADR-0009-any-post-and-posts-in-the-repo.md).
+NB-ADR-0009.
 
 ## Three storage tiers
 
 | Data | Store | Why |
 |------|-------|-----|
-| Narrative (minutes, ADRs, digests, agendas, partner history) | git markdown (`records/`) | versioned, diffable |
+| Narrative (minutes, ADRs, digests, agendas, partner history) | git markdown (`records/`, private repo) | versioned, diffable |
 | Structured (members, submissions, partners, ledger, outbox, document index) | Postgres | queryable; edited in the admin panel |
 | Binary (contracts, NDAs, invoices, receipts; CVs from /submit and /join under `_resumes/`) | Vercel Blob, private store | every read goes through the API |
 | Project images | Vercel Blob, public store | served by Vercel's CDN |
 
 Agents write `records/` only through `@nw/records`' `RecordStore`, which accepts nothing but
 `records/**/*.md` (never `*.private.*`). The workflow then stages only `records/` and commits as
-`novawerk-bot`.
+`novawerk-bot` to the private repo.
 
 ## The approval gate (why nothing sends by accident)
 
@@ -136,7 +142,7 @@ the content, deliverables, posts and files; the Initiator also changes the team.
 featured, order and slug stay with admins. The API enforces all of it (`apps/api/src/routes/admin/access.ts`):
 admin-only routes answer 403, and a project a member isn't on answers 404. Project files live in
 the private Blob store with a `documents.project_id`. Decision:
-[NB-ADR-0008](../records/operations/decisions/NB-ADR-0008-member-sign-in-and-project-access.md).
+NB-ADR-0008.
 
 ## Per-member isolation
 

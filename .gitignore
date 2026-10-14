@@ -13,17 +13,9 @@ dist/
 !.env.example
 *.local.*
 
-# private escape hatch: ultra-sensitive items stored out-of-band, referenced by pointer
-records/**/*.private.md
-records/**/*.private/
-
-# binary documents never live in git — they belong in R2
-records/**/*.pdf
-records/**/*.docx
-records/**/*.xlsx
-records/**/*.png
-records/**/*.jpg
-records/**/*.jpeg
+# records live in the private repo (Novawerk/novawerk); members link them here locally:
+#   ln -s ../novawerk/records records
+/records
 
 # agent run traces / scratch
 .traces/

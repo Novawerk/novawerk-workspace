@@ -2,10 +2,13 @@
 
 > *An open workshop for early ideas.*
 
-This is Novawerk's one repo: the public website, the admin panel, the API,
-the agents that help run the org, the knowledge base and our internal records.
-It is **private**. Being open shows up on the website and in how we work, not
-in this repo's visibility.
+This is Novawerk's code, in the open: the public website, the admin panel, the
+API, the agents that help run the org, the knowledge base, posts and videos.
+It is public and MIT licensed. Contributions are welcome.
+
+Our internal records (minutes, decisions, finance, partners) and account details
+are not here. They live in a private repo, `Novawerk/novawerk`, together with the
+workflows that run the agents.
 
 ## What lives where
 
@@ -14,15 +17,17 @@ in this repo's visibility.
 | `apps/web` | novawerk.io — the portfolio, an about page, and two forms: pitch a project (`/submit`) and join as a Member (`/join`). |
 | `apps/admin` | admin.novawerk.io — where Members review pitches and applications, approve outgoing email, and edit the portfolio. |
 | `apps/api` | The only way into the database from the internet. The website and the admin panel both talk to it. |
-| `agents/` | Agents that draft, summarise and tidy up. They run on GitHub Actions. Nothing they write to someone outside Novawerk is sent until a Member approves it. |
+| `agents/` | Agents that draft, summarise and tidy up. They run on GitHub Actions, from workflows in the private repo. Nothing they write to someone outside Novawerk is sent until a Member approves it. |
 | `packages/` | Shared code: the database schema (`db`), form rules (`contracts`), UI components (`ui`), email, Claude calls, Jira, records, files (Vercel Blob). |
 | `knowledge/` | Who we are and how we work, in Markdown. The website reads it. |
-| `records/` | What happened: minutes, decisions, finance notes, partner history. Confidential by default. |
 | `docs/` | How all of this is built and operated. |
+| `posts/`, `videos/` | Posts and short videos made in the repo. |
 
 ## Where data lives
 
 - **Text that rarely changes** (mission, principles, the pledge) → `knowledge/`.
+- **What happened** (minutes, decisions, finance notes, partner history) →
+  `records/` in the private repo. Confidential by default.
 - **Everything that changes** (portfolio, pitches, applications, Members,
   partners, money, outgoing email) → Postgres. The schema lives in one file:
   `packages/db/src/schema.ts`.
@@ -62,14 +67,16 @@ commit the migration.
 In October 2026 three repos became this one: `nw-back-office` (this repo's
 original history), `nw-knowledge-base` (imported with history into
 `knowledge/`), and `nw-web-portal` (rewritten as `apps/web`, `apps/admin` and
-`apps/api`). The design and the decisions behind it are recorded in
-`records/operations/decisions/` and in the architecture doc linked from
-`CLAUDE.md`.
+`apps/api`). On 2026-10-14 the code moved here, to the public
+`Novawerk/novawerk-workspace`; the records and agent workflows stayed in the
+private `Novawerk/novawerk` (NB-ADR-0012). The decisions behind all of this are
+recorded there and in the architecture doc linked from `CLAUDE.md`.
 
 ## House rules
 
 - **Plain language.** Short sentences, "we", present tense. No *leverage /
   ecosystem / stakeholders / synergy / disrupt / transform*.
 - **One artifact, one owner, one done-by date.**
-- **Decisions get written down**, in `records/` or `knowledge/`, not lost in chat.
+- **Decisions get written down**, in `knowledge/` or the private records, not lost in chat.
+- **Records and account details never come here.** This repo is public.
 - **Secrets never touch git.**

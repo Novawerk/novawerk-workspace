@@ -2,19 +2,26 @@
 
 Day-to-day operations for the agents and records.
 
+The agent workflows and `records/` live in the private repo `Novawerk/novawerk` (NB-ADR-0012).
+The Actions steps below happen there; code changes happen here.
+
 ## Change an agent
 
 1. Edit the logic in `packages/*` (with a test) and/or the wiring in `agents/<id>/index.ts`.
 2. `pnpm typecheck && pnpm test`, then `pnpm agent <id> --dry-run`.
 3. Merge to `main`. The next scheduled run uses it. Nothing to deploy.
 
-Schedules and inputs live in `.github/workflows/agent-<id>.yml`. Keep its secrets in step with
-the agent's `needs` — `agents/agents.test.ts` fails if they drift.
+Schedules and inputs live in the private repo's `.github/workflows/agent-<id>.yml`. Keep its
+secrets in step with the agent's `needs`: the private repo's `agents-check` runs
+`agents/agents.test.ts` from here and fails if they drift.
+
+To run an agent locally against real records, clone both repos side by side and link the records
+into this checkout: `ln -s ../novawerk/records records` (gitignored here).
 
 ## Run an agent by hand
 
-- On GitHub: Actions → "Agent: <id>" → Run workflow (fill in the inputs).
-- From the CLI: `gh workflow run agent-sponsor-outreach.yml -f partnerId=acme-foundation -f intent=intro`.
+- On GitHub: the private repo's Actions → "Agent: <id>" → Run workflow (fill in the inputs).
+- From the CLI: `gh workflow run -R Novawerk/novawerk agent-sponsor-outreach.yml -f partnerId=acme-foundation -f intent=intro`.
 - Locally: `pnpm agent <id> --input '<json>'` (reads `.env`). `pnpm agent <id> --help` lists
   the inputs, secrets and effects. Add `--dry-run` to see what it would do with no secrets.
 
@@ -49,14 +56,15 @@ the same email twice, the digest appends a dated section, the agenda never overw
 
 ## Pause an agent
 
-`gh workflow disable agent-<id>.yml` (or Actions → the workflow → "Disable workflow").
-`gh workflow enable agent-<id>.yml` to resume. GitHub also pauses cron on a repo with no
-activity for 60 days.
+`gh workflow disable -R Novawerk/novawerk agent-<id>.yml` (or the private repo's Actions → the
+workflow → "Disable workflow"). `gh workflow enable -R Novawerk/novawerk agent-<id>.yml` to
+resume. GitHub also pauses cron on a repo with no activity for 60 days.
 
 ## Rotate a secret
 
 1. Generate the new value (Anthropic / Jira / Resend / Vercel Blob / Neon / the Slack webhook).
-2. Update the GitHub Actions repository secret (Settings → Secrets and variables → Actions), the
+2. Update the GitHub Actions repository secret (Settings → Secrets and variables → Actions) in
+   the repo that uses it (agents: the private repo; deploys: this repo), the
    Vercel env for the apps if they use it, and your local `.env`.
 3. Run one affected agent from the Actions tab to confirm it still authenticates.
 4. Revoke the old value.
@@ -120,7 +128,7 @@ happens next and how we work) and **Decline** queues a short no; both are fixed 
 in the outbox for a member's approval (switch them off in the dialog). **Invite to a call** has the
 API's language model draft an invite from the pitch and the times you offer; you edit it and send it
 to the outbox. The person who pitched becomes the project's Initiator as soon as
-they are a Member ([NB-ADR-0005](../records/operations/decisions/NB-ADR-0005-accepting-pitches-and-applications.md)).
+they are a Member (NB-ADR-0005).
 
 ## Add a member
 
@@ -128,5 +136,6 @@ they are a Member ([NB-ADR-0005](../records/operations/decisions/NB-ADR-0005-acc
    **Add member** (handle, name, the Google account email, admin access if they need the panel).
    Without the panel: `pnpm provision:member <id> "<Name>" <google-email> [--admin]` prints the
    SQL; review and run it.
-2. Add them to `records/people/roster.md`.
-3. If they work on the agents or records, give them access to this repo.
+2. Add them to `records/people/roster.md` in the private repo.
+3. If they work on the agents or records, give them access to the private repo. Anyone can
+   contribute code here.

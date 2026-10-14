@@ -7,7 +7,12 @@ How we keep the private side private. Companion docs: [`architecture.md`](archit
 
 Contracts and NDAs (private Vercel Blob store), the finance ledger, partner CRM, submissions and applications (Postgres),
 member records, and the secrets that let agents act (Anthropic, Jira, Neon, Vercel Blob) and that send
-email (Resend). The repo is private; that is the outer boundary, not the only one.
+email (Resend). None of that is in this repo.
+
+The code is public (`Novawerk/novawerk-workspace`, MIT). Anyone can read it, so it must hold
+nothing secret. The boundary is the private repo `Novawerk/novawerk` (records, agent workflows,
+account details), the secrets in Vercel and GitHub Actions, and the database. Never copy record
+text, account ids or addresses into this repo, an issue or a pull request.
 
 ## The guarantees we build in
 
@@ -28,7 +33,8 @@ email (Resend). The repo is private; that is the outer boundary, not the only on
 - **Untrusted input stays data.** Form text is wrapped as data in the summary prompt and never
   shapes an outbound email: the intake acknowledgement is a fixed template.
 - **Agents write only records.** `@nw/records` refuses any path outside `records/**/*.md` and any
-  `*.private.*` file; the workflow stages only `records/`.
+  `*.private.*` file; the workflow stages only `records/` and commits it to the private repo.
+  `records` is gitignored here, so a local link to the private records can't be committed.
 - **Per-member isolation.** A member only touches keys under their own file prefix (`<id>/…`),
   enforced by `assertMemberPrefix` in `@nw/object-store`, and `owner`-scoped rows. Tested,
   including the `ada` vs `ada-evil` lookalike.
@@ -45,9 +51,10 @@ email (Resend). The repo is private; that is the outer boundary, not the only on
 
 ## Periodic access review (quarterly)
 
-Run this list and write the result into a dated record under `records/operations/`:
+Run this list and write the result into a dated record under `records/operations/` (private repo):
 
-- [ ] Repo collaborators and org members match the roster. Remove anyone who left.
+- [ ] Collaborators on the private repo, write access on this one, and org members match the
+      roster. Remove anyone who left.
 - [ ] `members` rows: `active` and `can_admin` are right for everyone. Everyone active can sign
       in, so take people who left off (`active = false`) and off project teams.
 - [ ] Repository secrets: only the ones in the runbook; none unused. No agent workflow references
@@ -55,7 +62,8 @@ Run this list and write the result into a dated record under `records/operations
 - [ ] Anthropic / Jira / Resend / Vercel Blob / Neon keys: rotate on the runbook schedule; revoke unused.
 - [ ] The Postgres backup ran, and a restore was tested this quarter.
 - [ ] Outbox: no row stuck `approved` with `sent_at` set and no provider id.
-- [ ] No secret has landed in git (`git log -p` spot-check; `.env` still gitignored).
+- [ ] No secret, record text or account detail has landed in this public repo (`git log -p`
+      spot-check; `.env` and `records` still gitignored).
 - [ ] `novawerk-private` is still a private Blob store, and only the API project holds its token.
 - [ ] `#info-inbox` in Slack is private, and its members are Members. Only `novawerk-api` holds
       `RESEND_RECEIVING_API_KEY` (full access) and the Slack webhook URL.
