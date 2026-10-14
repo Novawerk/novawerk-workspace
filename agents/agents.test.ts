@@ -73,7 +73,8 @@ describe.each(ids)("agent %s", (id) => {
     const yml = await workflow(id);
     if (agent.writesRecords) {
       expect(yml).toMatch(/contents: write/);
-      expect(yml).toContain("uses: ./.github/actions/commit-records");
+      // The private repo checks itself out under ops/, next to this code.
+      expect(yml).toMatch(/uses: \.\/(ops\/)?\.github\/actions\/commit-records/);
     } else {
       expect(yml).toMatch(/contents: read/);
       expect(yml).not.toContain("commit-records");
