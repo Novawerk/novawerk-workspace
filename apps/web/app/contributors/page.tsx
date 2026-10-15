@@ -1,77 +1,60 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Avatar } from "@/components/board/bits";
-import { formatDate } from "@/components/board/labels";
-import { firstContributions, SCENE_MIN_BLOCKS, scenePeople } from "@/components/board/wall";
+import { scenePeople } from "@/components/board/wall";
 import { BuildersScene } from "@/components/builders/builders-scene";
-import { container, eyebrow } from "@/components/ui";
+import { container, eyebrow, textLink } from "@/components/ui";
 import { getBlocks, getContributorPage, getInitiators } from "@/lib/board";
-
-import { ContributorWall } from "./contributor-wall";
 
 export const metadata: Metadata = {
   title: "Contributors",
-  description: "Everyone who merged a task or had an idea accepted on Novawerk's task board. Newest faces first.",
+  description: "Everyone who merged a task or had an idea accepted on Novawerk's task board, and the people who started our projects. One block at a time.",
   alternates: { canonical: "/contributors" },
 };
 
+/**
+ * The page is the builders scene: every merged task is a block, carried up by the person who did
+ * it. People are reached through the scene's cards (point at a figure or a block), and through the
+ * list below it for screen readers and search engines.
+ */
 export default async function ContributorsPage() {
-  const [page, everyone, blocks, initiators] = await Promise.all([
-    getContributorPage(),
-    getContributorPage("limit=100"),
-    getBlocks(),
-    getInitiators(),
-  ]);
-  const firsts = firstContributions(blocks, everyone?.contributors ?? []);
+  const [everyone, blocks, initiators] = await Promise.all([getContributorPage("limit=100"), getBlocks(), getInitiators()]);
+  const people = scenePeople(everyone?.contributors ?? [], initiators);
 
   return (
     <>
-      <section className={`${container} pt-16 pb-7 sm:pt-20`}>
+      <section className={`${container} pt-12 pb-4 sm:pt-16`}>
         <p className={eyebrow}>Contributors</p>
-        <h1 className="mt-3.5 text-4xl font-semibold tracking-tight sm:text-5xl">People who built this</h1>
-        <p className="mt-3.5 max-w-[60ch] text-lg text-muted">
-          Everyone who merged a task or had an idea accepted, and the people who started our projects. Newest faces first.
+        <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">People who built this</h1>
+        <p className="mt-3 max-w-[60ch] text-lg text-muted">
+          Every merged task is a block on the tower, carried up by the person who did it. Point at a block or a person.
         </p>
       </section>
 
-      {firsts.length > 0 ? (
-        <section aria-labelledby="firsts" className={`${container} grid gap-3 pb-7`}>
-          <h2 id="firsts" className="text-[15px] font-semibold">
-            First contributions
-          </h2>
-          <ul className="grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-1.5">
-            {firsts.map(({ contributor: c, block }) => (
-              <li key={c.handle} className="relative grid gap-2 border border-line bg-paper p-5 hover:border-ink">
-                <span className="flex items-center gap-2.5">
-                  <Avatar name={c.name || c.handle} url={c.avatarUrl} />
-                  <span>
-                    <Link href={`/u/${c.handle}`} className="font-medium after:absolute after:inset-0">
-                      @{c.handle}
-                    </Link>
-                    <br />
-                    <span className="text-[13px] text-muted">first merge · {formatDate(block.mergedAt)}</span>
-                  </span>
-                </span>
-                <span className="text-sm">
-                  <span className="font-mono text-muted">{block.id}</span> {block.title}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <section aria-label="One block at a time" className={`${container} pb-12 sm:pb-16`}>
+        <BuildersScene blocks={blocks} people={people} size="hero" />
+        <p className="mt-2 text-center text-[13px] text-muted">
+          {blocks.length === 0 ? "The ground is ready. " : "There's room for more. "}
+          <Link className={textLink} href="/tasks?status=open">
+            Pick an open task
+          </Link>{" "}
+          and add the next block.
+        </p>
 
-      <ContributorWall initial={page} />
-
-      <section aria-labelledby="blocks" className="border-t border-line">
-        <div className={`${container} grid justify-items-center gap-4 py-16 text-center sm:py-20`}>
-          <h2 id="blocks" className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            One block at a time
-          </h2>
-          <BuildersScene blocks={blocks} people={scenePeople(everyone?.contributors ?? [], initiators)} size={blocks.length >= SCENE_MIN_BLOCKS ? "full" : "compact"} />
-          <p className="text-[13px] text-muted">Point at a block or a person.</p>
-        </div>
+        {people.length > 0 ? (
+          <div className="sr-only">
+            <h2>Everyone on the wall</h2>
+            <ul>
+              {people.map((p) => (
+                <li key={p.handle}>
+                  <a href={`/u/${p.handle}`}>@{p.handle}</a>
+                  {p.name ? `, ${p.name}` : ""}
+                  {p.kind === "initiator" && p.project ? `, started ${p.project}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
     </>
   );

@@ -80,7 +80,7 @@ export function BuildersScene({
 }) {
   const model = useMemo(() => buildModel(blocks, people), [blocks, people]);
   const named = useMemo(() => new Set(people.map((p) => p.handle)), [people]);
-  const maxWidth = size === "compact" ? 420 : 760;
+  const maxWidth = size === "compact" ? 420 : size === "hero" ? 1400 : 760;
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<ReturnType<typeof startScene> | null>(null);
@@ -97,12 +97,18 @@ export function BuildersScene({
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const measure = () => setWidth(Math.max(240, Math.min(maxWidth, Math.floor(el.clientWidth))));
+    // A hero stays about half as tall as it is wide, so it is capped to fit ~70% of the window's height.
+    const tallest = () => (size === "hero" ? Math.max(480, Math.floor(window.innerHeight * 1.4)) : Infinity);
+    const measure = () => setWidth(Math.max(240, Math.min(maxWidth, tallest(), Math.floor(el.clientWidth))));
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
-  }, [maxWidth]);
+    if (size === "hero") window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [maxWidth, size]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

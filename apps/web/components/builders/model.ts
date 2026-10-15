@@ -226,7 +226,8 @@ const towerTop = (layers: number, c: number, h: number) => (TOWER_N * c) / 2 - l
 
 export function sceneGeometry(model: Pick<SceneModel, "seasons" | "initiators">, width: number, size: BuildersSize): Geometry {
   const N = TOWER_N;
-  const P = width < 520 ? 2 : 3;
+  // A hero scales its pixels with the width (about 240 logical pixels across), so it fills the page.
+  const P = width < 520 ? 2 : size === "hero" ? Math.min(6, Math.max(3, Math.floor(width / 240))) : 3;
   const bw = Math.max(120, Math.floor(width / P));
   const minH = Math.floor(bw * (size === "compact" ? 0.72 : 0.5));
   const maxH = Math.floor(bw * (size === "compact" ? 0.95 : 0.8));
