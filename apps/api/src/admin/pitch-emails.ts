@@ -26,7 +26,7 @@ export interface DraftedEmail {
 
 const SITE = "https://novawerk.io";
 /** Accepted pitchers are Members and Initiators; they edit their project here. */
-const ADMIN = "admin.novawerk.io";
+const ADMIN = "https://admin.novawerk.io";
 /** Where anyone can help: the task board. */
 const TASKS = "https://novawerk.io/tasks";
 
@@ -91,7 +91,7 @@ export function acceptedEmail(p: Pitch, opts: { addedAsMember: boolean }): Draft
       (opts.addedAsMember
         ? `We've added you as a Member and as the Initiator of ${what}. Sign in at ${ADMIN} with this email ` +
           `address (Google or an emailed code) to edit your project.\n\n`
-        : `Sign in at ${ADMIN} to edit your project.\n\n`) +
+        : `You're now the Initiator of ${what}. Sign in at ${ADMIN} to edit your project.\n\n`) +
       `What happens next:\n` +
       `- We set up a call with you (about 30 minutes, online) to agree on the first step. We send you a ` +
       `few times shortly.\n` +

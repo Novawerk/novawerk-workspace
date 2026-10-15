@@ -174,17 +174,21 @@ you. That makes a contributor account. It isn't Novawerk membership.
   your place on the contributors wall only if you turn your profile on (it is
   off by default). A note explaining why a proposal wasn't chosen goes only to
   you. We never show your email address to anyone.
-- **Your GitHub email:** we keep the primary email address GitHub has verified
-  for you only to send you the notices below, when you have no email of your
-  own on the account. It never signs you in and is never shown to anyone; we
-  update it each time you sign in with GitHub, and it goes when you delete the
-  account.
+- **Your GitHub email:** each time you sign in with GitHub, we keep the
+  primary email address GitHub has verified for you. We use it only to send
+  you the notices below, and only when you have no email of your own on the
+  account. It never signs you in and is never shown to anyone. If GitHub
+  returns no verified primary address, we keep the one we had. When you
+  delete the account we keep it only until the goodbye email has gone out, at
+  most 7 days.
 - **Screenshots on suggestions:** a screenshot you attach to a suggestion
   stays in our private file store, where only Members can see it, until a
   Member accepts the suggestion. Then we publish a copy without the picture's
-  metadata (such as the camera, the place or the date it was taken). We
-  delete the screenshot when the suggestion is declined or marked a
-  duplicate, or when you delete your account, and an upload you never sent
+  metadata (such as the camera, the place or the date it was taken). While it
+  is private, we delete it when the suggestion is declined or marked a
+  duplicate, or when you delete your account. Once a suggestion is accepted,
+  the public copy stays with the task, like the suggestion itself, as "a
+  former contributor" after you delete your account. An upload you never sent
   with a suggestion is deleted after a day.
 - **Tokens for agents:** if you make a personal access token, we keep its name,
   its scopes, when it expires and when it was last used, and only a hash of the
@@ -297,6 +301,9 @@ requires us to.
 | Newsletter address you never confirmed | Deleted once the confirmation link has expired and the address is at least 30 days old |
 | Contributor account | Until you delete it in Settings; your posts, suggestions and finished tasks then stay as "a former contributor" |
 | A deleted account's email address | Until the goodbye email has gone out, at most 7 days |
+| A screenshot you upload but don't send | Deleted after a day |
+| A screenshot on a suggestion, while private | Until a Member accepts, declines or marks the suggestion a duplicate, or you delete your account |
+| The public copy of a screenshot on an accepted suggestion | As long as the task is on the board |
 | Notices we emailed you (a record of each one) | Deleted after 30 days |
 | Sign-in codes | Stop working after 10 minutes; stored only as a hash |
 | Emails with you | Deleted together with the pitch or application they belong to; other emails after 2 years |
