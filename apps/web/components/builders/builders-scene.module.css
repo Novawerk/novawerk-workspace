@@ -29,6 +29,7 @@
   --bs-ink: #18181b;
   --bs-muted: #52525b;
   --bs-line: #c4c4cb;
+  --bs-plan: #b4b4bc;
 
   position: relative;
   margin-inline: auto;
@@ -61,6 +62,7 @@
     --bs-ink: #f4f4f5;
     --bs-muted: #a1a1aa;
     --bs-line: #3f3f46;
+  --bs-plan: #52525b;
   }
 }
 
@@ -88,6 +90,7 @@
   --bs-ink: #f4f4f5;
   --bs-muted: #a1a1aa;
   --bs-line: #3f3f46;
+  --bs-plan: #52525b;
 }
 
 .canvas {

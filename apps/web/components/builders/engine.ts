@@ -61,6 +61,8 @@ type Colors = {
   coreLit: string;
   ring: string;
   shadow: string;
+  plan: string;
+  planSide: string;
 };
 
 /** f > 0 lighter, f < 0 darker. Accepts #rgb and #rrggbb. */
@@ -91,6 +93,8 @@ function readColors(el: Element): Colors {
     coreLit: g("--bs-core-lit"),
     ring: g("--bs-ring"),
     shadow: g("--bs-shadow"),
+    plan: g("--bs-plan"),
+    planSide: shade(g("--bs-plan"), -0.2),
   };
 }
 
@@ -152,6 +156,26 @@ export function startScene(o: SceneOptions) {
         if (x === to - 1 || y === to - 1) cube([fill, C.soil[1], C.soil[2]], sx, sy, t.c, 2);
         else tile(fill, sx, sy, t.c);
       }
+  }
+  /**
+   * A cell still to build: its cube drawn in a dither (every other pixel), so neighbouring cells
+   * merge into one see-through shape that reads as "room to build", not as a broken block.
+   */
+  function ghost(sx: number, sy: number, c: number, h: number) {
+    const dot = (x: number, y: number, f: string) => {
+      if (!((x + y) & 1)) px(x, y, 1, 1, f);
+    };
+    for (let r = 0; r < c; r++) {
+      const hw = 2 * (r < c / 2 ? r : c - 1 - r) + 2;
+      for (let x = sx - hw; x < sx + hw; x++) dot(x, sy + r, C.plan);
+    }
+    for (let j = 0; j < c; j++) {
+      const t = sy + c / 2 + Math.floor(j / 2);
+      for (let y = 0; y < h; y++) {
+        dot(sx - c + j, t + y, C.planSide);
+        dot(sx + c - 1 - j, t + y, C.planSide);
+      }
+    }
   }
   function star(cx: number, top: number, s: number, lit: boolean) {
     STAR_PX.forEach((row, r) =>
@@ -311,6 +335,18 @@ export function startScene(o: SceneOptions) {
           },
         });
     }
+    // The next cells to build, outlined. Hidden under a carried block's cell until it lands.
+    for (const slot of geo.plan) {
+      topZ = Math.max(topZ, slot.z + 1);
+      for (const q of slot.cells)
+        items.push({
+          k: q.x + q.y + q.z * 0.01 - 0.001,
+          draw: () => {
+            const [sx, sy] = scr(q.x, q.y, q.z + 1);
+            ghost(sx, sy, T.c, T.h);
+          },
+        });
+    }
     const busy = new Set(trips.filter((tr) => t >= tr.start && t < tr.start + tr.dur && tr.fig).map((tr) => tr.fig));
     for (const f of figs) {
       f.top = undefined;
@@ -375,7 +411,7 @@ export function startScene(o: SceneOptions) {
 
     // The Nova Star above the tower, bobbing slowly.
     const [stx, sty] = scr(N / 2, N / 2, topZ);
-    star(stx, sty - 44 + (still ? 0 : Math.round(Math.sin(t * 1.4))), 2, false);
+    star(stx, sty - geo.starRise + (still ? 0 : Math.round(Math.sin(t * 1.4))), 2, false);
 
     ctx!.setTransform(1, 0, 0, 1, 0, 0);
     ctx!.imageSmoothingEnabled = false;

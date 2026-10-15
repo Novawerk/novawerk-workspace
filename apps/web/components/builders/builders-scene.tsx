@@ -86,10 +86,25 @@ export function BuildersScene({
   const sceneRef = useRef<ReturnType<typeof startScene> | null>(null);
   const carryRef = useRef<number | null>(null);
   const [width, setWidth] = useState<number | null>(null);
+  /** A hero's tallest size: about 70% of the window's height. */
+  const [tallest, setTallest] = useState(Infinity);
   const [hit, setHit] = useState<Hit | null>(null);
   const reduced = useSyncExternalStore(reducedMotion.subscribe, reducedMotion.get, serverFalse) || still;
   const dark = useSyncExternalStore(darkScheme.subscribe, darkScheme.get, serverFalse);
-  const geo = useMemo(() => sceneGeometry(model, width ?? maxWidth, size), [model, width, maxWidth, size]);
+  const geo = useMemo(() => {
+    const w = width ?? maxWidth;
+    const g = sceneGeometry(model, w, size);
+    const H = g.bh * g.P;
+    // Too tall for the window: narrower, in proportion.
+    if (H <= tallest) return g;
+    // Pixels are whole numbers, so a narrower scene may still be a little tall: try a few times.
+    let fit = g;
+    for (let n = 0, cw = w; n < 4 && fit.bh * fit.P > tallest && cw > 240; n++) {
+      cw = Math.max(240, Math.floor((cw * tallest) / (fit.bh * fit.P)) - 8);
+      fit = sceneGeometry(model, cw, size);
+    }
+    return fit;
+  }, [model, width, maxWidth, size, tallest]);
   const summary = summaryLine(model);
   const total = model.blocks.length;
 
@@ -97,9 +112,10 @@ export function BuildersScene({
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    // A hero stays about half as tall as it is wide, so it is capped to fit ~70% of the window's height.
-    const tallest = () => (size === "hero" ? Math.max(480, Math.floor(window.innerHeight * 1.4)) : Infinity);
-    const measure = () => setWidth(Math.max(240, Math.min(maxWidth, tallest(), Math.floor(el.clientWidth))));
+    const measure = () => {
+      setWidth(Math.max(240, Math.min(maxWidth, Math.floor(el.clientWidth))));
+      if (size === "hero") setTallest(Math.max(340, Math.floor(window.innerHeight * 0.7)));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);

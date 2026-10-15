@@ -11,6 +11,8 @@ import styles from "./preview.module.css";
 const DATASETS = {
   "142 blocks": () => fixtureBlocks(142),
   "12 blocks": () => fixtureBlocks(12, "2026-09-20"),
+  "1 block": () => fixtureBlocks(1, "2026-10-15"),
+  "5 blocks": () => fixtureBlocks(5, "2026-10-01"),
   "Empty": () => [],
   "640 blocks (2 seasons done)": () => fixtureBlocks(640, "2025-06-01"),
   "1,300 blocks (4 seasons done)": () => fixtureBlocks(1300, "2024-01-01"),
