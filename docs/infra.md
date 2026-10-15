@@ -127,7 +127,7 @@ and production. "—" means unset.
 |----------|-------|------------|
 | `DATABASE_URL` | Docker | Neon |
 | `GOOGLE_CLIENT_ID` | any placeholder, or the real client | OAuth client |
-| `SESSION_SECRET` | any 32+ characters | its own, never reused |
+| `SESSION_SECRET` | any 32+ characters | its own, never reused. Also keys the anonymous names on `/public/blocks`: rotating it renames them. |
 | `DEV_LOGIN` | `true` | — (the API refuses to start with it on Vercel) |
 | `RESEND_API_KEY` | — | production key |
 | `ALLOWED_ORIGINS` | default | `https://novawerk.io,https://www.novawerk.io,https://admin.novawerk.io` |

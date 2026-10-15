@@ -28,6 +28,8 @@ export interface PullRequestFacts {
   /** GitHub's numeric user id of the author: matched with the assignee's linked account. */
   authorId: number;
   authorLogin: string;
+  /** OWNER, MEMBER, COLLABORATOR, CONTRIBUTOR, NONE… (GitHub's `author_association`). */
+  authorAssociation: string;
   state: "open" | "closed";
   merged: boolean;
   /** The task it names (`Task: NW-42`, or NW-42 in the title, body or branch), or null. */
@@ -46,6 +48,7 @@ export const pullRequestSchema = z.object({
   merged: z.boolean().nullable().optional(),
   merged_at: z.string().nullable().optional(),
   updated_at: z.string().optional(),
+  author_association: z.string().optional(),
   user,
   head: z.object({ ref: z.string() }),
   base: z.object({ repo: z.object({ full_name: z.string() }) }),
@@ -87,6 +90,7 @@ export function pullRequestFacts(pr: PullRequestPayload): PullRequestFacts {
     title: pr.title,
     authorId: pr.user.id,
     authorLogin: pr.user.login,
+    authorAssociation: pr.author_association ?? "NONE",
     state: pr.state,
     merged: pr.merged === true || Boolean(pr.merged_at),
     taskNumber: taskNumberOf({ title: pr.title, body: pr.body ?? null, branch: pr.head.ref }),
@@ -107,4 +111,10 @@ export function parseWebhook(event: string | undefined, payload: unknown): Parse
   const action = PULL_REQUEST_ACTIONS.find((a) => a === parsed.action);
   if (!action) return { kind: "ignored", reason: `pull_request.${parsed.action}` };
   return { kind: "pull_request", action, pr: pullRequestFacts(parsed.pull_request) };
+}
+
+/** "https://github.com/Novawerk/novawerk-workspace/pull/212" → { repo, number }, or null. */
+export function parsePullRequestUrl(url: string): { repo: string; number: number } | null {
+  const match = /^https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d{1,9})\/?$/.exec(url.trim());
+  return match ? { repo: match[1]!, number: Number(match[2]) } : null;
 }

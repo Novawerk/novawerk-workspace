@@ -34,7 +34,10 @@ jobs:
 
       - name: Rewrite the block
         id: block
-        run: echo "result=$(node scripts/readme-contributors.mjs)" >> "$GITHUB_OUTPUT"
+        # Two lines on purpose: a failing script fails the step (the exit code isn't swallowed).
+        run: |
+          result="$(node scripts/readme-contributors.mjs)"
+          echo "result=$result" >> "$GITHUB_OUTPUT"
 
       - name: Commit when it changed
         if: steps.block.outputs.result == 'changed'

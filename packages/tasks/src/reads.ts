@@ -493,10 +493,18 @@ export async function getPublicContributor(db: Database, handle: string): Promis
  */
 export const anonymousKey = (anonKey: string, seed: string) => `anon-${createHmac("sha256", anonKey).update(seed).digest("hex").slice(0, 8)}`;
 
-/** GET /public/blocks: every merged task, oldest first, for the builders scene. */
+/**
+ * GET /public/blocks: every merged task, oldest first, for the builders scene. As on the wall, a
+ * person is named only with a public profile and an active account; anyone else is an unnamed
+ * figure with a stable key (the design: "people without a public profile appear as unnamed
+ * figures"). Tasks themselves still show a private person's handle, unlinked (people.ts).
+ */
 export async function listPublicBlocks(db: Database, anonKey: string): Promise<PublicBlock[]> {
   const rows = await db
-    .select({ task: tasks, assignee: { id: assignee.id, handle: assignee.handle, public: assignee.public } })
+    .select({
+      task: tasks,
+      assignee: { id: assignee.id, handle: assignee.handle, public: assignee.public, suspendedAt: assignee.suspendedAt },
+    })
     .from(tasks)
     .leftJoin(assignee, eq(assignee.id, tasks.assigneeId))
     .where(and(eq(tasks.status, "done"), isNotNull(tasks.doneAt)))
@@ -506,7 +514,8 @@ export async function listPublicBlocks(db: Database, anonKey: string): Promise<P
     title: task.title,
     area: task.area as TaskArea | null,
     size: task.size,
-    handle: who?.public ? who.handle : anonymousKey(anonKey, who ? `contributor:${who.id}` : `task:${task.id}`),
+    // Named only with a public profile and an active account, as on the wall; else an unnamed figure.
+    handle: who?.public && !who.suspendedAt ? who.handle : anonymousKey(anonKey, who ? `contributor:${who.id}` : `task:${task.id}`),
     mergedAt: iso(task.doneAt!),
   }));
 }

@@ -3,8 +3,16 @@
 // GitHub App (@nw/github); a merge refreshes the website's task pages. Used by
 // POST /webhooks/github and the nightly /cron/github-sync.
 
-import type { PullRequestFacts } from "@nw/github";
-import { applyPullRequest, checkInactivity, deleteOldDeliveries, tasksWithWorkInFlight, type PullRequestOutcome } from "@nw/tasks";
+import { parsePullRequestUrl, type PullRequestFacts } from "@nw/github";
+import {
+  applyPullRequest,
+  checkInactivity,
+  deleteOldDeliveries,
+  reconcileLinkedPullRequest,
+  tasksInReview,
+  tasksWithWorkInFlight,
+  type PullRequestOutcome,
+} from "@nw/tasks";
 
 import { revalidateWeb } from "./revalidate.js";
 import type { AppDeps, Logger } from "./types.js";
@@ -49,26 +57,60 @@ export interface SyncReport {
   reminded: number[];
   released: number[];
   deliveriesDeleted: number;
+  /** GitHub calls that failed (bad key, rate limit, 5xx). The rest of the sync still ran. */
+  errors: string[];
 }
 
+const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
 /**
- * The nightly reconcile: the last week's PRs on our repository through the same rules as the
- * webhook (so a missed delivery is caught up, and nothing happens twice), then inactivity
- * reminders and releases, then old delivery ids.
+ * The nightly reconcile, then the rest, each step on its own so a GitHub failure never skips
+ * the inactivity check or the cleanup:
+ * 1. the last week's PRs through the same rules as the webhook (a missed delivery is caught up;
+ *    nothing happens twice);
+ * 2. every task in review against its PR as GitHub sees it now: closed, gone, or not counting
+ *    (another author, no longer naming the task) puts it back to assigned;
+ * 3. inactivity reminders and releases; 4. old delivery ids.
  */
 export async function syncWithGitHub(deps: Deps, now = new Date()): Promise<SyncReport> {
+  const errors: string[] = [];
   let pullRequests: SyncReport["pullRequests"] = null;
   if (deps.githubApi) {
-    const inFlight = new Set(await tasksWithWorkInFlight(deps.db));
-    const recent = await deps.githubApi.recentPullRequests(BOARD_REPO, new Date(now.getTime() - RECONCILE_DAYS * 24 * 3_600_000));
+    const api = deps.githubApi;
     const changed: Record<string, number> = {};
-    // Oldest first, so a PR that was closed and replaced is seen before its replacement.
-    for (const pr of recent.filter((p) => p.taskNumber && inFlight.has(p.taskNumber)).reverse()) {
-      const { result } = await handlePullRequest(deps, pr, { source: "reconcile" });
+    const count = (result: string) => {
       if (result !== "unchanged" && result !== "ignored") changed[result] = (changed[result] ?? 0) + 1;
+    };
+    let checked = 0;
+    try {
+      const inFlight = new Set(await tasksWithWorkInFlight(deps.db));
+      const recent = await api.recentPullRequests(BOARD_REPO, new Date(now.getTime() - RECONCILE_DAYS * 24 * 3_600_000));
+      checked = recent.length;
+      // Oldest first, so a PR that was closed and replaced is seen before its replacement.
+      for (const pr of recent.filter((p) => p.taskNumber && inFlight.has(p.taskNumber)).reverse()) {
+        try {
+          count((await handlePullRequest(deps, pr, { source: "reconcile" })).result);
+        } catch (err) {
+          errors.push(`${pr.repo}#${pr.number}: ${message(err)}`);
+        }
+      }
+    } catch (err) {
+      errors.push(`recent pull requests: ${message(err)}`);
     }
-    pullRequests = { checked: recent.length, changed };
+    for (const task of await tasksInReview(deps.db)) {
+      const ref = task.prUrl ? parsePullRequestUrl(task.prUrl) : null;
+      try {
+        const pr = ref ? await api.getPullRequest(ref.repo, ref.number) : null;
+        const outcome = await reconcileLinkedPullRequest(deps.db, task.id, pr, { webUrl: deps.env.publicUrls.webUrl, now });
+        count(outcome.result);
+        if (outcome.result === "merged") await revalidateWeb(deps.env.webRevalidate, deps.logger, BOARD_CACHE_TAGS);
+      } catch (err) {
+        errors.push(`NW-${task.id}: ${message(err)}`);
+      }
+    }
+    pullRequests = { checked, changed };
   }
+  for (const e of errors) deps.logger.error("[github] sync:", e);
   const { reminded, released } = await checkInactivity(deps.db, now);
-  return { pullRequests, reminded, released, deliveriesDeleted: await deleteOldDeliveries(deps.db, now) };
+  return { pullRequests, reminded, released, deliveriesDeleted: await deleteOldDeliveries(deps.db, now), errors };
 }

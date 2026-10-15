@@ -854,13 +854,15 @@ export const postReports = pgTable(
 );
 
 /**
- * GitHub webhook deliveries we already handled (X-GitHub-Delivery), so a redelivery does nothing
- * twice. Kept 30 days (/cron/github-sync).
+ * GitHub webhook deliveries (X-GitHub-Delivery), so a redelivery does nothing twice. A row
+ * without `handledAt` is in progress; one whose handling died (no `handledAt` after 5 minutes)
+ * can be claimed again by a redelivery. Kept 30 days (/cron/github-sync).
  */
 export const githubDeliveries = pgTable("github_deliveries", {
   id: text("id").primaryKey(),
   event: text("event").notNull(),
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  handledAt: timestamp("handled_at", { withTimezone: true }),
 });
 
 /**

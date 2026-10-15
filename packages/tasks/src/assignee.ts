@@ -9,6 +9,7 @@ import { postReports, taskEvents, taskPosts, tasks, type Contributor, type Datab
 
 import { canWork } from "./contributors.js";
 import { TaskRuleError } from "./errors.js";
+import { whyPullRequestDoesNotCount, type PullRequestInput } from "./github.js";
 import { transitionTask } from "./transitions.js";
 
 async function heldTask(db: Database, c: Contributor, taskId: number): Promise<Task> {
@@ -55,23 +56,19 @@ export async function guideFor(db: Database, c: Contributor, taskId: number): Pr
   return { taskId: formatTaskId(task.id), markdown: task.guideTemplate?.trim() || defaultGuide(task) };
 }
 
-/** A pull request URL on the task's own repository, or a TaskRuleError on `url`. */
-function prOnRepo(task: Task, url: string): string {
-  const match = /^https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d{1,9})\/?$/.exec(url.trim());
-  if (!match || match[1]!.toLowerCase() !== task.repo.toLowerCase()) {
-    throw new TaskRuleError("invalid", `A pull request on ${task.repo}`, "url");
-  }
-  return `https://github.com/${task.repo}/pull/${match[2]}`;
-}
-
 /**
- * Link a PR by hand. The task goes in review; whether the PR counts is still decided when it
- * merges (its author must be this person's linked GitHub account).
+ * Link a PR by hand, when the board didn't pick it up. `pr` is the PR as GitHub sees it now (the
+ * API fetches it with the App): it must be open, on the task's repository, from the assignee's
+ * linked GitHub account, and name this task. Anything else is refused, so a task can't wait in
+ * review on a PR that can never finish it.
  */
-export async function linkPrByHand(db: Database, c: Contributor, taskId: number, url: string): Promise<Task> {
-  const task = await heldTask(db, c, taskId);
+export async function linkPrByHand(db: Database, c: Contributor, taskId: number, pr: PullRequestInput): Promise<Task> {
+  await heldTask(db, c, taskId);
   if (!canWork(c)) throw new TaskRuleError("github_required", "Link your GitHub account first: we match pull requests by it");
-  return transitionTask(db, { taskId, action: "link_pr", actor: { kind: "contributor", id: c.id }, prUrl: prOnRepo(task, url) });
+  if (pr.merged || pr.state !== "open") throw new TaskRuleError("invalid", "That pull request is closed", "url");
+  const why = await whyPullRequestDoesNotCount(db, taskId, pr);
+  if (why) throw new TaskRuleError("invalid", why, "url");
+  return transitionTask(db, { taskId, action: "link_pr", actor: { kind: "contributor", id: c.id }, prUrl: pr.url });
 }
 
 /** Give the task back. It returns to open; the timeline records it; nothing counts against anyone. */

@@ -14,6 +14,7 @@
 export * from "./actions.js";
 export * from "./assignee.js";
 export * from "./github.js";
+export * from "./idle.js";
 export * from "./contributors.js";
 export * from "./errors.js";
 export * from "./people.js";

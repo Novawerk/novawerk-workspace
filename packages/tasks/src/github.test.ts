@@ -17,6 +17,11 @@ import {
   claimDelivery,
   extendTask,
   forgetDelivery,
+  idleReleaseAt,
+  markDelivered,
+  reconcileLinkedPullRequest,
+  safeTitle,
+  transitionTask,
   guideFor,
   linkPrByHand,
   listPublicBlocks,
@@ -142,6 +147,47 @@ describe("pull requests", () => {
     expect((await applyPullRequest(db, pr(99_999), { source: "webhook", action: "opened", ...web })).result).toBe("ignored");
   });
 
+  it("moves a retargeted PR: the old task leaves review, the new one gets it", async () => {
+    const first = await task({ status: "in_review", prUrl: pr(1).url });
+    const second = await task({ title: "Second" });
+    const outcome = await applyPullRequest(db, pr(second.id), { source: "webhook", action: "edited", ...web });
+    expect(outcome.result).toBe("linked");
+    expect(await reload(first.id)).toMatchObject({ status: "assigned", prUrl: null });
+    expect(await reload(second.id)).toMatchObject({ status: "in_review", prUrl: pr(1).url });
+    const note = (await db.select().from(taskEvents).where(eq(taskEvents.taskId, first.id))).at(-1)?.note;
+    expect(note).toBe(`The pull request now names NW-${second.id}`);
+  });
+
+  it("checks tasks in review against their PR every night", async () => {
+    const t = await task({ status: "in_review", prUrl: pr(1).url });
+    const open = { ...pr(t.id) };
+    expect((await reconcileLinkedPullRequest(db, t.id, open, web)).result).toBe("unchanged");
+    expect((await reconcileLinkedPullRequest(db, t.id, { ...open, authorId: 999 }, web)).result).toBe("unlinked");
+    expect(await reload(t.id)).toMatchObject({ status: "assigned", prUrl: null });
+
+    const gone = await task({ title: "Gone", status: "in_review", prUrl: pr(1).url, assigneeId: jonas.id });
+    expect((await reconcileLinkedPullRequest(db, gone.id, null, web)).result).toBe("unlinked");
+    const merged = await task({ title: "Merged", status: "in_review", prUrl: pr(1).url });
+    const result = await reconcileLinkedPullRequest(db, merged.id, { ...pr(merged.id), state: "closed", merged: true }, web);
+    expect(result.result).toBe("merged");
+    expect((await reload(merged.id)).status).toBe("done");
+  });
+
+  it("escapes the task title and never pings from it; no 'propose first' for our own people", async () => {
+    const t = await task({ title: "Fix [this](https://evil.example) for @everyone *now*" });
+    const linked = await applyPullRequest(db, pr(t.id), { source: "webhook", action: "opened", ...web });
+    const body = (linked.replies[0] as { body: string }).body;
+    expect(body).not.toContain("](https://evil.example)");
+    expect(body).toContain("@\u200beveryone");
+    expect(safeTitle("a_b")).toBe("a\\_b");
+
+    const other = await task({ title: "Other" });
+    for (const association of ["OWNER", "MEMBER", "COLLABORATOR"]) {
+      const theirs = pr(other.id, { authorId: 7, authorLogin: "haodong", authorAssociation: association });
+      expect((await applyPullRequest(db, theirs, { source: "webhook", action: "opened", ...web })).replies).toEqual([]);
+    }
+  });
+
   it("counts new commits on the linked PR as activity", async () => {
     const t = await task({ status: "in_review", prUrl: pr(1).url, lastActivityAt: new Date(Date.now() - 10 * DAY) });
     expect((await applyPullRequest(db, pr(t.id), { source: "webhook", action: "synchronize", ...web })).result).toBe("activity");
@@ -150,11 +196,17 @@ describe("pull requests", () => {
 });
 
 describe("deliveries", () => {
-  it("handles a delivery id once, unless its handling failed", async () => {
-    expect(await claimDelivery(db, "d-1", "pull_request")).toBe(true);
-    expect(await claimDelivery(db, "d-1", "pull_request")).toBe(false);
+  it("handles a delivery id once, unless its handling failed or died", async () => {
+    const t0 = new Date("2026-10-15T10:00:00Z");
+    expect(await claimDelivery(db, "d-1", "pull_request", t0)).toBe(true);
+    expect(await claimDelivery(db, "d-1", "pull_request", t0)).toBe(false); // in progress
     await forgetDelivery(db, "d-1");
-    expect(await claimDelivery(db, "d-1", "pull_request")).toBe(true);
+    expect(await claimDelivery(db, "d-1", "pull_request", t0)).toBe(true);
+    // A claim that never finished can be taken over after 5 minutes…
+    expect(await claimDelivery(db, "d-1", "pull_request", new Date(t0.getTime() + 6 * 60_000))).toBe(true);
+    // …but a handled one never.
+    await markDelivered(db, "d-1");
+    expect(await claimDelivery(db, "d-1", "pull_request", new Date(t0.getTime() + 60 * 60_000))).toBe(false);
   });
 });
 
@@ -187,6 +239,18 @@ describe("inactivity", () => {
     expect((await checkInactivity(db, new Date(Date.now() + 14 * DAY))).released).toEqual([t.id]);
   });
 
+  it("re-checks under the lock: activity since the check keeps the task", async () => {
+    const start = new Date(Date.now() - 15 * DAY);
+    const t = await task({ assignedAt: start, lastActivityAt: start });
+    const checkedAt = new Date();
+    await db.update(tasks).set({ lastActivityAt: new Date() }).where(eq(tasks.id, t.id)); // a post just landed
+    expect(
+      await code(() => transitionTask(db, { taskId: t.id, action: "release", actor: { kind: "system" }, idleAt: checkedAt })),
+    ).toBe("invalid_state");
+    expect((await reload(t.id)).status).toBe("assigned");
+    expect(idleReleaseAt({ ...t, lastActivityAt: start, extendedAt: new Date() }).getTime()).toBe(start.getTime() + 21 * DAY);
+  });
+
   it("leaves tasks in review alone", async () => {
     await task({ status: "in_review", prUrl: pr(1).url, lastActivityAt: new Date(Date.now() - 30 * DAY) });
     expect(await checkInactivity(db)).toEqual({ reminded: [], released: [] });
@@ -204,14 +268,16 @@ describe("the assignee", () => {
     expect((await guideFor(db, lena, t.id)).markdown).toBe("Our own guide");
   });
 
-  it("links a PR by hand only on the task's repository", async () => {
+  it("links a PR by hand only when it counts: open, theirs, naming the task, on its repository", async () => {
     const t = await task();
-    expect(await code(() => linkPrByHand(db, lena, t.id, "https://github.com/someone/else/pull/1"))).toBe("invalid");
-    expect(await code(() => linkPrByHand(db, jonas, t.id, pr(1).url))).toBe("forbidden");
-    expect(await linkPrByHand(db, lena, t.id, "https://github.com/novawerk/NOVAWERK-workspace/pull/7/")).toMatchObject({
-      status: "in_review",
-      prUrl: "https://github.com/Novawerk/novawerk-workspace/pull/7",
-    });
+    const mine = pr(t.id);
+    expect(await code(() => linkPrByHand(db, jonas, t.id, mine))).toBe("forbidden");
+    expect(await code(() => linkPrByHand(db, lena, t.id, { ...mine, repo: "someone/else" }))).toBe("invalid");
+    expect(await code(() => linkPrByHand(db, lena, t.id, { ...mine, authorId: 102 }))).toBe("invalid"); // someone else's PR
+    expect(await code(() => linkPrByHand(db, lena, t.id, { ...mine, taskNumber: t.id + 100 }))).toBe("invalid");
+    expect(await code(() => linkPrByHand(db, lena, t.id, { ...mine, state: "closed" }))).toBe("invalid");
+    expect((await reload(t.id)).status).toBe("assigned");
+    expect(await linkPrByHand(db, lena, t.id, mine)).toMatchObject({ status: "in_review", prUrl: mine.url });
   });
 
   it("releases with a reason on the timeline", async () => {

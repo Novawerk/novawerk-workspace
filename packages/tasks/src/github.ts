@@ -13,12 +13,13 @@
 // and comments only when the task actually moved. No GitHub calls here: the outcome lists the
 // replies, and the API posts them with @nw/github.
 
-import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { TASK_LIMITS, TASK_SIZE_WERK, formatTaskId } from "@nw/contracts";
 import { contributors, githubDeliveries, taskEvents, tasks, type Database, type Task } from "@nw/db";
 
 import { TaskRuleError } from "./errors.js";
+import { idleReleaseAt, idleSince } from "./idle.js";
 import { transitionTask } from "./transitions.js";
 
 /** The facts the board needs about a PR (structurally @nw/github's PullRequestFacts). */
@@ -28,10 +29,15 @@ export interface PullRequestInput {
   url: string;
   authorId: number;
   authorLogin: string;
+  /** GitHub's author_association: OWNER, MEMBER and COLLABORATOR are us, not newcomers. */
+  authorAssociation?: string;
   state: "open" | "closed";
   merged: boolean;
   taskNumber: number | null;
 }
+
+/** People who already work on the repository: no "propose a plan first" note for them. */
+const OUR_ASSOCIATIONS = ["OWNER", "MEMBER", "COLLABORATOR"];
 
 export type GitHubReply = { kind: "comment"; body: string } | { kind: "labels"; labels: string[] };
 
@@ -48,6 +54,47 @@ export const BOARD_COMMENT_MARKER = "<!-- novawerk-task-board -->";
 const DAY_MS = 24 * 3_600_000;
 
 const taskLink = (webUrl: string, n: number) => `${webUrl}/tasks/${formatTaskId(n)}`;
+
+/**
+ * A task title inside the App's Markdown comment: no links, formatting or HTML of its own, and no
+ * @mentions (a zero-width space after each @), so a title can't ping anyone.
+ */
+export function safeTitle(title: string): string {
+  return title
+    .replace(/[\\`*_{}[\]()<>#+|~!]/g, "\\$&")
+    .replace(/@/g, "@\u200b")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
+}
+
+/**
+ * Other tasks still in review on this PR, now that it names another task (or none): back to
+ * assigned, so nothing stays stuck in review on a PR that left.
+ */
+async function unlinkMovedPullRequest(db: Database, pr: PullRequestInput, now: Date): Promise<number[]> {
+  const stale = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.status, "in_review"), eq(tasks.prUrl, pr.url)));
+  const moved: number[] = [];
+  for (const { id } of stale) {
+    if (id === pr.taskNumber) continue;
+    try {
+      await transitionTask(db, {
+        taskId: id,
+        action: "pr_closed",
+        actor: { kind: "system" },
+        note: pr.taskNumber ? `The pull request now names ${formatTaskId(pr.taskNumber)}` : "The pull request no longer names this task",
+        now,
+      });
+      moved.push(id);
+    } catch (err) {
+      if (!(err instanceof TaskRuleError)) throw err;
+    }
+  }
+  return moved;
+}
 const comment = (body: string): GitHubReply => ({ kind: "comment", body: `${body}\n\n${BOARD_COMMENT_MARKER}` });
 
 /**
@@ -62,6 +109,7 @@ export async function applyPullRequest(
   const now = opts.now ?? new Date();
   const n = pr.taskNumber;
   const nothing = (result: PullRequestOutcome["result"] = "ignored"): PullRequestOutcome => ({ result, taskNumber: n, replies: [] });
+  if (!pr.merged) await unlinkMovedPullRequest(db, pr, now);
   if (!n) return nothing();
 
   const [row] = await db
@@ -76,7 +124,13 @@ export async function applyPullRequest(
 
   const byAssignee = task.assigneeId !== null && row.githubId !== null && row.githubId === pr.authorId;
   if (!byAssignee) {
-    if (opts.source === "webhook" && opts.action === "opened" && pr.state === "open" && task.status !== "done") {
+    if (
+      opts.source === "webhook" &&
+      opts.action === "opened" &&
+      pr.state === "open" &&
+      task.status !== "done" &&
+      !OUR_ASSOCIATIONS.includes(pr.authorAssociation ?? "NONE")
+    ) {
       return {
         result: "not_assignee",
         taskNumber: n,
@@ -135,7 +189,7 @@ export async function applyPullRequest(
       taskNumber: n,
       replies: [
         comment(
-          `Linked to [${formatTaskId(n)}: ${task.title}](${taskLink(opts.webUrl, n)}). Thanks, @${pr.authorLogin}! ` +
+          `Linked to [${formatTaskId(n)}: ${safeTitle(task.title)}](${taskLink(opts.webUrl, n)}). Thanks, @${pr.authorLogin}! ` +
             `A member reviews it here. When it merges, the task is done.`,
         ),
         ...(task.size ? [{ kind: "labels" as const, labels: [`size:${task.size}`] }] : []),
@@ -151,13 +205,40 @@ export async function applyPullRequest(
 
 // ─── Deliveries ──────────────────────────────────────────────────────────────
 
-/** True the first time we see this X-GitHub-Delivery id; false for a redelivery. */
-export async function claimDelivery(db: Database, id: string, event: string): Promise<boolean> {
-  const rows = await db.insert(githubDeliveries).values({ id, event }).onConflictDoNothing().returning({ id: githubDeliveries.id });
-  return rows.length === 1;
+/** A claim on a delivery that never finished can be taken over after this long. */
+export const DELIVERY_STALE_MS = 5 * 60_000;
+
+/**
+ * Claim an X-GitHub-Delivery id: true the first time, and for a redelivery of one whose handling
+ * died (claimed, never marked handled, older than 5 minutes); false for one handled or in progress.
+ */
+export async function claimDelivery(db: Database, id: string, event: string, now = new Date()): Promise<boolean> {
+  const fresh = await db
+    .insert(githubDeliveries)
+    .values({ id, event, receivedAt: now })
+    .onConflictDoNothing()
+    .returning({ id: githubDeliveries.id });
+  if (fresh.length === 1) return true;
+  const retaken = await db
+    .update(githubDeliveries)
+    .set({ receivedAt: now })
+    .where(
+      and(
+        eq(githubDeliveries.id, id),
+        isNull(githubDeliveries.handledAt),
+        lt(githubDeliveries.receivedAt, new Date(now.getTime() - DELIVERY_STALE_MS)),
+      ),
+    )
+    .returning({ id: githubDeliveries.id });
+  return retaken.length === 1;
 }
 
-/** Forget a delivery whose handling failed, so GitHub's redelivery runs it again. */
+/** The delivery is done: a redelivery of it changes nothing. */
+export async function markDelivered(db: Database, id: string, now = new Date()): Promise<void> {
+  await db.update(githubDeliveries).set({ handledAt: now }).where(eq(githubDeliveries.id, id));
+}
+
+/** Forget a delivery whose handling failed, so a redelivery runs it again. */
 export async function forgetDelivery(db: Database, id: string): Promise<void> {
   await db.delete(githubDeliveries).where(eq(githubDeliveries.id, id));
 }
@@ -186,18 +267,19 @@ export async function checkInactivity(db: Database, now = new Date()): Promise<{
   const reminded: number[] = [];
   const released: number[] = [];
   for (const task of held) {
-    const since = task.lastActivityAt ?? task.assignedAt ?? task.updatedAt;
-    const releaseAt = new Date(
-      since.getTime() + (TASK_LIMITS.idleReleaseDays + (task.extendedAt ? TASK_LIMITS.extensionDays : 0)) * DAY_MS,
-    );
+    const since = idleSince(task);
+    const releaseAt = idleReleaseAt(task);
     if (now >= releaseAt) {
       const days = Math.floor((now.getTime() - since.getTime()) / DAY_MS);
       try {
+        // `idleAt` makes the release re-check the time under the row lock: a post or an extension
+        // that landed meanwhile keeps the task.
         await transitionTask(db, {
           taskId: task.id,
           action: "release",
           actor: { kind: "system" },
           note: `Back on the board after ${days} days without activity`,
+          idleAt: now,
           now,
         });
         released.push(task.id);
@@ -231,4 +313,59 @@ export async function checkInactivity(db: Database, now = new Date()): Promise<{
 export async function tasksWithWorkInFlight(db: Database): Promise<number[]> {
   const rows = await db.select({ id: tasks.id }).from(tasks).where(inArray(tasks.status, ["assigned", "in_review"]));
   return rows.map((r) => r.id);
+}
+
+/** Tasks in review and the PR each one points at: the nightly check that the PR still counts. */
+export async function tasksInReview(db: Database): Promise<{ id: number; prUrl: string | null }[]> {
+  return db.select({ id: tasks.id, prUrl: tasks.prUrl }).from(tasks).where(eq(tasks.status, "in_review"));
+}
+
+/**
+ * Does a PR count for this task: on its repository, by the assignee's linked GitHub account, and
+ * naming it. Null when it does; otherwise why not, in words for the assignee.
+ */
+export async function whyPullRequestDoesNotCount(db: Database, taskId: number, pr: PullRequestInput): Promise<string | null> {
+  const [row] = await db
+    .select({ task: tasks, githubId: contributors.githubId })
+    .from(tasks)
+    .leftJoin(contributors, eq(contributors.id, tasks.assigneeId))
+    .where(eq(tasks.id, taskId))
+    .limit(1);
+  if (!row) return `${formatTaskId(taskId)} doesn't exist`;
+  if (row.task.repo.toLowerCase() !== pr.repo.toLowerCase()) return `The pull request isn't on ${row.task.repo}`;
+  if (row.githubId === null || row.githubId !== pr.authorId) return "The pull request isn't from the GitHub account linked to the person on this task";
+  if (pr.taskNumber !== taskId) return `The pull request doesn't name ${formatTaskId(taskId)}: put "Task: ${formatTaskId(taskId)}" in its description`;
+  return null;
+}
+
+/**
+ * The nightly check of a task in review against its PR as GitHub sees it now (null: gone). A
+ * merge by the assignee finishes the task; a closed PR, or one that no longer counts, puts it
+ * back to assigned, so a task never waits in review on a PR that can't finish it.
+ */
+export async function reconcileLinkedPullRequest(
+  db: Database,
+  taskId: number,
+  pr: PullRequestInput | null,
+  opts: { webUrl: string; now?: Date },
+): Promise<PullRequestOutcome> {
+  const now = opts.now ?? new Date();
+  const why = pr ? await whyPullRequestDoesNotCount(db, taskId, pr) : "The linked pull request no longer exists";
+  if (pr && !why) {
+    if (pr.merged) return applyPullRequest(db, pr, { source: "reconcile", webUrl: opts.webUrl, now });
+    if (pr.state === "open") return { result: "unchanged", taskNumber: taskId, replies: [] };
+  }
+  try {
+    await transitionTask(db, {
+      taskId,
+      action: "pr_closed",
+      actor: { kind: "system" },
+      note: why ?? "The pull request was closed without merging",
+      now,
+    });
+    return { result: "unlinked", taskNumber: taskId, replies: [] };
+  } catch (err) {
+    if (err instanceof TaskRuleError && err.code === "invalid_state") return { result: "unchanged", taskNumber: taskId, replies: [] };
+    throw err;
+  }
 }

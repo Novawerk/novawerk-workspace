@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { createGitHubApi, normalisePrivateKey } from "./client.js";
-import { parseWebhook, taskNumberOf, verifyWebhookSignature } from "./webhook.js";
+import { parsePullRequestUrl, parseWebhook, taskNumberOf, verifyWebhookSignature } from "./webhook.js";
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 const sign = (secret: string, body: string) => `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
@@ -39,6 +39,7 @@ describe("parseWebhook", () => {
         title: "Web: dark mode toggle in the header",
         authorId: 90000001,
         authorLogin: "lena-k",
+        authorAssociation: "CONTRIBUTOR",
         state: "open",
         merged: false,
         taskNumber: 5,
@@ -103,5 +104,33 @@ describe("createGitHubApi", () => {
       body: { body: "Hello" },
     });
     expect(normalisePrivateKey(" a\\nb ")).toBe("a\nb");
+  });
+
+  it("reads one PR (null when it's gone), and every call carries a timeout", async () => {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const pem = privateKey.export({ type: "pkcs1", format: "pem" }).toString();
+    const signals: (AbortSignal | null | undefined)[] = [];
+    const pr = JSON.parse(fixture("pull_request.opened.json")).pull_request;
+    const fakeFetch: typeof fetch = async (input, init) => {
+      signals.push(init?.signal);
+      const url = String(input instanceof Request ? input.url : input);
+      if (url.endsWith("/access_tokens")) {
+        return Response.json({ token: "ghs_test", expires_at: new Date(Date.now() + 3_600_000).toISOString() }, { status: 201 });
+      }
+      if (url.endsWith("/pulls/212")) return Response.json(pr);
+      return Response.json({ message: "Not Found" }, { status: 404 });
+    };
+    const api = createGitHubApi({ appId: "5317582", privateKey: pem, installationId: "171409213" }, { fetch: fakeFetch });
+    expect(await api.getPullRequest("Novawerk/novawerk-workspace", 212)).toMatchObject({ number: 212, taskNumber: 5, authorAssociation: "CONTRIBUTOR" });
+    expect(await api.getPullRequest("Novawerk/novawerk-workspace", 9)).toBeNull();
+    expect(signals.every((s) => s instanceof AbortSignal)).toBe(true);
+  });
+});
+
+describe("parsePullRequestUrl", () => {
+  it("reads a PR link and nothing else", () => {
+    expect(parsePullRequestUrl("https://github.com/Novawerk/novawerk-workspace/pull/212/")).toEqual({ repo: "Novawerk/novawerk-workspace", number: 212 });
+    expect(parsePullRequestUrl("https://github.com/a/b/issues/1")).toBeNull();
+    expect(parsePullRequestUrl("https://gitlab.com/a/b/pull/1")).toBeNull();
   });
 });

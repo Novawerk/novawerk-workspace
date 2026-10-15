@@ -1,7 +1,8 @@
 CREATE TABLE "github_deliveries" (
 	"id" text PRIMARY KEY NOT NULL,
 	"event" text NOT NULL,
-	"received_at" timestamp with time zone DEFAULT now() NOT NULL
+	"received_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"handled_at" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "post_reports" (

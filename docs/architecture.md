@@ -193,7 +193,9 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
   thank-you, the website's `tasks` and `contributors` caches refreshed; closed unmerged → back
   to `assigned`. `@nw/github` checks signatures and talks to GitHub as the App; `@nw/tasks`
   (github.ts) decides; `POST /webhooks/github` and the nightly `/cron/github-sync` (the same
-  rules over the last week's PRs, plus inactivity) wire them. Inactivity writes task events
+  rules over the last week's PRs, every task in review checked against its PR, plus inactivity)
+  wire them. A PR retargeted to another task leaves the first one; linking by hand reads the PR
+  from GitHub and accepts only one that counts. Inactivity writes task events
   only (`inactivity_reminder` after 7 quiet days, then `released` after 14, 21 with "a week
   more"); emails go out from the events.
 - **Tokens** (`contributor_tokens`: hashed secret, scopes, expiry, last use) exist as a table only.

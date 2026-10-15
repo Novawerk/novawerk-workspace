@@ -3,15 +3,19 @@
 // Without its config a webhook answers 404, like /cron.
 
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { ZodError } from "zod";
 
 import { parseWebhook, verifyWebhookSignature } from "@nw/github";
-import { claimDelivery, forgetDelivery } from "@nw/tasks";
+import { claimDelivery, forgetDelivery, markDelivered } from "@nw/tasks";
 
 import { handlePullRequest } from "../github.js";
 import { notFound } from "../http.js";
 import { relayToSlack, verifyResendSignature, webhookEventSchema } from "../inbound-mail.js";
 import type { ApiEnv, AppDeps, Logger } from "../types.js";
+
+/** GitHub caps payloads at 25 MB; a pull_request event is a few KB. */
+const MAX_GITHUB_BODY_BYTES = 5 * 1024 * 1024;
 
 /** GitHub delivery ids are GUIDs. */
 const DELIVERY_ID = /^[0-9a-f-]{8,64}$/i;
@@ -21,37 +25,42 @@ export function webhookRoutes(deps: AppDeps & { logger: Logger }) {
   return new Hono<ApiEnv>()
     // GitHub (the App `novawerk-task-board`): pull requests move tasks (src/github.ts). Signed
     // with GITHUB_WEBHOOK_SECRET; each delivery id is handled once. 5xx only when a retry can help.
-    .post("/github", async (c) => {
-      const secret = env.githubWebhookSecret;
-      if (!secret) return c.json(notFound, 404);
-      const body = await c.req.text();
-      if (!verifyWebhookSignature(secret, body, c.req.header("x-hub-signature-256"))) {
-        return c.json({ error: "Not allowed" }, 401);
-      }
-      const delivery = c.req.header("x-github-delivery") ?? "";
-      const event = c.req.header("x-github-event") ?? "";
-      if (!DELIVERY_ID.test(delivery)) return c.json({ error: "Bad request" }, 400);
+    .post(
+      "/github",
+      bodyLimit({ maxSize: MAX_GITHUB_BODY_BYTES, onError: (c) => c.json({ error: "Request body too large" }, 413) }),
+      async (c) => {
+        const secret = env.githubWebhookSecret;
+        if (!secret) return c.json(notFound, 404);
+        const body = await c.req.text();
+        if (!verifyWebhookSignature(secret, body, c.req.header("x-hub-signature-256"))) {
+          return c.json({ error: "Not allowed" }, 401);
+        }
+        const delivery = c.req.header("x-github-delivery") ?? "";
+        const event = c.req.header("x-github-event") ?? "";
+        if (!DELIVERY_ID.test(delivery)) return c.json({ error: "Bad request" }, 400);
 
-      let parsed: ReturnType<typeof parseWebhook>;
-      try {
-        parsed = parseWebhook(event, JSON.parse(body));
-      } catch (err) {
-        if (err instanceof SyntaxError || err instanceof ZodError) return c.json({ error: "Bad request" }, 400);
-        throw err;
-      }
-      if (parsed.kind !== "pull_request") return c.json({ ignored: parsed.kind === "ping" ? "ping" : parsed.reason }, 200);
-      if (!(await claimDelivery(db, delivery, event))) return c.json({ duplicate: true }, 200);
+        let parsed: ReturnType<typeof parseWebhook>;
+        try {
+          parsed = parseWebhook(event, JSON.parse(body));
+        } catch (err) {
+          if (err instanceof SyntaxError || err instanceof ZodError) return c.json({ error: "Bad request" }, 400);
+          throw err;
+        }
+        if (parsed.kind !== "pull_request") return c.json({ ignored: parsed.kind === "ping" ? "ping" : parsed.reason }, 200);
+        if (!(await claimDelivery(db, delivery, event))) return c.json({ duplicate: true }, 200);
 
-      try {
-        const outcome = await handlePullRequest(deps, parsed.pr, { source: "webhook", action: parsed.action });
-        return c.json({ result: outcome.result, task: outcome.taskNumber }, 200);
-      } catch (err) {
-        // Let GitHub's redelivery try again.
-        await forgetDelivery(db, delivery);
-        logger.error(`[github] delivery ${delivery} failed:`, err instanceof Error ? err.message : err);
-        return c.json({ error: "Something went wrong on our side" }, 500);
-      }
-    })
+        try {
+          const outcome = await handlePullRequest(deps, parsed.pr, { source: "webhook", action: parsed.action });
+          await markDelivered(db, delivery);
+          return c.json({ result: outcome.result, task: outcome.taskNumber }, 200);
+        } catch (err) {
+          // GitHub doesn't retry by itself: a member can redeliver it, and the nightly sync catches up.
+          await forgetDelivery(db, delivery);
+          logger.error(`[github] delivery ${delivery} failed:`, err instanceof Error ? err.message : err);
+          return c.json({ error: "Something went wrong on our side" }, 500);
+        }
+      },
+    )
 
     // Resend: an email reached the info@ group. Answer 5xx only when a retry can help.
     .post("/resend", async (c) => {

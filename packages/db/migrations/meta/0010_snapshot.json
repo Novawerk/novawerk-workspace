@@ -1,5 +1,5 @@
 {
-  "id": "69504298-b9ca-403f-b8fc-8e97d40699a4",
+  "id": "bb8f130d-3aaa-4041-8100-4dfd7b769f61",
   "prevId": "51035a4a-b43a-43d8-844a-710fbcab04f0",
   "version": "7",
   "dialect": "postgresql",
@@ -1049,6 +1049,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "handled_at": {
+          "name": "handled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},

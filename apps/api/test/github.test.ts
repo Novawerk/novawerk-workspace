@@ -34,15 +34,33 @@ beforeEach(async () => {
 afterEach(() => vi.unstubAllGlobals());
 
 /** A fake GitHub App: records what the API asked, serves `recent` to the reconcile. */
-function fakeGitHub(recent: PullRequestFacts[] = []) {
+function fakeGitHub(recent: PullRequestFacts[] = [], opts: { failRecent?: boolean; byNumber?: Record<number, PullRequestFacts> } = {}) {
   const calls: { kind: string; repo: string; number: number; value: unknown }[] = [];
   const api: GitHubApi = {
     comment: async (repo, number, body) => void calls.push({ kind: "comment", repo, number, value: body }),
     addLabels: async (repo, number, labels) => void calls.push({ kind: "labels", repo, number, value: labels }),
-    recentPullRequests: async () => recent,
+    recentPullRequests: async () => {
+      if (opts.failRecent) throw new Error("Bad credentials");
+      return recent;
+    },
+    getPullRequest: async (_repo, number) => opts.byNumber?.[number] ?? recent.find((p) => p.number === number) ?? null,
   };
   return { api, calls };
 }
+
+const facts = (fields: Partial<PullRequestFacts>): PullRequestFacts => ({
+  repo: "Novawerk/novawerk-workspace",
+  number: 212,
+  url: "https://github.com/Novawerk/novawerk-workspace/pull/212",
+  title: "Dark mode",
+  authorId: 90000001,
+  authorLogin: "lena-k",
+  authorAssociation: "CONTRIBUTOR",
+  state: "open",
+  merged: false,
+  taskNumber: null,
+  ...fields,
+});
 
 const fixture = JSON.parse(readFileSync(new URL("../../../packages/github/src/fixtures/pull_request.opened.json", import.meta.url), "utf8"));
 
@@ -120,6 +138,16 @@ describe("POST /webhooks/github", () => {
     expect(fetchMock.mock.calls[0]).toMatchObject(["https://novawerk.io/api/revalidate", { body: JSON.stringify({ tags: ["tasks", "contributors"] }) }]);
   });
 
+  it("refuses an oversized body before reading it", async () => {
+    const { app } = makeApp(db, { env: { githubWebhookSecret: SECRET } });
+    const res = await app.request("/webhooks/github", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Content-Length": String(6 * 1024 * 1024) },
+      body: "x".repeat(6 * 1024 * 1024),
+    });
+    expect(res.status).toBe(413);
+  });
+
   it("answers ping and other events without touching anything; a bad payload is a 400", async () => {
     const { app } = makeApp(db, { env: { githubWebhookSecret: SECRET } });
     expect(await (await deliver(app, { zen: "Keep it simple" }, { event: "ping" })).json()).toEqual({ ignored: "ping" });
@@ -140,17 +168,7 @@ describe("GET /cron/github-sync", () => {
   it("catches up on a missed merge and releases an idle task, idempotently", async () => {
     const missed = await assignedTask({ status: "in_review", prUrl: fixture.pull_request.html_url });
     const idle = await assignedTask({ title: "Idle", lastActivityAt: new Date(Date.now() - 15 * 24 * 3_600_000) });
-    const mergedPr: PullRequestFacts = {
-      repo: "Novawerk/novawerk-workspace",
-      number: 212,
-      url: fixture.pull_request.html_url,
-      title: "Dark mode",
-      authorId: 90000001,
-      authorLogin: "lena-k",
-      state: "closed",
-      merged: true,
-      taskNumber: missed.id,
-    };
+    const mergedPr = facts({ state: "closed", merged: true, taskNumber: missed.id });
     const { api, calls } = fakeGitHub([mergedPr]);
     const { app } = makeApp(db, { env: { cronSecret: CRON }, githubApi: api });
     const run = () => app.request("/cron/github-sync", { headers: { Authorization: `Bearer ${CRON}` } });
@@ -161,6 +179,7 @@ describe("GET /cron/github-sync", () => {
       reminded: [],
       released: [idle.id],
       deliveriesDeleted: 0,
+      errors: [],
     });
     expect(calls.filter((c) => c.kind === "comment")).toHaveLength(1);
     expect(await (await run()).json()).toMatchObject({ pullRequests: { checked: 1, changed: {} }, released: [] });
@@ -168,10 +187,35 @@ describe("GET /cron/github-sync", () => {
   });
 });
 
+describe("GET /cron/github-sync when GitHub fails or a PR doesn't count", () => {
+  const run = (app: TestApp) => app.request("/cron/github-sync", { headers: { Authorization: `Bearer ${CRON}` } });
+
+  it("still releases idle tasks and cleans up when GitHub errors", async () => {
+    const idle = await assignedTask({ title: "Idle", lastActivityAt: new Date(Date.now() - 15 * 24 * 3_600_000) });
+    const { api } = fakeGitHub([], { failRecent: true });
+    const { app } = makeApp(db, { env: { cronSecret: CRON }, githubApi: api });
+    const res = await run(app);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ released: [idle.id], errors: ["recent pull requests: Bad credentials"] });
+  });
+
+  it("puts a task in review back to assigned when its PR isn't the assignee's", async () => {
+    const t = await assignedTask({ status: "in_review", prUrl: "https://github.com/Novawerk/novawerk-workspace/pull/1" });
+    const { api } = fakeGitHub([], { byNumber: { 1: facts({ number: 1, url: "https://github.com/Novawerk/novawerk-workspace/pull/1", authorId: 5, taskNumber: t.id }) } });
+    const { app } = makeApp(db, { env: { cronSecret: CRON }, githubApi: api });
+    expect(await (await run(app)).json()).toMatchObject({ pullRequests: { changed: { unlinked: 1 } } });
+    expect((await db.select().from(tasks))[0]).toMatchObject({ status: "assigned", prUrl: null });
+  });
+});
+
 describe("the assignee's routes, reports and blocks", () => {
   it("guide, my tasks, link a PR, a week more, release", async () => {
     const t = await assignedTask({ criteria: ["Works"] });
-    const { app } = makeApp(db);
+    const pulls: Record<number, PullRequestFacts> = {
+      1: facts({ number: 1, url: "https://github.com/Novawerk/novawerk-workspace/pull/1", authorId: 5, taskNumber: t.id }),
+      7: facts({ number: 7, url: "https://github.com/Novawerk/novawerk-workspace/pull/7", taskNumber: t.id }),
+    };
+    const { app } = makeApp(db, { githubApi: fakeGitHub([], { byNumber: pulls }).api });
     const cookie = await contributorCookie(lenaId);
     const call = async (method: string, path: string, body?: unknown) => {
       const res = await app.request(path, {
@@ -187,6 +231,11 @@ describe("the assignee's routes, reports and blocks", () => {
     expect((await call("POST", `/contrib/tasks/${t.id}/extend`)).body).toMatchObject({ ok: true, extendedAt: expect.any(String) });
     expect((await call("POST", `/contrib/tasks/${t.id}/extend`)).status).toBe(409);
     expect((await call("POST", `/contrib/tasks/${t.id}/pr`, { url: "https://gitlab.com/x/y/pull/1" })).status).toBe(400);
+    // Someone else's PR (here: /pull/1 by another account) can't be linked.
+    const someoneElses = await call("POST", `/contrib/tasks/${t.id}/pr`, { url: "https://github.com/Novawerk/novawerk-workspace/pull/1" });
+    expect(someoneElses.status).toBe(400);
+    expect(someoneElses.body.issues.url[0]).toMatch(/linked to the person on this task/);
+    expect((await call("POST", `/contrib/tasks/${t.id}/pr`, { url: "https://github.com/Novawerk/novawerk-workspace/pull/404" })).status).toBe(400);
     expect((await call("POST", `/contrib/tasks/${t.id}/pr`, { url: "https://github.com/Novawerk/novawerk-workspace/pull/7" })).body).toEqual({
       ok: true,
       status: "in_review",
@@ -194,7 +243,19 @@ describe("the assignee's routes, reports and blocks", () => {
     });
     expect((await call("POST", `/contrib/tasks/${t.id}/release`, { reason: "Busy" })).status).toBe(409); // in review now
     const other = await assignedTask({ title: "Other", status: "assigned" });
-    expect((await call("POST", `/contrib/tasks/${other.id}/release`, {})).body).toEqual({ ok: true });
+    // No body at all is fine.
+    const released = await app.request(`/contrib/tasks/${other.id}/release`, { method: "POST", headers: { Cookie: cookie } });
+    expect(await released.json()).toEqual({ ok: true });
+
+    // Without the App, linking by hand says how to do it instead.
+    const third = await assignedTask({ title: "Third" });
+    const noApp = makeApp(db).app;
+    const res = await noApp.request(`/contrib/tasks/${third.id}/pr`, {
+      method: "POST",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://github.com/Novawerk/novawerk-workspace/pull/7" }),
+    });
+    expect(res.status).toBe(503);
   });
 
   it("reports a post, and lists blocks without private handles", async () => {

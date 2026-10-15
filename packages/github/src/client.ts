@@ -13,7 +13,12 @@ export interface GitHubApi {
   addLabels(repo: string, issueNumber: number, labels: string[]): Promise<void>;
   /** PRs updated since `since`, newest first (at most `limit`). */
   recentPullRequests(repo: string, since: Date, limit?: number): Promise<PullRequestFacts[]>;
+  /** One PR, or null when it doesn't exist. */
+  getPullRequest(repo: string, number: number): Promise<PullRequestFacts | null>;
 }
+
+/** Every call to GitHub gives up after this long, so a slow GitHub can't hold a request or the cron. */
+export const GITHUB_TIMEOUT_MS = 10_000;
 
 export interface GitHubAppCredentials {
   appId: string;
@@ -32,6 +37,9 @@ function split(repo: string): { owner: string; repo: string } {
 }
 
 export function createGitHubApi(credentials: GitHubAppCredentials, opts: { fetch?: typeof fetch } = {}): GitHubApi {
+  const base = opts.fetch ?? fetch;
+  const timed: typeof fetch = (input, init) =>
+    base(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(GITHUB_TIMEOUT_MS) });
   const octokit = new Octokit({
     authStrategy: createAppAuth,
     auth: {
@@ -40,7 +48,7 @@ export function createGitHubApi(credentials: GitHubAppCredentials, opts: { fetch
       installationId: Number(credentials.installationId),
     },
     userAgent: "novawerk-task-board",
-    ...(opts.fetch ? { request: { fetch: opts.fetch } } : {}),
+    request: { fetch: timed },
   });
 
   return {
@@ -57,6 +65,16 @@ export function createGitHubApi(credentials: GitHubAppCredentials, opts: { fetch
         issue_number: issueNumber,
         labels,
       });
+    },
+    async getPullRequest(repo, number) {
+      try {
+        const res = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", { ...split(repo), pull_number: number });
+        const pr = pullRequestSchema.safeParse(res.data);
+        return pr.success ? pullRequestFacts(pr.data) : null;
+      } catch (err) {
+        if ((err as { status?: number }).status === 404) return null;
+        throw err;
+      }
     },
     async recentPullRequests(repo, since, limit = 300) {
       const out: PullRequestFacts[] = [];
