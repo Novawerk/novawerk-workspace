@@ -133,9 +133,13 @@ export function subItemActive(item: NavItem, sub: NavSubItem, pathname: string):
   return under(sub.to) && !item.children!.some(claimed)
 }
 
+/** Pages every member may open that aren't in the sidebar (their own profile). */
+const EVERY_MEMBER = ["/profile"]
+
 /** True when a member without admin access may open this path. */
 export function memberMayOpen(pathname: string): boolean {
   const under = (p: string) => pathname === p || pathname.startsWith(`${p}/`)
+  if (EVERY_MEMBER.some(under)) return true
   return MEMBER_PATHS.some(under) && !ADMIN_ONLY_UNDER.some(under)
 }
 

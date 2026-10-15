@@ -15,6 +15,7 @@ import { ProposalCard, Thread, Timeline } from "@/components/board/task-panels"
 import { ConfirmAction } from "@/components/inbox/confirm-action"
 import { Page } from "@/components/page"
 import { boardTaskQueryOptions, useCloseTask, usePublishTask, useReopenTask } from "@/lib/board-queries"
+import { WEB_URL } from "@/lib/env"
 import { errorMessage } from "@/lib/errors"
 import { formatDateTime, formatRelative } from "@/lib/format"
 import type { AdminTaskDetail } from "@/lib/types"
@@ -25,7 +26,6 @@ export const Route = createFileRoute("/_app/tasks/$taskId")({
 })
 
 const FINAL = ["done", "closed", "declined", "duplicate"]
-const WEB_URL = "https://novawerk.io"
 
 function TaskPage() {
   const { taskId } = Route.useParams()

@@ -2,6 +2,9 @@
 
 export const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8787").replace(/\/+$/, "")
 
+/** The public website (profile and task links). Defaults to https://novawerk.io. */
+export const WEB_URL = (import.meta.env.VITE_WEB_URL || "https://novawerk.io").replace(/\/+$/, "")
+
 export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ""
 
 /**
