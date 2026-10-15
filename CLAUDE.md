@@ -65,7 +65,11 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
     member's own, or a contributor's; NB-ADR-0013);
   - `sendNewsletterConfirmation()` sends a fixed double opt-in template with one confirmation
     link to the address that just signed up, rate-limited per address (NB-ADR-0011). Newsletter
-    issues are not part of this exception, and go only to confirmed subscribers.
+    issues are not part of this exception, and go only to confirmed subscribers;
+  - contributor notices (NB-ADR-0013) are fixed templates about a contributor's own account and
+    tasks (proposal chosen or not, replies, reminders, release, Werk awarded, account deleted),
+    sent without approval only to that contributor's own verified address. Nothing else to
+    contributors skips the outbox.
 - **Inbound mail to info@ is relayed, not stored.** Resend receiving calls
   `POST /webhooks/resend`; the API checks the signature and posts one card to the Slack channel
   `#info-inbox` (`apps/api/src/inbound-mail.ts`). Gmail stays the inbox; replies go from there.
