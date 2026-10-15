@@ -264,6 +264,19 @@ on conflict do nothing;
 
 insert into task_events (task_id, kind, from_status, to_status, actor_member_id, actor_contributor_id, pr_url, note, created_at)
 select * from (values
+  -- Every member-written task was created as a draft and published.
+  (1, 'created', null::task_status, 'draft'::task_status, 'mara', null::uuid, null, null, now() - interval '9 days'),
+  (1, 'published', 'draft'::task_status, 'open'::task_status, 'mara', null::uuid, null, null, now() - interval '9 days'),
+  (2, 'created', null::task_status, 'draft'::task_status, 'mara', null::uuid, null, null, now() - interval '7 days'),
+  (2, 'published', 'draft'::task_status, 'open'::task_status, 'mara', null::uuid, null, null, now() - interval '7 days'),
+  (3, 'created', null::task_status, 'draft'::task_status, 'mara', null::uuid, null, null, now() - interval '6 days'),
+  (3, 'published', 'draft'::task_status, 'open'::task_status, 'mara', null::uuid, null, null, now() - interval '6 days'),
+  (4, 'created', null::task_status, 'draft'::task_status, 'mara', null::uuid, null, null, now() - interval '5 days'),
+  (4, 'published', 'draft'::task_status, 'open'::task_status, 'mara', null::uuid, null, null, now() - interval '5 days'),
+  (5, 'created', null::task_status, 'draft'::task_status, 'mara', null::uuid, null, null, now() - interval '4 days'),
+  (5, 'published', 'draft'::task_status, 'open'::task_status, 'mara', null::uuid, null, null, now() - interval '4 days'),
+  (6, 'created', null::task_status, 'draft'::task_status, 'mara', null::uuid, null, null, now() - interval '25 days'),
+  (6, 'published', 'draft'::task_status, 'open'::task_status, 'mara', null::uuid, null, null, now() - interval '25 days'),
   (4, 'assigned', 'open'::task_status, 'assigned'::task_status, 'mara', null::uuid, null, null, now() - interval '2 days'),
   (6, 'assigned', 'open'::task_status, 'assigned'::task_status, 'mara', null::uuid, null, null, now() - interval '20 days'),
   (6, 'pr_linked', 'assigned'::task_status, 'in_review'::task_status, null, 'c1000000-0000-4000-8000-000000000001'::uuid,

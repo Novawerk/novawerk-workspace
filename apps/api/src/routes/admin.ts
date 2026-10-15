@@ -1,6 +1,6 @@
 // /admin: the admin panel's routes. Every request needs a valid `nw_session` cookie of an active
-// member (src/auth.ts). The inbox, outbox, money, partners, documents and the assistant also need
-// `can_admin`; projects, posts, cards and picture uploads are open to every member and check per
+// member (src/auth.ts). The inbox, outbox, money, partners, documents, the assistant and the task
+// board also need `can_admin`; projects, posts, cards and picture uploads are open to every member and check per
 // project (./admin/access.ts) who may see what.
 
 import { zValidator } from "@hono/zod-validator";
@@ -18,6 +18,7 @@ import { requireAdmin, requireSession } from "../auth.js";
 import { rejectInvalid } from "../http.js";
 import { revalidateWeb } from "../revalidate.js";
 import type { AdminMember, ApiEnv } from "../types.js";
+import { boardAdminRoutes } from "./admin/board.js";
 import { cardRoutes } from "./admin/cards.js";
 import { documentRoutes } from "./admin/documents.js";
 import { financeRoutes } from "./admin/finance.js";
@@ -59,6 +60,13 @@ const ADMIN_ONLY = [
   "/documents",
   "/metrics",
   "/chat",
+  // The contributor task board (./admin/board.ts).
+  "/tasks",
+  "/proposals",
+  "/suggestions",
+  "/discussions",
+  "/contributors",
+  "/werk",
 ];
 
 export function adminRoutes(deps: AdminDeps) {
@@ -73,6 +81,7 @@ export function adminRoutes(deps: AdminDeps) {
   const projects = projectGuard(deps.db);
   const posts = postGuard(deps.db);
   app.use("/projects/:id", projects).use("/projects/:id/*", projects).use("/posts/:id", posts).use("/posts/:id/*", posts);
+  const board = boardAdminRoutes(deps);
   return app
     // The signed-in member, with their own opt-in public profile (NB-ADR-0013).
     .get("/me", async (c) => c.json(await memberSelf(deps.db, c.get("member")), 200))
@@ -100,5 +109,11 @@ export function adminRoutes(deps: AdminDeps) {
     .route("/subscribers", subscriberRoutes(deps))
     .route("/documents", documentRoutes(deps))
     .route("/uploads", uploadRoutes(deps))
-    .route("/chat", adminChatRoutes(deps));
+    .route("/chat", adminChatRoutes(deps))
+    .route("/tasks", board.tasksApp)
+    .route("/proposals", board.proposalsApp)
+    .route("/suggestions", board.suggestionsApp)
+    .route("/discussions", board.discussionsApp)
+    .route("/contributors", board.contributorsApp)
+    .route("/werk", board.werkApp);
 }

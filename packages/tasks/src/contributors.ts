@@ -254,7 +254,9 @@ export async function revokeSessions(db: Database, contributorId: string, now = 
  */
 export async function deleteContributor(db: Database, contributorId: string, confirmHandle: string): Promise<void> {
   await db.transaction(async (tx) => {
-    const [me] = await tx.select().from(contributors).where(eq(contributors.id, contributorId)).limit(1);
+    // Locked first (the board's lock order: contributor, then task), so nobody assigns them a
+    // task while the account goes.
+    const [me] = await tx.select().from(contributors).where(eq(contributors.id, contributorId)).for("update");
     if (!me) throw new TaskRuleError("not_found", "Not signed in");
     if (confirmHandle.trim().toLowerCase() !== me.handle) {
       throw new TaskRuleError("invalid", "Type your handle to confirm", "confirmHandle");

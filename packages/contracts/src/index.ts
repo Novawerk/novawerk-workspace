@@ -1759,8 +1759,34 @@ export const TASK_EVENT_KINDS = [
   "inactivity_reminder",
   /** "I need a week more". */
   "extended",
+  "reopened",
+  /** A member locked the thread (no new posts) or opened it again. */
+  "thread_locked",
+  "thread_unlocked",
+  /** A member wrote in the thread. */
+  "member_posted",
+  // Members only (MEMBER_ONLY_EVENT_KINDS): the admin side's record, never on the public timeline.
+  "edited",
+  "proposal_declined",
+  "post_hidden",
+  "post_unhidden",
+  "reports_dismissed",
+  "werk_adjusted",
 ] as const;
 export type TaskEventKind = (typeof TASK_EVENT_KINDS)[number];
+
+/**
+ * Events that stay on the admin side: the public timeline leaves them out. A declined proposal's
+ * note is private to its author; why a post was hidden is for members.
+ */
+export const MEMBER_ONLY_EVENT_KINDS = [
+  "edited",
+  "proposal_declined",
+  "post_hidden",
+  "post_unhidden",
+  "reports_dismissed",
+  "werk_adjusted",
+] as const satisfies readonly TaskEventKind[];
 
 export const PROFILE_ACCENTS = ["green", "blue", "teal", "plum", "amber", "ink"] as const;
 export type ProfileAccent = (typeof PROFILE_ACCENTS)[number];
@@ -2307,3 +2333,187 @@ export interface ContributorTokenInfo {
 export interface CreatedToken extends ContributorTokenInfo {
   secret: string;
 }
+
+// ─── Contributor task board: admin (/admin/tasks, /admin/proposals, …) ───────
+// Members with can_admin run the board: write and publish tasks, choose a plan, triage
+// suggestions, moderate, and adjust Werk. Every action writes a task event.
+
+/** The hint under each size in the task editor. */
+export const TASK_SIZE_HINTS: Record<TaskSize, string> = {
+  S: "An afternoon or two.",
+  M: "About a week of evenings.",
+  L: "Two to three weeks.",
+  XL: "A month or more. Think about splitting it.",
+};
+
+/** The filters on the admin task table. `decide`: suggestions to triage, open tasks with plans. */
+export const ADMIN_TASK_FILTERS = ["all", "decide", "stale", "draft", "active", "finished"] as const;
+export type AdminTaskFilter = (typeof ADMIN_TASK_FILTERS)[number];
+
+/** An assigned task with no activity for this long is stale: the reminder goes out. */
+export const TASK_STALE_DAYS = 7;
+
+/** A required note, a reason or a question from a member. */
+const memberNote = (label: string, max = 2000) =>
+  z.string().trim().min(1, `${label}: please write something`).max(max, `${label}: keep it under ${max} characters`);
+
+const doneWhenLines = z
+  .array(z.string().trim().min(1, "Empty line").max(300, "Keep each line under 300 characters"))
+  .max(12, "Up to 12 lines");
+
+const skillTags = z
+  .array(
+    z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(1)
+      .max(40, "Keep each skill under 40 characters"),
+  )
+  .max(10, "Up to 10 skills");
+
+/** owner/name on GitHub. */
+const repoName = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, "Like Novawerk/novawerk-workspace");
+
+const taskFields = {
+  title: z.string().trim().min(3, "Give it a short title").max(120, "Keep it under 120 characters"),
+  summary: z.string().trim().max(200, "Keep it under 200 characters"),
+  body: z.string().trim().max(20_000, "Keep it under 20000 characters"),
+  criteria: doneWhenLines,
+  area: z.enum(TASK_AREAS, { error: "Pick an area" }),
+  size: z.enum(TASK_SIZES, { error: "Pick a size" }),
+  skills: skillTags,
+  repo: repoName,
+  /** A member's handle, or null. */
+  reviewerId: z.string().trim().min(1).max(80).nullable(),
+  /** The contribution guide: template plus task notes, Markdown. */
+  guideTemplate: nullableText(20_000),
+};
+
+/** POST /admin/tasks: a new draft. */
+export const adminTaskInput = z.object({
+  title: taskFields.title,
+  summary: taskFields.summary.default(""),
+  body: taskFields.body.default(""),
+  criteria: taskFields.criteria.default([]),
+  area: taskFields.area,
+  size: taskFields.size,
+  skills: taskFields.skills.default([]),
+  repo: taskFields.repo.default("Novawerk/novawerk-workspace"),
+  reviewerId: taskFields.reviewerId.default(null),
+  guideTemplate: taskFields.guideTemplate.optional(),
+  /** Publish at once instead of saving a draft. */
+  publish: z.boolean().default(false),
+});
+export type AdminTaskInput = z.input<typeof adminTaskInput>;
+
+/** PATCH /admin/tasks/:id */
+export const adminTaskUpdateInput = z
+  .object({
+    title: taskFields.title.optional(),
+    summary: taskFields.summary.optional(),
+    body: taskFields.body.optional(),
+    criteria: taskFields.criteria.optional(),
+    area: taskFields.area.optional(),
+    size: taskFields.size.optional(),
+    skills: taskFields.skills.optional(),
+    repo: taskFields.repo.optional(),
+    reviewerId: taskFields.reviewerId.optional(),
+    guideTemplate: taskFields.guideTemplate.optional(),
+  })
+  .refine(hasChanges, { message: "Nothing to update" });
+export type AdminTaskUpdateInput = z.input<typeof adminTaskUpdateInput>;
+
+/** POST /admin/tasks/:id/close and /reopen: the reason is public, on the timeline. */
+export const taskReasonInput = z.object({ reason: memberNote("Reason", 500) });
+export type TaskReasonInput = z.infer<typeof taskReasonInput>;
+
+/** POST /admin/tasks/:id/posts: a member writes in the thread (the "Novawerk" tag). */
+export const memberPostInput = z.object({
+  body: memberNote("Your post", 4000),
+  replyTo: z.uuid().optional(),
+});
+export type MemberPostInput = z.infer<typeof memberPostInput>;
+
+/** POST /admin/proposals/:id/choose: assign the task; private notes per declined proposal id. */
+export const chooseProposalInput = z.object({
+  notes: z.record(z.uuid(), z.string().trim().max(1000, "Keep each note under 1000 characters")).default({}),
+});
+export type ChooseProposalInput = z.input<typeof chooseProposalInput>;
+
+/** POST /admin/proposals/:id/decline: the note only reaches the proposer. */
+export const declineProposalInput = z.object({ note: memberNote("Note", 1000) });
+export type DeclineProposalInput = z.infer<typeof declineProposalInput>;
+
+/** POST /admin/suggestions/:id/accept */
+export const acceptSuggestionInput = z.object({
+  area: z.enum(TASK_AREAS, { error: "Pick an area" }),
+  size: z.enum(TASK_SIZES, { error: "Pick a size" }),
+  criteria: doneWhenLines.min(1, "Add at least one done-when line"),
+  /** Give it straight to the suggester (only when they ticked "do it myself"). */
+  assignToSuggester: z.boolean().default(false),
+});
+export type AcceptSuggestionInput = z.input<typeof acceptSuggestionInput>;
+
+/** POST /admin/suggestions/:id/duplicate */
+export const duplicateSuggestionInput = z.object({
+  of: z.string().transform((v, ctx) => {
+    const n = parseTaskId(v);
+    if (n === null) {
+      ctx.addIssue({ code: "custom", message: "A task id like NW-12" });
+      return z.NEVER;
+    }
+    return n;
+  }),
+});
+export type DuplicateSuggestionInput = z.input<typeof duplicateSuggestionInput>;
+
+/** POST /admin/suggestions/:id/ask: the question goes into the thread. */
+export const askInfoInput = z.object({ question: memberNote("Question", 4000) });
+export type AskInfoInput = z.infer<typeof askInfoInput>;
+
+/** POST /admin/suggestions/:id/decline: the note shows on the closed suggestion. */
+export const declineSuggestionInput = z.object({ note: memberNote("Note", 1000) });
+export type DeclineSuggestionInput = z.infer<typeof declineSuggestionInput>;
+
+/** POST /admin/discussions/:id/hide and /unhide; POST /admin/contributors/:id/suspend and /unsuspend. */
+export const moderationInput = z.object({ reason: memberNote("Reason", 500) });
+export type ModerationInput = z.infer<typeof moderationInput>;
+
+/** GET /admin/discussions?filter=: every post, the reported ones still open, or the hidden ones. */
+export const DISCUSSION_FILTERS = ["all", "reported", "hidden"] as const;
+export type DiscussionFilter = (typeof DISCUSSION_FILTERS)[number];
+
+/** The admin's sorts on the suggestion queue. */
+export const SUGGESTION_SORTS = ["oldest", "votes"] as const;
+export type SuggestionSort = (typeof SUGGESTION_SORTS)[number];
+
+/** POST /admin/werk: a new ledger row. Rows are never edited. */
+export const werkAdjustInput = z.object({
+  contributorId: z.uuid({ error: "Pick a contributor" }),
+  delta: z
+    .number({ error: "A whole number" })
+    .int("A whole number")
+    .min(-100, "Between -100 and 100")
+    .max(100, "Between -100 and 100")
+    .refine((n) => n !== 0, "Not zero"),
+  reason: memberNote("Reason", 300),
+  /** The task it is about, when there is one ("NW-12"). */
+  taskId: z
+    .string()
+    .trim()
+    .transform((v, ctx) => {
+      if (!v) return undefined;
+      const n = parseTaskId(v);
+      if (n === null) {
+        ctx.addIssue({ code: "custom", message: "A task id like NW-12" });
+        return z.NEVER;
+      }
+      return n;
+    })
+    .optional(),
+});
+export type WerkAdjustInput = z.input<typeof werkAdjustInput>;

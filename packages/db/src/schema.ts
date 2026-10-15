@@ -111,6 +111,9 @@ export const contributors = pgTable("contributors", {
   pledgeAcceptedAt: timestamp("pledge_accepted_at", { withTimezone: true }),
   /** Set by a member (moderation): they can still sign in and read, but not write. */
   suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+  /** Why, for members only. Cleared with the suspension. */
+  suspendedReason: text("suspended_reason"),
+  suspendedBy: text("suspended_by").references(() => members.id, { onDelete: "set null" }),
   lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
   /** Emails about replies on their posts and tasks. Settings; on by default. */
   notifyReplies: boolean("notify_replies").notNull().default(true),
@@ -121,6 +124,26 @@ export const contributors = pgTable("contributors", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+/**
+ * Every suspension and lift, with who and why (members only). contributors.suspended_* holds
+ * the current one; this keeps the history.
+ */
+export const contributorModeration = pgTable(
+  "contributor_moderation",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    contributorId: uuid("contributor_id")
+      .notNull()
+      .references(() => contributors.id, { onDelete: "cascade" }),
+    /** `suspended` or `unsuspended`. */
+    action: text("action").notNull(),
+    reason: text("reason").notNull(),
+    memberId: text("member_id").references(() => members.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("contributor_moderation_contributor_idx").on(t.contributorId, t.createdAt)],
+);
 
 /**
  * Personal access tokens for agents and scripts (/settings/tokens, the MCP server). Only a hash
@@ -805,6 +828,10 @@ export const taskPosts = pgTable(
     viaTokenId: uuid("via_token_id").references(() => contributorTokens.id, { onDelete: "set null" }),
     hiddenAt: timestamp("hidden_at", { withTimezone: true }),
     hiddenBy: text("hidden_by").references(() => members.id, { onDelete: "set null" }),
+    /** Why a member hid it. Members only: the public sees "Hidden by Novawerk: off-topic or spam". */
+    hiddenReason: text("hidden_reason"),
+    /** A member looked at its reports and kept it: reports from before this leave the Reported queue. */
+    reportsClearedAt: timestamp("reports_cleared_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [
@@ -847,7 +874,7 @@ export const taskEvents = pgTable(
      * was decided, who earned the Werk. Notices go to them. Never shown publicly.
      */
     subjectContributorId: uuid("subject_contributor_id").references(() => contributors.id, { onDelete: "set null" }),
-    /** Public. */
+    /** Public, except on MEMBER_ONLY_EVENT_KINDS (@nw/contracts). */
     note: text("note"),
     prUrl: text("pr_url"),
     /** Done through a personal access token: "via agent · <token name>". */

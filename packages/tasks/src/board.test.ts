@@ -132,6 +132,7 @@ describe("transitions", () => {
     const events = await db.select().from(taskEvents);
     expect(events.map((e) => [e.kind, e.fromStatus, e.toStatus])).toEqual([
       ["assigned", "open", "assigned"],
+      ["proposal_declined", null, null],
       ["pr_linked", "assigned", "in_review"],
       ["merged", "in_review", "done"],
     ]);

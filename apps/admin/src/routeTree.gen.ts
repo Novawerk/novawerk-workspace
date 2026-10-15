@@ -17,9 +17,13 @@ import { Route as AppDocumentsRouteImport } from './routes/_app/documents'
 import { Route as AppFinanceRouteImport } from './routes/_app/finance'
 import { Route as AppMembersRouteImport } from './routes/_app/members'
 import { Route as AppMetricsRouteImport } from './routes/_app/metrics'
+import { Route as AppModerationRouteImport } from './routes/_app/moderation'
 import { Route as AppOutboxRouteImport } from './routes/_app/outbox'
 import { Route as AppPartnersRouteImport } from './routes/_app/partners'
+import { Route as AppProposalsRouteImport } from './routes/_app/proposals'
 import { Route as AppSubscribersRouteImport } from './routes/_app/subscribers'
+import { Route as AppSuggestionsRouteImport } from './routes/_app/suggestions'
+import { Route as AppWerkRouteImport } from './routes/_app/werk'
 import { Route as AppInboxApplicationsRouteImport } from './routes/_app/inbox/applications'
 import { Route as AppInboxProjectsRouteImport } from './routes/_app/inbox/projects'
 import { Route as AppPortfolioIndexRouteImport } from './routes/_app/portfolio/index'
@@ -31,6 +35,9 @@ import { Route as AppPostsTemplatesRouteImport } from './routes/_app/posts/templ
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects/index'
 import { Route as AppProjectsProjectIdRouteImport } from './routes/_app/projects/$projectId'
 import { Route as AppProjectsNewRouteImport } from './routes/_app/projects/new'
+import { Route as AppTasksIndexRouteImport } from './routes/_app/tasks/index'
+import { Route as AppTasksTaskIdRouteImport } from './routes/_app/tasks/$taskId'
+import { Route as AppTasksNewRouteImport } from './routes/_app/tasks/new'
 import { Route as AppProjectsPitchesSubmissionIdRouteImport } from './routes/_app/projects/pitches/$submissionId'
 
 const AppRoute = AppRouteImport.update({
@@ -72,6 +79,11 @@ const AppMetricsRoute = AppMetricsRouteImport.update({
   path: '/metrics',
   getParentRoute: () => AppRoute,
 } as any)
+const AppModerationRoute = AppModerationRouteImport.update({
+  id: '/moderation',
+  path: '/moderation',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppOutboxRoute = AppOutboxRouteImport.update({
   id: '/outbox',
   path: '/outbox',
@@ -82,9 +94,24 @@ const AppPartnersRoute = AppPartnersRouteImport.update({
   path: '/partners',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProposalsRoute = AppProposalsRouteImport.update({
+  id: '/proposals',
+  path: '/proposals',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSubscribersRoute = AppSubscribersRouteImport.update({
   id: '/subscribers',
   path: '/subscribers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSuggestionsRoute = AppSuggestionsRouteImport.update({
+  id: '/suggestions',
+  path: '/suggestions',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWerkRoute = AppWerkRouteImport.update({
+  id: '/werk',
+  path: '/werk',
   getParentRoute: () => AppRoute,
 } as any)
 const AppInboxApplicationsRoute = AppInboxApplicationsRouteImport.update({
@@ -142,6 +169,21 @@ const AppProjectsNewRoute = AppProjectsNewRouteImport.update({
   path: '/projects/new',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTasksIndexRoute = AppTasksIndexRouteImport.update({
+  id: '/tasks/',
+  path: '/tasks/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTasksTaskIdRoute = AppTasksTaskIdRouteImport.update({
+  id: '/tasks/$taskId',
+  path: '/tasks/$taskId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTasksNewRoute = AppTasksNewRouteImport.update({
+  id: '/tasks/new',
+  path: '/tasks/new',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProjectsPitchesSubmissionIdRoute =
   AppProjectsPitchesSubmissionIdRouteImport.update({
     id: '/projects/pitches/$submissionId',
@@ -157,9 +199,13 @@ export interface FileRoutesByFullPath {
   '/finance': typeof AppFinanceRoute
   '/members': typeof AppMembersRoute
   '/metrics': typeof AppMetricsRoute
+  '/moderation': typeof AppModerationRoute
   '/outbox': typeof AppOutboxRoute
   '/partners': typeof AppPartnersRoute
+  '/proposals': typeof AppProposalsRoute
   '/subscribers': typeof AppSubscribersRoute
+  '/suggestions': typeof AppSuggestionsRoute
+  '/werk': typeof AppWerkRoute
   '/inbox/applications': typeof AppInboxApplicationsRoute
   '/inbox/projects': typeof AppInboxProjectsRoute
   '/portfolio/$projectId': typeof AppPortfolioProjectIdRoute
@@ -168,9 +214,12 @@ export interface FileRoutesByFullPath {
   '/posts/templates': typeof AppPostsTemplatesRoute
   '/projects/$projectId': typeof AppProjectsProjectIdRoute
   '/projects/new': typeof AppProjectsNewRoute
+  '/tasks/$taskId': typeof AppTasksTaskIdRoute
+  '/tasks/new': typeof AppTasksNewRoute
   '/portfolio/': typeof AppPortfolioIndexRoute
   '/posts/': typeof AppPostsIndexRoute
   '/projects/': typeof AppProjectsIndexRoute
+  '/tasks/': typeof AppTasksIndexRoute
   '/projects/pitches/$submissionId': typeof AppProjectsPitchesSubmissionIdRoute
 }
 export interface FileRoutesByTo {
@@ -180,9 +229,13 @@ export interface FileRoutesByTo {
   '/finance': typeof AppFinanceRoute
   '/members': typeof AppMembersRoute
   '/metrics': typeof AppMetricsRoute
+  '/moderation': typeof AppModerationRoute
   '/outbox': typeof AppOutboxRoute
   '/partners': typeof AppPartnersRoute
+  '/proposals': typeof AppProposalsRoute
   '/subscribers': typeof AppSubscribersRoute
+  '/suggestions': typeof AppSuggestionsRoute
+  '/werk': typeof AppWerkRoute
   '/': typeof AppIndexRoute
   '/inbox/applications': typeof AppInboxApplicationsRoute
   '/inbox/projects': typeof AppInboxProjectsRoute
@@ -192,9 +245,12 @@ export interface FileRoutesByTo {
   '/posts/templates': typeof AppPostsTemplatesRoute
   '/projects/$projectId': typeof AppProjectsProjectIdRoute
   '/projects/new': typeof AppProjectsNewRoute
+  '/tasks/$taskId': typeof AppTasksTaskIdRoute
+  '/tasks/new': typeof AppTasksNewRoute
   '/portfolio': typeof AppPortfolioIndexRoute
   '/posts': typeof AppPostsIndexRoute
   '/projects': typeof AppProjectsIndexRoute
+  '/tasks': typeof AppTasksIndexRoute
   '/projects/pitches/$submissionId': typeof AppProjectsPitchesSubmissionIdRoute
 }
 export interface FileRoutesById {
@@ -206,9 +262,13 @@ export interface FileRoutesById {
   '/_app/finance': typeof AppFinanceRoute
   '/_app/members': typeof AppMembersRoute
   '/_app/metrics': typeof AppMetricsRoute
+  '/_app/moderation': typeof AppModerationRoute
   '/_app/outbox': typeof AppOutboxRoute
   '/_app/partners': typeof AppPartnersRoute
+  '/_app/proposals': typeof AppProposalsRoute
   '/_app/subscribers': typeof AppSubscribersRoute
+  '/_app/suggestions': typeof AppSuggestionsRoute
+  '/_app/werk': typeof AppWerkRoute
   '/_app/': typeof AppIndexRoute
   '/_app/inbox/applications': typeof AppInboxApplicationsRoute
   '/_app/inbox/projects': typeof AppInboxProjectsRoute
@@ -218,9 +278,12 @@ export interface FileRoutesById {
   '/_app/posts/templates': typeof AppPostsTemplatesRoute
   '/_app/projects/$projectId': typeof AppProjectsProjectIdRoute
   '/_app/projects/new': typeof AppProjectsNewRoute
+  '/_app/tasks/$taskId': typeof AppTasksTaskIdRoute
+  '/_app/tasks/new': typeof AppTasksNewRoute
   '/_app/portfolio/': typeof AppPortfolioIndexRoute
   '/_app/posts/': typeof AppPostsIndexRoute
   '/_app/projects/': typeof AppProjectsIndexRoute
+  '/_app/tasks/': typeof AppTasksIndexRoute
   '/_app/projects/pitches/$submissionId': typeof AppProjectsPitchesSubmissionIdRoute
 }
 export interface FileRouteTypes {
@@ -233,9 +296,13 @@ export interface FileRouteTypes {
     | '/finance'
     | '/members'
     | '/metrics'
+    | '/moderation'
     | '/outbox'
     | '/partners'
+    | '/proposals'
     | '/subscribers'
+    | '/suggestions'
+    | '/werk'
     | '/inbox/applications'
     | '/inbox/projects'
     | '/portfolio/$projectId'
@@ -244,9 +311,12 @@ export interface FileRouteTypes {
     | '/posts/templates'
     | '/projects/$projectId'
     | '/projects/new'
+    | '/tasks/$taskId'
+    | '/tasks/new'
     | '/portfolio/'
     | '/posts/'
     | '/projects/'
+    | '/tasks/'
     | '/projects/pitches/$submissionId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -256,9 +326,13 @@ export interface FileRouteTypes {
     | '/finance'
     | '/members'
     | '/metrics'
+    | '/moderation'
     | '/outbox'
     | '/partners'
+    | '/proposals'
     | '/subscribers'
+    | '/suggestions'
+    | '/werk'
     | '/'
     | '/inbox/applications'
     | '/inbox/projects'
@@ -268,9 +342,12 @@ export interface FileRouteTypes {
     | '/posts/templates'
     | '/projects/$projectId'
     | '/projects/new'
+    | '/tasks/$taskId'
+    | '/tasks/new'
     | '/portfolio'
     | '/posts'
     | '/projects'
+    | '/tasks'
     | '/projects/pitches/$submissionId'
   id:
     | '__root__'
@@ -281,9 +358,13 @@ export interface FileRouteTypes {
     | '/_app/finance'
     | '/_app/members'
     | '/_app/metrics'
+    | '/_app/moderation'
     | '/_app/outbox'
     | '/_app/partners'
+    | '/_app/proposals'
     | '/_app/subscribers'
+    | '/_app/suggestions'
+    | '/_app/werk'
     | '/_app/'
     | '/_app/inbox/applications'
     | '/_app/inbox/projects'
@@ -293,9 +374,12 @@ export interface FileRouteTypes {
     | '/_app/posts/templates'
     | '/_app/projects/$projectId'
     | '/_app/projects/new'
+    | '/_app/tasks/$taskId'
+    | '/_app/tasks/new'
     | '/_app/portfolio/'
     | '/_app/posts/'
     | '/_app/projects/'
+    | '/_app/tasks/'
     | '/_app/projects/pitches/$submissionId'
   fileRoutesById: FileRoutesById
 }
@@ -362,6 +446,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMetricsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/moderation': {
+      id: '/_app/moderation'
+      path: '/moderation'
+      fullPath: '/moderation'
+      preLoaderRoute: typeof AppModerationRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/outbox': {
       id: '/_app/outbox'
       path: '/outbox'
@@ -376,11 +467,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPartnersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/proposals': {
+      id: '/_app/proposals'
+      path: '/proposals'
+      fullPath: '/proposals'
+      preLoaderRoute: typeof AppProposalsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/subscribers': {
       id: '/_app/subscribers'
       path: '/subscribers'
       fullPath: '/subscribers'
       preLoaderRoute: typeof AppSubscribersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/suggestions': {
+      id: '/_app/suggestions'
+      path: '/suggestions'
+      fullPath: '/suggestions'
+      preLoaderRoute: typeof AppSuggestionsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/werk': {
+      id: '/_app/werk'
+      path: '/werk'
+      fullPath: '/werk'
+      preLoaderRoute: typeof AppWerkRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/inbox/applications': {
@@ -460,6 +572,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/tasks/': {
+      id: '/_app/tasks/'
+      path: '/tasks'
+      fullPath: '/tasks/'
+      preLoaderRoute: typeof AppTasksIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tasks/$taskId': {
+      id: '/_app/tasks/$taskId'
+      path: '/tasks/$taskId'
+      fullPath: '/tasks/$taskId'
+      preLoaderRoute: typeof AppTasksTaskIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tasks/new': {
+      id: '/_app/tasks/new'
+      path: '/tasks/new'
+      fullPath: '/tasks/new'
+      preLoaderRoute: typeof AppTasksNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/projects/pitches/$submissionId': {
       id: '/_app/projects/pitches/$submissionId'
       path: '/projects/pitches/$submissionId'
@@ -476,9 +609,13 @@ interface AppRouteChildren {
   AppFinanceRoute: typeof AppFinanceRoute
   AppMembersRoute: typeof AppMembersRoute
   AppMetricsRoute: typeof AppMetricsRoute
+  AppModerationRoute: typeof AppModerationRoute
   AppOutboxRoute: typeof AppOutboxRoute
   AppPartnersRoute: typeof AppPartnersRoute
+  AppProposalsRoute: typeof AppProposalsRoute
   AppSubscribersRoute: typeof AppSubscribersRoute
+  AppSuggestionsRoute: typeof AppSuggestionsRoute
+  AppWerkRoute: typeof AppWerkRoute
   AppIndexRoute: typeof AppIndexRoute
   AppInboxApplicationsRoute: typeof AppInboxApplicationsRoute
   AppInboxProjectsRoute: typeof AppInboxProjectsRoute
@@ -488,9 +625,12 @@ interface AppRouteChildren {
   AppPostsTemplatesRoute: typeof AppPostsTemplatesRoute
   AppProjectsProjectIdRoute: typeof AppProjectsProjectIdRoute
   AppProjectsNewRoute: typeof AppProjectsNewRoute
+  AppTasksTaskIdRoute: typeof AppTasksTaskIdRoute
+  AppTasksNewRoute: typeof AppTasksNewRoute
   AppPortfolioIndexRoute: typeof AppPortfolioIndexRoute
   AppPostsIndexRoute: typeof AppPostsIndexRoute
   AppProjectsIndexRoute: typeof AppProjectsIndexRoute
+  AppTasksIndexRoute: typeof AppTasksIndexRoute
   AppProjectsPitchesSubmissionIdRoute: typeof AppProjectsPitchesSubmissionIdRoute
 }
 
@@ -500,9 +640,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppFinanceRoute: AppFinanceRoute,
   AppMembersRoute: AppMembersRoute,
   AppMetricsRoute: AppMetricsRoute,
+  AppModerationRoute: AppModerationRoute,
   AppOutboxRoute: AppOutboxRoute,
   AppPartnersRoute: AppPartnersRoute,
+  AppProposalsRoute: AppProposalsRoute,
   AppSubscribersRoute: AppSubscribersRoute,
+  AppSuggestionsRoute: AppSuggestionsRoute,
+  AppWerkRoute: AppWerkRoute,
   AppIndexRoute: AppIndexRoute,
   AppInboxApplicationsRoute: AppInboxApplicationsRoute,
   AppInboxProjectsRoute: AppInboxProjectsRoute,
@@ -512,9 +656,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppPostsTemplatesRoute: AppPostsTemplatesRoute,
   AppProjectsProjectIdRoute: AppProjectsProjectIdRoute,
   AppProjectsNewRoute: AppProjectsNewRoute,
+  AppTasksTaskIdRoute: AppTasksTaskIdRoute,
+  AppTasksNewRoute: AppTasksNewRoute,
   AppPortfolioIndexRoute: AppPortfolioIndexRoute,
   AppPostsIndexRoute: AppPostsIndexRoute,
   AppProjectsIndexRoute: AppProjectsIndexRoute,
+  AppTasksIndexRoute: AppTasksIndexRoute,
   AppProjectsPitchesSubmissionIdRoute: AppProjectsPitchesSubmissionIdRoute,
 }
 
