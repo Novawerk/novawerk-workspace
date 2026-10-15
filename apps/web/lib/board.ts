@@ -25,8 +25,10 @@ async function read<T>(path: string): Promise<Read<T>> {
   const apiUrl = process.env.API_URL?.trim();
   if (!apiUrl) return { ok: false, notFound: false };
   try {
+    // The website's own key skips the API's anonymous limit (600 an hour per IP): its servers share IPs.
+    const webKey = process.env.WEB_READ_KEY?.trim();
     const res = await fetch(`${apiUrl.replace(/\/+$/, "")}${path}`, {
-      headers: { accept: "application/json" },
+      headers: { accept: "application/json", ...(webKey ? { "x-nw-web-key": webKey } : {}) },
       signal: AbortSignal.timeout(8_000),
     });
     if (res.status === 404) return { ok: false, notFound: true };
