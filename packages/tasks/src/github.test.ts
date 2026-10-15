@@ -202,8 +202,10 @@ describe("deliveries", () => {
     expect(await claimDelivery(db, "d-1", "pull_request", t0)).toBe(false); // in progress
     await forgetDelivery(db, "d-1");
     expect(await claimDelivery(db, "d-1", "pull_request", t0)).toBe(true);
-    // A claim that never finished can be taken over after 5 minutes…
-    expect(await claimDelivery(db, "d-1", "pull_request", new Date(t0.getTime() + 6 * 60_000))).toBe(true);
+    // A claim still within the function's longest run is left alone; one that never finished can
+    // be taken over after 10 minutes…
+    expect(await claimDelivery(db, "d-1", "pull_request", new Date(t0.getTime() + 6 * 60_000))).toBe(false);
+    expect(await claimDelivery(db, "d-1", "pull_request", new Date(t0.getTime() + 11 * 60_000))).toBe(true);
     // …but a handled one never.
     await markDelivered(db, "d-1");
     expect(await claimDelivery(db, "d-1", "pull_request", new Date(t0.getTime() + 60 * 60_000))).toBe(false);
@@ -218,6 +220,11 @@ describe("inactivity", () => {
 
     expect(await checkInactivity(db, at(6))).toEqual({ reminded: [], released: [] });
     expect(await checkInactivity(db, at(7))).toEqual({ reminded: [t.id], released: [] });
+    // The reminder carries exact times for the email.
+    expect((await db.select().from(taskEvents))[0]?.data).toEqual({
+      idleSince: start.toISOString(),
+      releaseAt: at(14).toISOString(),
+    });
     expect(await checkInactivity(db, at(8))).toEqual({ reminded: [], released: [] });
     expect(await checkInactivity(db, at(14))).toEqual({ reminded: [], released: [t.id] });
     expect(await reload(t.id)).toMatchObject({ status: "open", assigneeId: null });

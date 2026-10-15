@@ -118,11 +118,16 @@ describe("createGitHubApi", () => {
         return Response.json({ token: "ghs_test", expires_at: new Date(Date.now() + 3_600_000).toISOString() }, { status: 201 });
       }
       if (url.endsWith("/pulls/212")) return Response.json(pr);
+      if (url.endsWith("/pulls/500")) return Response.json({ error: "boom" }, { status: 502 });
+      if (url.endsWith("/pulls/77")) return Response.json({ number: 77, surprise: "new format" });
       return Response.json({ message: "Not Found" }, { status: 404 });
     };
     const api = createGitHubApi({ appId: "5317582", privateKey: pem, installationId: "171409213" }, { fetch: fakeFetch });
     expect(await api.getPullRequest("Novawerk/novawerk-workspace", 212)).toMatchObject({ number: 212, taskNumber: 5, authorAssociation: "CONTRIBUTOR" });
     expect(await api.getPullRequest("Novawerk/novawerk-workspace", 9)).toBeNull();
+    // Only a 404 is "gone": a 5xx or a payload we can't read is an error.
+    await expect(api.getPullRequest("Novawerk/novawerk-workspace", 500)).rejects.toThrow();
+    await expect(api.getPullRequest("Novawerk/novawerk-workspace", 77)).rejects.toThrow();
     expect(signals.every((s) => s instanceof AbortSignal)).toBe(true);
   });
 });

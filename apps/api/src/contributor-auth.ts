@@ -118,6 +118,30 @@ export interface GitHubOAuth {
   exchange(code: string, redirectUri: string, codeVerifier: string): Promise<GitHubUser>;
 }
 
+/**
+ * The account's primary email, only when GitHub has verified it (the App's "Email addresses: read"
+ * permission). Null when there is none, or the call fails: signing in never depends on it.
+ */
+async function primaryVerifiedEmail(fetchImpl: typeof fetch, accessToken: string): Promise<string | null> {
+  try {
+    const res = await fetchImpl("https://api.github.com/user/emails", {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${accessToken}`,
+        "User-Agent": "novawerk-api",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+    const emails = (await res.json()) as { email?: unknown; primary?: unknown; verified?: unknown }[];
+    const primary = Array.isArray(emails) ? emails.find((e) => e.primary === true && e.verified === true) : undefined;
+    return typeof primary?.email === "string" && primary.email.includes("@") ? primary.email.trim().toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The real flow against github.com, with the GitHub App's client id and secret. */
 export function createGitHubOAuth(app: { clientId: string; clientSecret: string }, fetchImpl: typeof fetch = fetch): GitHubOAuth {
   return {
@@ -163,6 +187,7 @@ export function createGitHubOAuth(app: { clientId: string; clientSecret: string 
         login: user.login,
         name: typeof user.name === "string" ? user.name : null,
         avatarUrl: typeof user.avatar_url === "string" ? user.avatar_url : null,
+        email: await primaryVerifiedEmail(fetchImpl, token.access_token),
       };
     },
   };

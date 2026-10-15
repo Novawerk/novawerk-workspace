@@ -3,7 +3,7 @@
 
 import { randomBytes } from "node:crypto";
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import {
   isReservedHandle,
@@ -26,6 +26,11 @@ export interface GitHubUser {
   login: string;
   name: string | null;
   avatarUrl: string | null;
+  /**
+   * The primary email GitHub has verified, or null. Kept only when the contributor has no email
+   * yet (never over one they verified with a code), and never shown publicly: it's for notices.
+   */
+  email?: string | null;
 }
 
 const MAX_HANDLE = 39;
@@ -100,7 +105,7 @@ export async function signInWithGitHub(
         throw err;
       });
     if (!linked) throw new TaskRuleError("conflict", "This account is already linked to a different GitHub account");
-    return linked;
+    return keepGitHubEmail(db, linked, gh.email);
   }
   if (owner) {
     const [updated] = await db
@@ -108,10 +113,10 @@ export async function signInWithGitHub(
       .set({ githubLogin: gh.login, avatarUrl: gh.avatarUrl, lastSignInAt: now })
       .where(eq(contributors.id, owner.id))
       .returning();
-    return updated!;
+    return keepGitHubEmail(db, updated!, gh.email);
   }
   try {
-    return await insertWithFreeHandle(db, gh.login, (handle) => ({
+    const created = await insertWithFreeHandle(db, gh.login, (handle) => ({
       handle,
       displayName: gh.name?.trim() || gh.login,
       githubId: gh.id,
@@ -119,6 +124,7 @@ export async function signInWithGitHub(
       avatarUrl: gh.avatarUrl,
       lastSignInAt: now,
     }));
+    return keepGitHubEmail(db, created, gh.email);
   } catch (err) {
     // Two callbacks for the same new person at once: the other one created the row.
     const [raced] = isUniqueViolation(err) ? await db.select().from(contributors).where(eq(contributors.githubId, gh.id)) : [];
@@ -148,6 +154,27 @@ async function insertWithFreeHandle(
     if (created) return created;
     if (attempt >= 3) throw new TaskRuleError("conflict", "Couldn't find a free handle. Try again.");
   }
+}
+
+/**
+ * Keep GitHub's verified primary email for notices when the contributor has none yet. Never over
+ * an address they verified with a code, and never one another contributor already uses (that
+ * stays their own account; nothing is merged).
+ */
+async function keepGitHubEmail(db: Database, c: Contributor, email: string | null | undefined): Promise<Contributor> {
+  if (c.email || !email) return c;
+  const [other] = await db.select({ id: contributors.id }).from(contributors).where(eq(contributors.email, email)).limit(1);
+  if (other) return c;
+  const [updated] = await db
+    .update(contributors)
+    .set({ email })
+    .where(and(eq(contributors.id, c.id), isNull(contributors.email)))
+    .returning()
+    .catch((err: unknown) => {
+      if (isUniqueViolation(err)) return [c];
+      throw err;
+    });
+  return updated ?? c;
 }
 
 /**

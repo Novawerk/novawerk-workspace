@@ -5,11 +5,11 @@
 import { createHash } from "node:crypto";
 
 import { eq } from "drizzle-orm";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { contributors, members, signInCodes, tasks, type Database } from "@nw/db";
 
-import type { GitHubOAuth } from "../src/contributor-auth.js";
+import { createGitHubOAuth, type GitHubOAuth } from "../src/contributor-auth.js";
 import { readEnv } from "../src/deps.js";
 import { issueCode } from "../src/sign-in-codes.js";
 import {
@@ -439,5 +439,45 @@ describe("the GitHub App in readEnv", () => {
       clientSecret: "s",
     });
     expect(() => readEnv({ ...required, GITHUB_APP_CLIENT_ID: "Iv23-test" })).toThrow(/GITHUB_APP_CLIENT_SECRET/);
+  });
+});
+
+describe("website cache", () => {
+  it("refreshes the contributors pages after a profile change or a deleted account", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const { app } = makeApp(db, { env: { webRevalidate: { url: "https://novawerk.io/api/revalidate", secret: "r" } } });
+      const lena = await contributor({ handle: "lena", githubId: 1 });
+      await json(app, "PATCH", "/contrib/me/profile", lena.cookie, { bio: "Hi" });
+      await json(app, "DELETE", "/contrib/me", lena.cookie, { confirmHandle: "lena" });
+      expect(fetchMock.mock.calls.map((call) => (call as unknown[])[1])).toEqual([
+        expect.objectContaining({ body: JSON.stringify({ tags: ["contributors"] }) }),
+        expect.objectContaining({ body: JSON.stringify({ tags: ["contributors"] }) }),
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe("GitHub's verified email", () => {
+  it("is read with the user's token and kept only when primary and verified", async () => {
+    const calls: string[] = [];
+    const fakeFetch = (emails: unknown) =>
+      (async (input: string | URL | Request) => {
+        const url = String(input);
+        calls.push(url);
+        if (url.endsWith("/access_token")) return Response.json({ access_token: "ghu_x" });
+        if (url.endsWith("/user")) return Response.json({ id: 7, login: "neu", name: null, avatar_url: null });
+        return Response.json(emails);
+      }) as typeof fetch;
+    const oauth = (emails: unknown) => createGitHubOAuth({ clientId: "Iv23", clientSecret: "s" }, fakeFetch(emails));
+    expect(
+      (await oauth([{ email: "Neu@Example.com", primary: true, verified: true }]).exchange("c", "https://x/cb", "v")).email,
+    ).toBe("neu@example.com");
+    expect((await oauth([{ email: "neu@example.com", primary: true, verified: false }]).exchange("c", "https://x/cb", "v")).email).toBeNull();
+    expect((await oauth({ message: "Forbidden" }).exchange("c", "https://x/cb", "v")).email).toBeNull();
+    expect(calls).toContain("https://api.github.com/user/emails");
   });
 });

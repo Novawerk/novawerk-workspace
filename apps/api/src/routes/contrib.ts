@@ -90,6 +90,7 @@ import {
 import { sessionCookieOptions } from "../auth.js";
 import { CONTRIBUTOR_COOKIE, currentContributor } from "../contributor-auth.js";
 import { issuesFrom, notFoundIfInvalid, rejectInvalid, validationFailed } from "../http.js";
+import { revalidateWeb } from "../revalidate.js";
 import { contributorOrToken, scope, sessionOnly, viaOf, type TokenGate } from "../token-gate.js";
 import type { ApiEnv, AppDeps } from "../types.js";
 
@@ -105,7 +106,9 @@ function proposalResult(row: TaskProposal, me: Contributor, viaAgent: string | n
 /** Profile fields a token may not change. */
 const BROWSER_ONLY_PROFILE = ["handle", "public", "onWall", "acceptPledge"] as const;
 
-export function contribRoutes({ db, env, githubApi }: AppDeps, gate: TokenGate, origins: readonly string[]) {
+export function contribRoutes({ db, env, githubApi, logger = console }: AppDeps, gate: TokenGate, origins: readonly string[]) {
+  // A saved profile or a removed person shows at once on /u/<handle> and the wall.
+  const refreshProfiles = () => revalidateWeb(env.webRevalidate, logger, ["contributors"]);
   const session = (c: Parameters<typeof getCookie>[0]) => currentContributor(db, getCookie(c, CONTRIBUTOR_COOKIE), env.sessionSecret);
   return (
     new Hono<ApiEnv>()
@@ -241,11 +244,13 @@ export function contribRoutes({ db, env, githubApi }: AppDeps, gate: TokenGate, 
           if (field) throw new TaskRuleError("forbidden", `A token can't change ${field}. Use novawerk.io in your browser.`, field);
         }
         const row = await updateProfile(db, c.get("contributor").id, patch);
+        await refreshProfiles();
         const me = toContributorMe(row);
         return c.json(c.get("token") ? { ...me, email: null } : me, 200);
       })
       .delete("/me", sessionOnly, zValidator("json", accountDeleteInput, rejectInvalid), async (c) => {
         await deleteContributor(db, c.get("contributor").id, c.req.valid("json").confirmHandle);
+        await refreshProfiles();
         deleteCookie(c, CONTRIBUTOR_COOKIE, sessionCookieOptions(c, 0));
         return c.json({ ok: true as const }, 200);
       })
