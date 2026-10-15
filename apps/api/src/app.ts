@@ -69,7 +69,7 @@ export function createApp(deps: AppDeps) {
   const contributorOrigins = deps.env.contributorOrigins ?? deps.env.allowedOrigins.filter((o) => !deps.env.adminOrigins.includes(o));
   const contributorCors = credentialed(contributorOrigins);
 
-  const tokens = new TokenGate(deps.db);
+  const tokens = new TokenGate(deps.db, deps.env.webReadKey);
 
   const app = factory
     .createApp()

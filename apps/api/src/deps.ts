@@ -214,6 +214,10 @@ export function readEnv(env: EnvSource): ResolvedEnv {
   if (githubWebhookSecret && githubWebhookSecret.length < MIN_CRON_SECRET_LENGTH) {
     problems.push(`GITHUB_WEBHOOK_SECRET must be at least ${MIN_CRON_SECRET_LENGTH} characters`);
   }
+  const webReadKey = get("WEB_READ_KEY");
+  if (webReadKey && webReadKey.length < MIN_SESSION_SECRET_LENGTH) {
+    problems.push(`WEB_READ_KEY must be at least ${MIN_SESSION_SECRET_LENGTH} characters`);
+  }
   const contributorOrigins = get("CONTRIBUTOR_ORIGINS");
   if (problems.length) throw new Error(`@nw/api env: ${problems.join("; ")}`);
 
@@ -225,6 +229,7 @@ export function readEnv(env: EnvSource): ResolvedEnv {
       allowedOrigins: list(get("ALLOWED_ORIGINS") ?? ENV_DEFAULTS.ALLOWED_ORIGINS),
       adminOrigins: list(get("ADMIN_ORIGINS") ?? ENV_DEFAULTS.ADMIN_ORIGINS),
       ...(contributorOrigins ? { contributorOrigins: list(contributorOrigins) } : {}),
+      ...(webReadKey ? { webReadKey } : {}),
       ...(githubWebhookSecret ? { githubWebhookSecret: loadConfig(["githubWebhook"], env).githubWebhook.secret.trim() } : {}),
       googleClientId,
       sessionSecret,

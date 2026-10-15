@@ -3,11 +3,14 @@
 // route, @nw/tasks requireScope); a bad `nwt_` token is a 401, never a silent fall back to
 // anonymous. Any other Authorization header isn't ours and is ignored. Each token has its own
 // hourly budget for reads and writes, and anonymous board reads have a looser one per network
-// (in-memory, per instance, like the other limiters: a brake, not a wall).
+// (in-memory, per instance, like the other limiters: a brake, not a wall). The website's own
+// server, with `x-nw-web-key: $WEB_READ_KEY`, is exempt: it reads from Vercel's shared IPs.
 //
 // Browser sessions (the cookie) also get a check here: a write must come from one of the
 // website's origins, or carry a JSON body (which a cross-site form can't send), on top of
 // SameSite=Lax.
+
+import { createHash, timingSafeEqual } from "node:crypto";
 
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
@@ -35,7 +38,19 @@ export class TokenGate {
   private readonly writes = new FixedWindowLimiter(TOKEN_LIMITS.writesPerHour, HOUR);
   private readonly anonymous = new FixedWindowLimiter(ANONYMOUS_READS_PER_HOUR, HOUR);
 
-  constructor(private readonly db: Database) {}
+  /** `webReadKey`: the website's server, exempt from the anonymous limit (header `x-nw-web-key`). */
+  constructor(
+    private readonly db: Database,
+    private readonly webReadKey?: string,
+  ) {}
+
+  /** The request is the website's own server reading the board. */
+  private isWebsite(c: Context): boolean {
+    const given = c.req.header("x-nw-web-key");
+    if (!this.webReadKey || !given) return false;
+    const digest = (v: string) => createHash("sha256").update(v).digest();
+    return timingSafeEqual(digest(given), digest(this.webReadKey));
+  }
 
   /** The bearer token on this request: only `Bearer nwt_…` counts as one of ours. */
   async authenticate(c: Context): Promise<TokenAuth> {
@@ -62,7 +77,7 @@ export class TokenGate {
       const auth = await this.authenticate(c);
       if (auth.kind === "invalid") return c.json({ error: INVALID }, 401);
       if (auth.kind === "ok") this.take(auth.token.id, "read");
-      else if (!this.anonymous.take(clientIp(c))) {
+      else if (!this.isWebsite(c) && !this.anonymous.take(clientIp(c))) {
         return c.json({ error: "Too many requests from your network. Try again later, or use a token." }, 429);
       }
       await next();

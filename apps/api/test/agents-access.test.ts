@@ -337,6 +337,16 @@ describe("review fixes", () => {
     expect(status).toBe(429);
     expect((await app.request("/public/tasks?limit=1", { headers: { "x-forwarded-for": "198.51.100.78" } })).status).toBe(200);
   });
+
+  it("exempts the website's server, which reads from shared IPs, with its key", async () => {
+    const key = "web-read-key-0123456789-0123456789";
+    const { app } = makeApp(db, { env: { webReadKey: key } });
+    const from = { "x-forwarded-for": "198.51.100.90" };
+    for (let i = 0; i < 600; i++) await app.request("/public/blocks", { headers: from });
+    expect((await app.request("/public/blocks", { headers: from })).status).toBe(429);
+    expect((await app.request("/public/blocks", { headers: { ...from, "x-nw-web-key": "wrong" } })).status).toBe(429);
+    expect((await app.request("/public/blocks", { headers: { ...from, "x-nw-web-key": key } })).status).toBe(200);
+  });
 });
 
 describe("/mcp transport rules", () => {

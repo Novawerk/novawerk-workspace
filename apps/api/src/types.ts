@@ -34,6 +34,11 @@ export interface ApiConfig {
   webRevalidate?: { url: string; secret: string };
   /** Vercel Cron's bearer token for /cron/*. Unset: those routes answer 404. */
   cronSecret?: string;
+  /**
+   * The website's server sends it as `x-nw-web-key` on its task board reads, which then skip the
+   * anonymous per-network limit (Vercel's shared egress IPs would hit it). Unset: no exemption.
+   */
+  webReadKey?: string;
   /** GitHub's webhook signing secret. Unset: POST /webhooks/github answers 404. */
   githubWebhookSecret?: string;
   /** Public origins of this API and of the website: the links in newsletter emails point there. */
