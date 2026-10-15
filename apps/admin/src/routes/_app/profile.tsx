@@ -13,11 +13,13 @@ import { Textarea } from "@nw/ui/core/components/ui/textarea"
 
 import { FormField, SwitchRow } from "@/components/form-field"
 import { Page } from "@/components/page"
+import { WEB_URL } from "@/lib/env"
 import { errorMessage, issueFor } from "@/lib/errors"
 import { meQueryOptions, useUpdateMe } from "@/lib/queries"
 
 const BIO_MAX = 160
-const WEB_URL = "https://novawerk.io"
+const HANDLE_MAX = 39
+const NO_REMOVING = "You can change your handle, not remove it"
 
 /** Every member's own page: the opt-in public profile (NB-ADR-0013). Off until they switch it on. */
 export const Route = createFileRoute("/_app/profile")({
@@ -33,19 +35,34 @@ function ProfilePage() {
   const [handle, setHandle] = React.useState(me.profileHandle ?? "")
   const [bio, setBio] = React.useState(me.profileBio ?? "")
 
-  const dirty =
-    publicProfile !== me.publicProfile || handle.trim() !== (me.profileHandle ?? "") || bio.trim() !== (me.profileBio ?? "")
+  // Errors show until the field they belong to is edited.
+  const [edited, setEdited] = React.useState<Set<string>>(new Set())
+  const fieldError = (field: string) => (edited.has(field) ? undefined : issueFor(save.error, field))
+  const touch = (field: string) => setEdited((s) => new Set(s).add(field))
+
+  const savedHandle = me.profileHandle ?? ""
+  // A saved handle can change, never go: the API has no way to remove one.
+  const handleError = savedHandle && !handle.trim() ? NO_REMOVING : fieldError("profileHandle")
+  const dirty = publicProfile !== me.publicProfile || handle.trim() !== savedHandle || bio.trim() !== (me.profileBio ?? "")
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
+    if (savedHandle && !handle.trim()) return
+    setEdited(new Set())
     save.mutate(
       {
         publicProfile,
-        ...(handle.trim() && handle.trim() !== me.profileHandle ? { profileHandle: handle.trim() } : {}),
+        ...(handle.trim() && handle.trim() !== savedHandle ? { profileHandle: handle.trim() } : {}),
         profileBio: bio,
       },
       {
-        onSuccess: (saved) => toast.success(saved.publicProfile ? "Your profile is public" : "Saved. Your profile stays private."),
+        onSuccess: (saved) => {
+          // What's stored now, so the form never shows something the server didn't keep.
+          setPublicProfile(saved.publicProfile)
+          setHandle(saved.profileHandle ?? "")
+          setBio(saved.profileBio ?? "")
+          toast.success(saved.publicProfile ? "Your profile is public" : "Saved. Your profile stays private.")
+        },
         onError: (err) => {
           if (!["profileHandle", "profileBio", "publicProfile"].some((f) => issueFor(err, f))) {
             toast.error("We couldn't save it", { description: errorMessage(err) })
@@ -78,51 +95,60 @@ function ProfilePage() {
             <FormField
               label="Handle"
               htmlFor="profile-handle"
-              error={issueFor(save.error, "profileHandle")}
-              hint="Lowercase letters, digits and dashes. Contributors use the same names, so it must be free."
+              error={handleError}
+              hint="Lowercase letters, digits and hyphens. Contributors use the same names, so it must be free."
             >
               <InputGroup>
-                <InputGroupAddon className="font-mono text-xs">novawerk.io/u/</InputGroupAddon>
+                <InputGroupAddon className="font-mono text-xs">{WEB_URL.replace(/^https?:\/\//, "")}/u/</InputGroupAddon>
                 <InputGroupInput
                   id="profile-handle"
                   value={handle}
-                  onChange={(e) => setHandle(e.target.value.toLowerCase())}
+                  onChange={(e) => {
+                    setHandle(e.target.value.toLowerCase())
+                    touch("profileHandle")
+                  }}
+                  maxLength={HANDLE_MAX}
+                  aria-invalid={Boolean(handleError)}
                   placeholder="your-name"
                   className="font-mono"
                   autoComplete="off"
                 />
               </InputGroup>
             </FormField>
-            <FormField
-              label="One line about you"
-              htmlFor="profile-bio"
-              error={issueFor(save.error, "profileBio")}
-              hint={`${bio.length} / ${BIO_MAX}`}
-            >
-              <Textarea
-                id="profile-bio"
-                rows={2}
-                maxLength={BIO_MAX}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="What you build at Novawerk, in one line."
-              />
-            </FormField>
+            <div className="flex flex-col gap-1">
+              <FormField label="One line about you" htmlFor="profile-bio" error={fieldError("profileBio")}>
+                <Textarea
+                  id="profile-bio"
+                  rows={2}
+                  maxLength={BIO_MAX}
+                  value={bio}
+                  onChange={(e) => {
+                    setBio(e.target.value)
+                    touch("profileBio")
+                  }}
+                  placeholder="What you build at Novawerk, in one line."
+                />
+              </FormField>
+              {/* Always visible, error or not. */}
+              <p className="text-right text-xs text-muted-foreground tabular-nums">
+                {bio.length} / {BIO_MAX}
+              </p>
+            </div>
             <SwitchRow
               htmlFor="profile-public"
               label="Public profile"
-              description={handle.trim() ? "Anyone can see your name, handle, line and public projects." : "Pick a handle first."}
+              description={handle.trim() || savedHandle ? "Anyone can see your name, handle, line and public projects." : "Choose a handle first."}
             >
               <Switch
                 id="profile-public"
                 checked={publicProfile}
                 onCheckedChange={setPublicProfile}
-                disabled={!handle.trim() && !publicProfile}
+                disabled={!handle.trim() && !savedHandle && !publicProfile}
               />
             </SwitchRow>
-            {issueFor(save.error, "publicProfile") && (
+            {fieldError("publicProfile") && (
               <p role="alert" className="text-xs text-destructive">
-                {issueFor(save.error, "publicProfile")}
+                {fieldError("publicProfile")}
               </p>
             )}
           </CardContent>
@@ -138,7 +164,7 @@ function ProfilePage() {
               <ExternalLinkIcon /> See it on the site
             </Button>
           )}
-          <Button type="submit" disabled={!dirty || save.isPending}>
+          <Button type="submit" disabled={!dirty || Boolean(savedHandle && !handle.trim()) || save.isPending}>
             {save.isPending ? "Saving…" : "Save"}
           </Button>
         </div>

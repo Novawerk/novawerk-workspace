@@ -7,11 +7,14 @@ import {
   placeholdersIn,
   xiaohongshuLinks,
   toHandle,
+  isReservedHandle,
+  memberSelfUpdateInput,
   type DocumentUploadInput,
   type ImageUploadInput,
 } from "@nw/contracts"
 
 import { ApiError, call, callText } from "./api"
+import { SAMPLE_CONTRIBUTOR_HANDLES } from "./board-source"
 import { client } from "./api-client"
 import { API_URL, USE_SAMPLE_DATA } from "./env"
 import {
@@ -442,11 +445,25 @@ const sampleSource: AdminDataSource = {
   },
   updateMe: async (patch) => {
     await delay()
-    const clean = definedOnly(patch)
+    // The same rules and words as the API (memberSelfUpdateInput, @nw/tasks members.ts and handles.ts).
+    const parsed = memberSelfUpdateInput.safeParse(patch)
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0]!
+      refuse(issue.message, issue.path[0] ? String(issue.path[0]) : undefined)
+    }
+    const clean = definedOnly(parsed.data)
     const handle = clean.profileHandle ?? SAMPLE_ME.profileHandle
-    if (clean.publicProfile && !handle) refuse("Pick a handle first", "profileHandle")
-    if (clean.profileHandle && [...store.members.keys()].some((id) => id !== SAMPLE_ME.id && id === clean.profileHandle)) {
-      refuse("That handle is taken", "profileHandle", 409)
+    if ((clean.publicProfile ?? SAMPLE_ME.publicProfile) && !handle) {
+      refuse("Choose a handle first: it's the address of your profile", "profileHandle")
+    }
+    if (clean.profileHandle && clean.profileHandle !== SAMPLE_ME.profileHandle) {
+      if (isReservedHandle(clean.profileHandle)) refuse("That handle is reserved. Pick another one.", "profileHandle")
+      const taken =
+        SAMPLE_CONTRIBUTOR_HANDLES.includes(clean.profileHandle) ||
+        [...store.members.values()].some(
+          (m) => m.id !== SAMPLE_ME.id && (m.id === clean.profileHandle || m.profileHandle === clean.profileHandle),
+        )
+      if (taken) refuse("That handle is taken", "profileHandle", 409)
     }
     Object.assign(SAMPLE_ME, clean)
     return { ...SAMPLE_ME }

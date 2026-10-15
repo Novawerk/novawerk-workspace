@@ -146,6 +146,9 @@ const PEOPLE = {
   spam: person("c-spam", "cheap-watches-99", "Watch Deals", true),
 }
 
+/** Handles sample contributors hold: a member's profile handle can't take one. */
+export const SAMPLE_CONTRIBUTOR_HANDLES = Object.values(PEOPLE).map((p) => p.handle)
+
 type SampleTask = Omit<AdminTaskDetail, "id" | "werk" | "stale" | "releaseAt" | "needsDecision" | "proposalCount">
 
 let nextPost = 1
