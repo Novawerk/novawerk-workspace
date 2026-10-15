@@ -206,13 +206,14 @@ export async function listPublicTasks(db: Database, query: TaskListQuery): Promi
   };
 }
 
-export const toPublicProposal = (p: TaskProposal, author: PersonRow | null): PublicProposal => ({
+export const toPublicProposal = (p: TaskProposal, author: PersonRow | null, viaAgent: string | null = null): PublicProposal => ({
   id: p.id,
   author: author ? contributorPerson(author) : { kind: "former" },
   approach: p.approach,
   testing: p.testing,
   eta: p.eta as ProposalEta,
   status: p.status as PublicProposal["status"],
+  viaAgent,
   createdAt: iso(p.createdAt),
   updatedAt: iso(p.updatedAt),
 });
@@ -224,9 +225,10 @@ export async function getPublicTask(db: Database, taskId: number): Promise<Publi
   const t = row.task;
 
   const proposals = await db
-    .select({ proposal: taskProposals, author: person(contributors) })
+    .select({ proposal: taskProposals, author: person(contributors), tokenName: contributorTokens.name })
     .from(taskProposals)
     .leftJoin(contributors, eq(contributors.id, taskProposals.contributorId))
+    .leftJoin(contributorTokens, eq(contributorTokens.id, taskProposals.viaTokenId))
     .where(and(eq(taskProposals.taskId, taskId), inArray(taskProposals.status, ["pending", "chosen", "not_chosen"])))
     .orderBy(asc(taskProposals.createdAt));
 
@@ -266,10 +268,11 @@ export async function getPublicTask(db: Database, taskId: number): Promise<Publi
   for (const r of posts.filter((p) => p.post.parentId)) byId.get(r.post.parentId!)?.replies.push(toPost(r));
 
   const events = await db
-    .select({ event: taskEvents, contributor: person(contributors), memberName: members.displayName })
+    .select({ event: taskEvents, contributor: person(contributors), memberName: members.displayName, tokenName: contributorTokens.name })
     .from(taskEvents)
     .leftJoin(contributors, eq(contributors.id, taskEvents.actorContributorId))
     .leftJoin(members, eq(members.id, taskEvents.actorMemberId))
+    .leftJoin(contributorTokens, eq(contributorTokens.id, taskEvents.viaTokenId))
     .where(eq(taskEvents.taskId, taskId))
     .orderBy(asc(taskEvents.id));
 
@@ -290,7 +293,7 @@ export async function getPublicTask(db: Database, taskId: number): Promise<Publi
     closedReason: t.closedReason,
     duplicateOf: t.duplicateOf ? formatTaskId(t.duplicateOf) : null,
     threadLocked: t.threadLockedAt !== null,
-    proposals: proposals.map((p) => toPublicProposal(p.proposal, p.author as PersonRow | null)),
+    proposals: proposals.map((p) => toPublicProposal(p.proposal, p.author as PersonRow | null, p.tokenName)),
     posts: thread,
     events: events.map(
       (e): PublicTaskEvent => ({
@@ -300,6 +303,7 @@ export async function getPublicTask(db: Database, taskId: number): Promise<Publi
         actor: authorOf(e.contributor as PersonRow | null, e.memberName, false),
         note: e.event.note,
         prUrl: e.event.prUrl,
+        viaAgent: e.tokenName,
         createdAt: iso(e.event.createdAt),
       }),
     ),
@@ -313,16 +317,18 @@ const publicStatus = (s: TaskStatus | null): PublicTaskStatus | null => (s === n
 /** GET /contrib/me/proposals: your own proposals, with the private note when one wasn't chosen. */
 export async function myProposals(db: Database, contributorId: string): Promise<MyProposal[]> {
   const rows = await db
-    .select({ proposal: taskProposals, author: person(contributors), title: tasks.title })
+    .select({ proposal: taskProposals, author: person(contributors), title: tasks.title, tokenName: contributorTokens.name })
     .from(taskProposals)
     .innerJoin(tasks, eq(tasks.id, taskProposals.taskId))
     .innerJoin(contributors, eq(contributors.id, taskProposals.contributorId))
+    .leftJoin(contributorTokens, eq(contributorTokens.id, taskProposals.viaTokenId))
     .where(eq(taskProposals.contributorId, contributorId))
     .orderBy(desc(taskProposals.createdAt));
-  return rows.map(({ proposal, author, title }) => ({
-    ...toPublicProposal(proposal, author),
-    status: proposal.status === "withdrawn" ? "pending" : (proposal.status as PublicProposal["status"]),
+  return rows.map(({ proposal, author, title, tokenName }) => ({
+    ...toPublicProposal(proposal, author, tokenName),
+    status: proposal.status === "withdrawn" || proposal.status === "draft" ? "pending" : (proposal.status as PublicProposal["status"]),
     withdrawn: proposal.status === "withdrawn",
+    draft: proposal.status === "draft",
     taskId: formatTaskId(proposal.taskId),
     taskTitle: title,
     declineNote: proposal.declineNote,
@@ -525,6 +531,17 @@ export async function myTasks(db: Database, contributorId: string): Promise<MyTa
   const held = await selectTasks(db)
     .where(and(eq(tasks.assigneeId, contributorId), inArray(tasks.status, ["assigned", "in_review"])))
     .orderBy(desc(tasks.updatedAt));
+  // Pending ones, and agents' drafts waiting for a confirm.
   const proposals = (await myProposals(db, contributorId)).filter((p) => p.status === "pending" && !p.withdrawn);
   return { held: held.map(toPublicTask), proposals };
+}
+
+/** GET /contrib/me/votes: the suggestions I +1'd, as "NW-42". */
+export async function myVotes(db: Database, contributorId: string): Promise<string[]> {
+  const rows = await db
+    .select({ taskId: taskVotes.taskId })
+    .from(taskVotes)
+    .where(eq(taskVotes.contributorId, contributorId))
+    .orderBy(asc(taskVotes.taskId));
+  return rows.map((r) => formatTaskId(r.taskId));
 }

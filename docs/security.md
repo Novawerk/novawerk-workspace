@@ -63,6 +63,12 @@ text, account ids or addresses into this repo, an issue or a pull request.
   task and PR (a unique key). The App's private key and the webhook secret live only in Vercel
   env; the App has no Contents permission. Tested in `packages/github`, `packages/tasks`
   (github.test.ts) and `apps/api/test/github.test.ts`.
+- **Agent tokens are narrow.** Only the SHA-256 of a personal access token is stored; it shows
+  once. Each route and MCP tool checks the token's scope; tokens can't manage tokens, confirm a
+  proposal, delete the account, or change the handle or the profile's visibility. A bad token is
+  a 401, never anonymous. Agents' proposals stay drafts until confirmed in the browser, and
+  everything they write is marked "via agent". Tested in `packages/tasks/src/tokens.test.ts` and
+  `apps/api/test/agents-access.test.ts`.
 - **The README workflow runs no outside code.** `contributors.yml` runs on a schedule, a manual
   run or a repository_dispatch, checks out `main`, reads our public API and commits only
   `README.md`. It is the only workflow with `contents: write`; nothing here uses

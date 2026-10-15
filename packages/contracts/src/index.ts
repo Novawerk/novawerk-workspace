@@ -1697,7 +1697,8 @@ export type SuggestionKind = (typeof SUGGESTION_KINDS)[number];
 export const SUGGESTION_WHERE = ["site", "admin", "api", "agents", "posts", "videos", "unsure"] as const;
 export type SuggestionWhere = (typeof SUGGESTION_WHERE)[number];
 
-export const PROPOSAL_STATUSES = ["pending", "chosen", "not_chosen", "withdrawn"] as const;
+/** `draft`: an agent wrote it with a token; its person confirms it in the browser before it counts. */
+export const PROPOSAL_STATUSES = ["pending", "chosen", "not_chosen", "withdrawn", "draft"] as const;
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 
 /** The rough timeline on a proposal: a few days, about a week, two weeks. */
@@ -1913,7 +1914,9 @@ export interface PublicProposal {
   approach: string;
   testing: string;
   eta: ProposalEta;
-  status: Exclude<ProposalStatus, "withdrawn">;
+  status: Exclude<ProposalStatus, "withdrawn" | "draft">;
+  /** The token's name when an agent wrote it: "via agent · <name>". */
+  viaAgent: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1939,6 +1942,8 @@ export interface PublicTaskEvent {
   actor: PublicPerson | null;
   note: string | null;
   prUrl: string | null;
+  /** The token's name when an agent did it. */
+  viaAgent: string | null;
   createdAt: string;
 }
 
@@ -2052,6 +2057,8 @@ export interface MyProposal extends PublicProposal {
   taskTitle: string;
   declineNote: string | null;
   withdrawn: boolean;
+  /** An agent's draft: it counts once they confirm it (POST /contrib/proposals/:id/confirm, browser only). */
+  draft: boolean;
 }
 
 // Inputs
@@ -2195,4 +2202,43 @@ export interface PublicBlock {
   size: TaskSize | null;
   handle: string;
   mergedAt: string;
+}
+
+// ─── Personal access tokens (agents, scripts, the MCP server) ────────────────
+
+/** How long a token lives. */
+export const TOKEN_EXPIRY_DAYS = [30, 90] as const;
+
+/** `tasks:read` is always on. Tokens never manage tokens, sign-in or the account. */
+export const TOKEN_LIMITS = {
+  activePerContributor: 10,
+  /** Requests per token per hour: reads (GET, MCP reads) and writes. */
+  readsPerHour: 1000,
+  writesPerHour: 100,
+} as const;
+
+/** POST /contrib/tokens (browser session only). */
+export const tokenCreateInput = z.object({
+  name: z.string().trim().min(1, "Give it a name, e.g. my laptop's Claude Code").max(60, "Keep it under 60 characters"),
+  scopes: z.array(z.enum(TOKEN_SCOPES)).max(TOKEN_SCOPES.length).default([]),
+  expiresInDays: z.union([z.literal(30), z.literal(90)], { error: "30 or 90 days" }),
+});
+export type TokenCreateInput = z.input<typeof tokenCreateInput>;
+
+/** A token as its owner sees it in /settings/tokens. Never the secret, except once on creation. */
+export interface ContributorTokenInfo {
+  id: string;
+  name: string;
+  /** The first characters, e.g. "nwt_3f9a12bc", to tell tokens apart. */
+  prefix: string;
+  scopes: TokenScope[];
+  expiresAt: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+  expired: boolean;
+}
+
+/** The answer to POST /contrib/tokens: the secret shows this once. */
+export interface CreatedToken extends ContributorTokenInfo {
+  secret: string;
 }

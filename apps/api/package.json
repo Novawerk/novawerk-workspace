@@ -18,6 +18,7 @@
   "dependencies": {
     "@hono/node-server": "^2.1.3",
     "@hono/zod-validator": "^0.9.1",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "@nw/agent-core": "workspace:*",
     "@nw/agent-harness": "workspace:*",
     "@nw/config": "workspace:*",

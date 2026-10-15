@@ -10,6 +10,7 @@ import { postReports, taskEvents, taskPosts, tasks, type Contributor, type Datab
 import { canWork } from "./contributors.js";
 import { TaskRuleError } from "./errors.js";
 import { whyPullRequestDoesNotCount, type PullRequestInput } from "./github.js";
+import type { Via } from "./actions.js";
 import { transitionTask } from "./transitions.js";
 
 async function heldTask(db: Database, c: Contributor, taskId: number): Promise<Task> {
@@ -62,28 +63,35 @@ export async function guideFor(db: Database, c: Contributor, taskId: number): Pr
  * linked GitHub account, and name this task. Anything else is refused, so a task can't wait in
  * review on a PR that can never finish it.
  */
-export async function linkPrByHand(db: Database, c: Contributor, taskId: number, pr: PullRequestInput): Promise<Task> {
+export async function linkPrByHand(db: Database, c: Contributor, taskId: number, pr: PullRequestInput, via?: Via): Promise<Task> {
   await heldTask(db, c, taskId);
   if (!canWork(c)) throw new TaskRuleError("github_required", "Link your GitHub account first: we match pull requests by it");
   if (pr.merged || pr.state !== "open") throw new TaskRuleError("invalid", "That pull request is closed", "url");
   const why = await whyPullRequestDoesNotCount(db, taskId, pr);
   if (why) throw new TaskRuleError("invalid", why, "url");
-  return transitionTask(db, { taskId, action: "link_pr", actor: { kind: "contributor", id: c.id }, prUrl: pr.url });
+  return transitionTask(db, {
+    taskId,
+    action: "link_pr",
+    actor: { kind: "contributor", id: c.id },
+    prUrl: pr.url,
+    ...(via ? { viaTokenId: via.tokenId } : {}),
+  });
 }
 
 /** Give the task back. It returns to open; the timeline records it; nothing counts against anyone. */
-export async function releaseHeldTask(db: Database, c: Contributor, taskId: number, reason?: string): Promise<Task> {
+export async function releaseHeldTask(db: Database, c: Contributor, taskId: number, reason?: string, via?: Via): Promise<Task> {
   await heldTask(db, c, taskId);
   return transitionTask(db, {
     taskId,
     action: "release",
     actor: { kind: "contributor", id: c.id },
+    ...(via ? { viaTokenId: via.tokenId } : {}),
     ...(reason?.trim() ? { note: reason.trim() } : {}),
   });
 }
 
 /** "I need a week more": once per assignment, while the task is assigned. */
-export async function extendTask(db: Database, c: Contributor, taskId: number, now = new Date()): Promise<Task> {
+export async function extendTask(db: Database, c: Contributor, taskId: number, now = new Date(), via?: Via): Promise<Task> {
   const task = await heldTask(db, c, taskId);
   if (task.status !== "assigned") throw new TaskRuleError("invalid_state", "Only a task in progress can get more time");
   return db.transaction(async (tx) => {
@@ -93,7 +101,14 @@ export async function extendTask(db: Database, c: Contributor, taskId: number, n
       .where(and(eq(tasks.id, taskId), eq(tasks.assigneeId, c.id), eq(tasks.status, "assigned"), isNull(tasks.extendedAt)))
       .returning();
     if (!updated) throw new TaskRuleError("conflict", "You already asked for a week more on this task");
-    await tx.insert(taskEvents).values({ taskId, kind: "extended", actorContributorId: c.id, subjectContributorId: c.id, createdAt: now });
+    await tx.insert(taskEvents).values({
+      taskId,
+      kind: "extended",
+      actorContributorId: c.id,
+      subjectContributorId: c.id,
+      viaTokenId: via?.tokenId ?? null,
+      createdAt: now,
+    });
     return updated;
   });
 }

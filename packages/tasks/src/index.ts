@@ -7,6 +7,7 @@
 //   ./github.ts       what a pull request does to a task; inactivity reminders and releases
 //   ./contributors.ts accounts: GitHub / email sign-in, profile, delete
 //   ./reads.ts        the public reads; nothing private leaves through them
+//   ./tokens.ts       personal access tokens for agents: create, list, revoke, authenticate, scopes
 //
 // The API only wires these to routes. Werk is append-only: there is no function that changes or
 // deletes a ledger row.
@@ -20,4 +21,5 @@ export * from "./errors.js";
 export * from "./people.js";
 export * from "./reads.js";
 export * from "./state.js";
+export * from "./tokens.js";
 export * from "./transitions.js";

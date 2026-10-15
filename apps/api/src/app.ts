@@ -21,6 +21,8 @@ import { authRoutes } from "./routes/auth.js";
 import { boardRoutes } from "./routes/board.js";
 import { contribRoutes } from "./routes/contrib.js";
 import { contributorAuthRoutes } from "./routes/contributor-auth.js";
+import { mcpRoutes } from "./mcp.js";
+import { TokenGate } from "./token-gate.js";
 import { cronRoutes } from "./routes/cron.js";
 import { postExportRoutes } from "./routes/admin/post-exports.js";
 import { publicRoutes } from "./routes/public.js";
@@ -68,6 +70,8 @@ export function createApp(deps: AppDeps) {
     deps.env.contributorOrigins ?? deps.env.allowedOrigins.filter((o) => !deps.env.adminOrigins.includes(o)),
   );
 
+  const tokens = new TokenGate(deps.db);
+
   const app = factory
     .createApp()
     .use("/health", publicCors)
@@ -80,10 +84,11 @@ export function createApp(deps: AppDeps) {
     .route("/public", publicRoutes({ ...deps, logger }))
     .route("/public/intake", intakeChatRoutes({ ...deps, logger }))
     .route("/public/events", eventRoutes(deps))
-    .route("/public", boardRoutes(deps))
+    .route("/public", boardRoutes(deps, tokens))
     .route("/auth/contributor", contributorAuthRoutes({ ...deps, logger }))
     .route("/auth", authRoutes({ ...deps, logger, verifyGoogleToken }))
-    .route("/contrib", contribRoutes(deps))
+    .route("/contrib", contribRoutes(deps, tokens))
+    .route("/mcp", mcpRoutes({ ...deps, logger }, tokens))
     .route("/admin", adminRoutes({ ...deps, logger }))
     .route("/cron", cronRoutes({ ...deps, logger }))
     .route("/exports", postExportRoutes(deps))

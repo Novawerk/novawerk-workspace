@@ -667,7 +667,8 @@ export const taskSize = pgEnum("task_size", ["S", "M", "L", "XL"]);
 /** A task a member wrote, or a contributor's suggestion: an improvement or a bug. */
 export const taskKind = pgEnum("task_kind", ["task", "improvement", "bug"]);
 
-export const proposalStatus = pgEnum("proposal_status", ["pending", "chosen", "not_chosen", "withdrawn"]);
+/** `draft`: written by an agent with a token; it counts only once its person confirms it in the browser. */
+export const proposalStatus = pgEnum("proposal_status", ["pending", "chosen", "not_chosen", "withdrawn", "draft"]);
 
 /** One task, shown as `NW-<id>`. */
 export const tasks = pgTable(
@@ -836,6 +837,8 @@ export const taskEvents = pgTable(
     /** Public. */
     note: text("note"),
     prUrl: text("pr_url"),
+    /** Done through a personal access token: "via agent · <token name>". */
+    viaTokenId: uuid("via_token_id").references(() => contributorTokens.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
   (t) => [index("task_events_task_idx").on(t.taskId, t.id)],

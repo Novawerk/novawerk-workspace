@@ -2,7 +2,7 @@
 // reply, suggest a task, +1 a suggestion. Every rule is checked here, so the API (and later the
 // token API and the MCP server) can't skip one.
 
-import { and, count, eq, gt } from "drizzle-orm";
+import { and, count, eq, gt, inArray } from "drizzle-orm";
 
 import {
   TASK_LIMITS,
@@ -54,12 +54,20 @@ async function publicTask(db: Database, taskId: number, lock = false): Promise<T
   return task;
 }
 
+/** Your own proposal that is still open to change: pending, or an agent's draft. */
 async function ownPendingProposal(db: Database, c: Contributor, proposalId: string): Promise<TaskProposal> {
   const [proposal] = await db.select().from(taskProposals).where(eq(taskProposals.id, proposalId)).limit(1);
   if (!proposal || proposal.status === "withdrawn") throw new TaskRuleError("not_found", "No such proposal");
   if (proposal.contributorId !== c.id) throw new TaskRuleError("forbidden", "Not your proposal");
-  if (proposal.status !== "pending") throw new TaskRuleError("invalid_state", "A member already decided on this proposal");
+  if (proposal.status !== "pending" && proposal.status !== "draft") {
+    throw new TaskRuleError("invalid_state", "A member already decided on this proposal");
+  }
   return proposal;
+}
+
+/** Done through a personal access token (an agent): recorded as "via agent · <token name>". */
+export interface Via {
+  tokenId: string;
 }
 
 /**
@@ -83,13 +91,18 @@ async function asContributor<T>(db: Database, c: Contributor, fn: (tx: Database,
   });
 }
 
-/** Propose a plan on an open task. 5 a day; one pending proposal per task. */
+/**
+ * Propose a plan on an open task. 5 a day (drafts count); one open proposal per task. Through a
+ * token it is a draft: it counts only once its person confirms it in the browser
+ * (confirmDraftProposal).
+ */
 export async function propose(
   db: Database,
   c: Contributor,
   taskId: number,
   input: ParsedProposal,
   at?: Date,
+  via?: Via,
 ): Promise<TaskProposal> {
   const now = at ?? new Date();
   return asContributor(db, c, async (tx, me) => {
@@ -106,13 +119,27 @@ export async function propose(
     const [mine] = await tx
       .select({ id: taskProposals.id })
       .from(taskProposals)
-      .where(and(eq(taskProposals.taskId, taskId), eq(taskProposals.contributorId, me.id), eq(taskProposals.status, "pending")))
+      .where(
+        and(
+          eq(taskProposals.taskId, taskId),
+          eq(taskProposals.contributorId, me.id),
+          inArray(taskProposals.status, ["pending", "draft"]),
+        ),
+      )
       .limit(1);
     if (mine) throw new TaskRuleError("conflict", ALREADY_PROPOSED);
 
     const [row] = await tx
       .insert(taskProposals)
-      .values({ taskId, contributorId: me.id, approach: input.approach, testing: input.testing, eta: input.eta, ...stamp(at) })
+      .values({
+        taskId,
+        contributorId: me.id,
+        approach: input.approach,
+        testing: input.testing,
+        eta: input.eta,
+        ...(via ? { status: "draft" as const, viaTokenId: via.tokenId } : {}),
+        ...stamp(at),
+      })
       .returning()
       .catch((err: unknown) => {
         // The unique index on pending proposals: the backstop for anything the lock misses.
@@ -125,6 +152,32 @@ export async function propose(
 }
 
 const ALREADY_PROPOSED = "You already proposed on this task. Edit that proposal instead.";
+
+/**
+ * Confirm an agent's draft in the browser: it becomes a pending proposal, under the same rules
+ * as one written by hand (task open, GitHub linked, one pending per task).
+ */
+export async function confirmDraftProposal(db: Database, c: Contributor, proposalId: string, now = new Date()): Promise<TaskProposal> {
+  return asContributor(db, c, async (tx, me) => {
+    const proposal = await ownPendingProposal(tx, me, proposalId);
+    if (proposal.status !== "draft") throw new TaskRuleError("invalid_state", "This proposal isn't a draft");
+    const task = await publicTask(tx, proposal.taskId, true);
+    mayWork(me);
+    if (task.status !== "open") throw new TaskRuleError("invalid_state", "This task isn't open for proposals any more");
+    const [row] = await tx
+      .update(taskProposals)
+      .set({ status: "pending", updatedAt: now })
+      .where(and(eq(taskProposals.id, proposal.id), eq(taskProposals.status, "draft")))
+      .returning()
+      .catch((err: unknown) => {
+        if (isUniqueViolation(err)) throw new TaskRuleError("conflict", ALREADY_PROPOSED);
+        throw err;
+      });
+    if (!row) throw new TaskRuleError("invalid_state", "This proposal isn't a draft");
+    await touch(tx, proposal.taskId, now);
+    return row;
+  });
+}
 
 /** Edit your own pending proposal while the task is open. */
 export async function updateProposal(
@@ -161,6 +214,7 @@ export async function addPost(
   taskId: number,
   input: PostInput,
   at?: Date,
+  via?: Via,
 ): Promise<TaskPost> {
   const now = at ?? new Date();
   return asContributor(db, c, async (tx, me) => {
@@ -183,7 +237,14 @@ export async function addPost(
     }
     const [row] = await tx
       .insert(taskPosts)
-      .values({ taskId, parentId: input.replyTo ?? null, authorContributorId: me.id, body: input.body, ...stamp(at) })
+      .values({
+        taskId,
+        parentId: input.replyTo ?? null,
+        authorContributorId: me.id,
+        body: input.body,
+        viaTokenId: via?.tokenId ?? null,
+        ...stamp(at),
+      })
       .returning();
     // A post from the person on the task counts as activity (the 14-day release).
     await tx
@@ -195,7 +256,13 @@ export async function addPost(
 }
 
 /** Suggest an improvement or a bug. At most 3 waiting for triage per person. No size, no Werk. */
-export async function suggestTask(db: Database, c: Contributor, input: ParsedSuggestion, now = new Date()): Promise<Task> {
+export async function suggestTask(
+  db: Database,
+  c: Contributor,
+  input: ParsedSuggestion,
+  now = new Date(),
+  via?: Via,
+): Promise<Task> {
   return asContributor(db, c, async (tx, me) => {
     notSuspended(me);
     const [open] = await tx
@@ -228,6 +295,7 @@ export async function suggestTask(db: Database, c: Contributor, input: ParsedSug
       kind: "suggested",
       toStatus: "suggested",
       actorContributorId: me.id,
+      viaTokenId: via?.tokenId ?? null,
       createdAt: now,
     });
     return task!;

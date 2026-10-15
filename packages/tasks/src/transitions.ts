@@ -45,6 +45,8 @@ export interface TransitionInput {
    * that landed since the check keeps the task (invalid_state).
    */
   idleAt?: Date;
+  /** Done through a personal access token: recorded on the event. */
+  viaTokenId?: string;
   now?: Date;
 }
 
@@ -213,6 +215,7 @@ async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
     subjectContributorId: subjectOf(input.action, task, patch),
     note: input.note?.trim() || null,
     prUrl: input.action === "link_pr" || input.action === "merge" ? (patch.prUrl ?? null) : null,
+    viaTokenId: input.viaTokenId ?? null,
     createdAt: now,
   });
   return updated!;
