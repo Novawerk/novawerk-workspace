@@ -1,0 +1,50 @@
+[
+  {
+    "title": "Remove the dead join-mode code",
+    "summary": "The /join form is gone, but its intake and wizard code still ships.",
+    "body": "We closed applications and /join now redirects to /contribute. The web app still carries the join-mode intake chat, the application wizard and their drafts (`apps/web/lib/form-drafts.ts`, the intake `join` mode). Remove what nothing reaches any more, across web, contracts and the API, without breaking `/submit`.",
+    "area": "web",
+    "size": "S",
+    "skills": [
+      "TypeScript",
+      "Next.js"
+    ],
+    "criteria": [
+      "No code path in apps/web references the join intake or wizard",
+      "Contracts drop the unused join form kinds, or keep them only where the API still reads old rows",
+      "/submit and its intake chat work as before (tests)",
+      "pnpm typecheck, test and lint pass"
+    ]
+  },
+  {
+    "title": "Real 404s for missing tasks and profiles",
+    "summary": "/tasks/NW-999 and private profiles answer 200 with noindex instead of 404.",
+    "body": "Next 16 renders not-found inside Suspense, so the status stays 200. Move the existence check into `proxy` (Next 16's middleware) for /tasks/[id] and /u/[handle], and redirect lowercase ids with a 308.",
+    "area": "web",
+    "size": "M",
+    "skills": [
+      "Next.js"
+    ],
+    "criteria": [
+      "Missing tasks and private or unknown profiles answer 404",
+      "/tasks/nw-1 answers 308 to /tasks/NW-1",
+      "No extra API call for existing pages beyond one cached lookup"
+    ]
+  },
+  {
+    "title": "Show suggestion screenshots in the admin",
+    "summary": "Members can't see a suggestion's screenshot while triaging it.",
+    "body": "Suggestions can carry a screenshot (private until accepted). The API serves it to members at the triage route, but the admin's Suggestions sheet doesn't show it. Show the image in the sheet (loaded through the members-only route, never a public URL), with a way to open it full size, and a note when there is none.",
+    "criteria": [
+      "The Suggestions sheet shows the screenshot when there is one",
+      "It loads only through the members-only route",
+      "Light and dark, phone width"
+    ],
+    "area": "admin",
+    "size": "S",
+    "skills": [
+      "React",
+      "TypeScript"
+    ]
+  }
+]
