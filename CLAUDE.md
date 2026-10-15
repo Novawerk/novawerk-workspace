@@ -67,7 +67,8 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
     link to the address that just signed up, rate-limited per address (NB-ADR-0011). Newsletter
     issues are not part of this exception, and go only to confirmed subscribers;
   - contributor notices (NB-ADR-0013) are fixed templates about a contributor's own account and
-    tasks (proposal chosen or not, replies, reminders, release, Werk awarded, account deleted),
+    tasks (proposal chosen or not, replies, reminders, release, task closed, the outcome of their
+    own suggestion, Werk awarded, account deleted),
     sent without approval only to that contributor's own verified address. Nothing else to
     contributors skips the outbox.
 - **Inbound mail to info@ is relayed, not stored.** Resend receiving calls
