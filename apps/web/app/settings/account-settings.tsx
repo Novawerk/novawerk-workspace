@@ -80,7 +80,17 @@ function Account({ me }: { me: ContributorMe }) {
           </div>
           <div className="grid gap-1 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-center">
             <dt className="text-[13px] text-muted">Email</dt>
-            <dd>{me.email ? maskEmail(me.email) : <span className="text-muted">None</span>}</dd>
+            <dd>
+              {me.email ? (
+                maskEmail(me.email)
+              ) : me.notifyEmail ? (
+                <span>
+                  Notices go to {me.notifyEmail} <span className="text-muted">(from GitHub)</span>
+                </span>
+              ) : (
+                <span className="text-muted">None</span>
+              )}
+            </dd>
           </div>
         </dl>
         <p className="text-[13px] text-muted">Only you see your email. We use it for sign-in codes and task notices.</p>
@@ -119,7 +129,8 @@ function Notifications({ me }: { me: ContributorMe }) {
         Notifications
       </h2>
       <p className="text-sm">
-        We email {me.email ? maskEmail(me.email) : "your address"} about your own account and tasks: sign-in codes, a member&apos;s decision on your
+        We email {me.email ? maskEmail(me.email) : me.notifyEmail ? `${me.notifyEmail} (from GitHub)` : "your address"} about your own account and
+        tasks: sign-in codes, a member&apos;s decision on your
         proposal, a task you hold being released or closed, what happened to a suggestion of yours, Werk you earn, and a goodbye when you delete the
         account. Pull request reviews come from GitHub, as usual.
       </p>

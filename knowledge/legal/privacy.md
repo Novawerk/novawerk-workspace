@@ -161,7 +161,8 @@ you. That makes a contributor account. It isn't Novawerk membership.
 - **What we keep about you:** your handle and display name; your email address
   if you sign in with a code; your GitHub account's number, login name and
   picture link if you sign in with GitHub (we read only your public GitHub
-  profile and never keep your GitHub token); what you write on your profile
+  profile and never keep your GitHub token), and the primary email address
+  GitHub has verified for you; what you write on your profile
   (bio, about, links, colours); whether your profile is public and on the
   contributors wall; when you accepted the community pledge.
 - **What you do on the board:** your proposals, posts and replies, suggestions,
@@ -173,6 +174,18 @@ you. That makes a contributor account. It isn't Novawerk membership.
   your place on the contributors wall only if you turn your profile on (it is
   off by default). A note explaining why a proposal wasn't chosen goes only to
   you. We never show your email address to anyone.
+- **Your GitHub email:** we keep the primary email address GitHub has verified
+  for you only to send you the notices below, when you have no email of your
+  own on the account. It never signs you in and is never shown to anyone; we
+  update it each time you sign in with GitHub, and it goes when you delete the
+  account.
+- **Screenshots on suggestions:** a screenshot you attach to a suggestion
+  stays in our private file store, where only Members can see it, until a
+  Member accepts the suggestion. Then we publish a copy without the picture's
+  metadata (such as the camera, the place or the date it was taken). We
+  delete the screenshot when the suggestion is declined or marked a
+  duplicate, or when you delete your account, and an upload you never sent
+  with a suggestion is deleted after a day.
 - **Tokens for agents:** if you make a personal access token, we keep its name,
   its scopes, when it expires and when it was last used, and only a hash of the
   token itself. Everything a token does shows "via agent".
