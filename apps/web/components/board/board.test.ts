@@ -50,6 +50,8 @@ const contributor = (handle: string): PublicContributor => ({
   areas: ["web"],
   lastContributionAt: "2026-10-01T00:00:00Z",
   idea: false,
+  kind: "contributor",
+  project: null,
 });
 const block = (id: string, handle: string, mergedAt: string): Block => ({ id, title: id, area: "web", size: "S", handle, mergedAt });
 

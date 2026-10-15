@@ -1,22 +1,17 @@
 // The contributors wall and the builders scene from the public reads. Pure.
 
-import type { PublicContributor } from "@nw/contracts";
+import type { PublicContributor, PublicInitiator, PublicProjectRef } from "@nw/contracts";
 
 import type { Block, Person } from "../builders/types";
 
-export type ProjectRef = { slug: string; title: string };
+export type ProjectRef = PublicProjectRef;
+export type { PublicInitiator };
 
 /** Below this many merged tasks the builders scene looks empty: pages show it smaller or not at all. */
 export const SCENE_MIN_BLOCKS = 10;
 
-/**
- * A card on the wall. Initiators (Members who started a project and opted in) come with
- * `kind: "initiator"` and their project; older API answers have neither field.
- */
-export type WallPerson = PublicContributor & { kind?: "contributor" | "initiator"; project?: ProjectRef | null };
-
-/** GET /public/initiators: one row per public project, for the flags in the builders scene. */
-export type PublicInitiator = { handle: string; name: string; project: ProjectRef; startedAt: string };
+/** A card on the wall: a contributor, or an initiator (a Member who started a project and opted in). */
+export type WallPerson = PublicContributor;
 
 export const isInitiator = (p: WallPerson) => p.kind === "initiator";
 
