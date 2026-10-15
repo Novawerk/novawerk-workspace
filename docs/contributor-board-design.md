@@ -95,8 +95,8 @@ admin.novawerk.io  (members only; new sidebar groups)
   and type; area adds a small square marker.
 - **Dark mode** is new for the public site. The prototype defines a dark token set (lighter
   green `#4cb07a` on `#0c0c0e`). It ships with task NW-43, not with the board.
-- **Admin** pages use shadcn base-vega, zinc/neutral: white or zinc-950 ground, rounded cards,
-  zinc-900 primary buttons. No cream, and green is not the primary colour there.
+- **Admin** pages use shadcn base-vega with the admin's existing theme: white or zinc-950
+  ground, rounded cards, brand green as the primary colour (decided 2026-10-15). No cream.
 - **Profile accents** come from six presets that pass AA in both themes: green, blue, teal, plum,
   amber, ink. Banners: plain, grid, dots, star. No custom colours or uploaded banners.
 
