@@ -25,7 +25,10 @@ export interface DraftedEmail {
 }
 
 const SITE = "https://novawerk.io";
-const JOIN = "https://novawerk.io/join";
+/** Accepted pitchers are Members and Initiators; they edit their project here. */
+const ADMIN = "admin.novawerk.io";
+/** Where anyone can help: the task board. */
+const TASKS = "https://novawerk.io/tasks";
 
 /** One line, no control characters, capped. */
 function oneLine(s: string, max: number): string {
@@ -56,12 +59,10 @@ const STEPS_ZH = [
 ].join("\n");
 
 /**
- * `addedAsMember`: accepting just made them a Member (created, or back after leaving). Accepting
- * always makes them one now, so the note never sends them to /join; the launch copy (#16) uses
- * the flag to pick its welcome text.
+ * `addedAsMember`: accepting just made them a Member (created, or back after leaving), so the email
+ * says so and how to sign in. Someone who already was a Member only gets the sign-in line.
  */
 export function acceptedEmail(p: Pitch, opts: { addedAsMember: boolean }): DraftedEmail {
-  void opts;
   const name = first(p);
   const what = project(p);
   if (pitchLanguage(p) === "zh") {
@@ -70,6 +71,9 @@ export function acceptedEmail(p: Pitch, opts: { addedAsMember: boolean }): Draft
       body:
         `${name}，你好：\n\n` +
         `好消息：我们想和你一起把 ${what} 做出来。它现在是 Novawerk 的一个项目了，你是它的许愿人。\n\n` +
+        (opts.addedAsMember
+          ? `我们已经把你加为成员。用这个邮箱登录 ${ADMIN}（Google 或邮件验证码），就能编辑你的项目。\n\n`
+          : `用你的账号登录 ${ADMIN}，就能编辑你的项目。\n\n`) +
         `接下来：\n` +
         `· 我们会约你聊一次（30 分钟左右，线上），一起把第一步定下来。时间我们很快另发给你。\n` +
         `· 第一步会切得很小：一个产物、一个负责人、一个日期，几周内能交付。\n` +
@@ -84,6 +88,10 @@ export function acceptedEmail(p: Pitch, opts: { addedAsMember: boolean }): Draft
       `Hi ${name},\n\n` +
       `Good news: we want to build ${what} together. It is a project at Novawerk now, and you are the ` +
       `person who wished for it.\n\n` +
+      (opts.addedAsMember
+        ? `We've added you as a Member and as the Initiator of ${what}. Sign in at ${ADMIN} with this email ` +
+          `address (Google or an emailed code) to edit your project.\n\n`
+        : `Sign in at ${ADMIN} to edit your project.\n\n`) +
       `What happens next:\n` +
       `- We set up a call with you (about 30 minutes, online) to agree on the first step. We send you a ` +
       `few times shortly.\n` +
@@ -105,7 +113,7 @@ export function declinedEmail(p: Pitch): DraftedEmail {
         `${name}，你好：\n\n` +
         `谢谢你把 ${what} 讲给我们听。我们认真读了，也一起讨论过。\n\n` +
         `这次我们先不接这个项目。我们同时能做的项目不多，它和接下来几个月的安排对不上。\n\n` +
-        `欢迎以后再来提案，也欢迎加入成为成员，一起做别的项目：${JOIN}\n\n` +
+        `欢迎以后再来提案。如果你想先帮我们做点事，可以在 ${TASKS} 挑一个任务，任何人都可以参与。\n\n` +
         `祝好，\nNovawerk\n${SITE}\n`,
     };
   }
@@ -116,7 +124,8 @@ export function declinedEmail(p: Pitch): DraftedEmail {
       `Thank you for pitching ${what}. We read it closely and talked it through.\n\n` +
       `We won't take it on right now. We can only run a few projects at a time, and this one doesn't ` +
       `fit our next months.\n\n` +
-      `You're welcome to pitch again, or to join as a Member and help build other projects: ${JOIN}\n\n` +
+      `You're welcome to pitch again. If you'd like to help in the meantime, pick a task at ${TASKS}. ` +
+      `Anyone can contribute.\n\n` +
       `All the best,\nNovawerk\n${SITE}\n`,
   };
 }
