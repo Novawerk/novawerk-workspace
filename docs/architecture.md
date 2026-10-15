@@ -261,6 +261,18 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
   reads, 100 writes; in memory, per instance). The MCP server (`apps/api/src/mcp.ts`, official
   TypeScript SDK, stateless Streamable HTTP) calls the same `@nw/tasks` functions; reading works
   without a token. `apps/web/public/llms.txt` tells agents how.
+- **The admin side** (admin panel → Contributors: Tasks, Proposals, Suggestions, Moderation,
+  Werk; `can_admin` only, like the inbox) runs on `@nw/tasks/admin.ts`. Members write and publish
+  tasks, choose one plan (the others get private notes), decline a plan, triage suggestions
+  (accept with size, area and done-when lines; duplicate; ask in the thread; decline), close
+  and reopen tasks with a public reason, hide posts and suspend accounts with a reason only
+  members see (Reported lists posts with reports until a member keeps or hides them;
+  `task_posts.reports_cleared_at`), and add Werk rows. Every task action writes a `task_events` row, pointing at the
+  proposal or post it is about (`proposal_id`, `post_id`); the notices are built from those.
+  `edited`, `proposal_declined`, `post_hidden`, `post_unhidden` and `werk_adjusted` are
+  members-only (`MEMBER_ONLY_EVENT_KINDS`): the public timeline leaves them out. A suspension
+  isn't about one task, so it stays on the contributor's row (`suspended_reason`, `suspended_by`).
+  Assigning locks the contributor's row, so two members can't give one person two tasks at once.
 - **Next**: a database-level guard that makes `werk_ledger` append-only (a trigger, or no
   UPDATE/DELETE grant), and a database-backed per-IP limit or a challenge on
   `/auth/contributor/email/start` against email bombing (today's per-IP limit is per instance).
@@ -284,3 +296,5 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
 | `GET`/`POST /contrib/tokens`, `DELETE /contrib/tokens/:id`, `POST /contrib/proposals/:id/confirm` | contributor, browser only | tokens; confirm an agent's draft |
 | `GET /contrib/me`, `GET /contrib/me/votes` | contributor or token | who am I; the suggestions I +1'd |
 | `/mcp` | anyone; a token to act | the MCP server |
+| `/admin/tasks` (list, create, edit, publish, close, reopen, posts), `/admin/proposals` (queue, choose, decline) | admin | the board's admin side |
+| `/admin/suggestions` (queue, accept, duplicate, ask, decline), `/admin/discussions` (hide, unhide), `/admin/contributors` (suspend, unsuspend), `/admin/werk` (ledger, adjust) | admin | triage, moderation, Werk |

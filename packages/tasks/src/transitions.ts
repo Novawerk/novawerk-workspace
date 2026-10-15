@@ -21,7 +21,7 @@ import { TaskRuleError } from "./errors.js";
 import { idleReleaseAt } from "./idle.js";
 import { IN_PROGRESS_STATUSES, planTransition, type Actor, type TaskAction } from "./state.js";
 
-type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
+export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 /** The default private note to proposals that weren't chosen. */
 export const NOT_CHOSEN_NOTE = "Thanks for the plan. We picked another one this time.";
@@ -47,6 +47,11 @@ export interface TransitionInput {
   idleAt?: Date;
   /** Done through a personal access token: recorded on the event. */
   viaTokenId?: string;
+  /**
+   * No notice: the event names nobody (subject_contributor_id stays null). For a release that
+   * follows a suspension, which must neither read like an idle release nor go out by email.
+   */
+  quiet?: boolean;
   now?: Date;
 }
 
@@ -74,10 +79,21 @@ function subjectOf(action: TaskAction, task: Task, patch: Partial<typeof tasks.$
     case "pr_closed":
     case "merge":
     case "close":
+    case "reopen":
       return task.assigneeId;
     case "publish":
       return null;
   }
+}
+
+/**
+ * Lock order, everywhere: the contributor's row first, then the task's. Contributor actions
+ * (propose, post) already work that way; member actions that touch a person (choose, accept and
+ * assign, suspend) lock the person before the task, so the two never wait on each other.
+ */
+export async function lockContributor(tx: Tx, contributorId: string) {
+  const [person] = await tx.select().from(contributors).where(eq(contributors.id, contributorId)).for("update");
+  return person;
 }
 
 async function lockTask(tx: Tx, taskId: number): Promise<Task> {
@@ -88,10 +104,12 @@ async function lockTask(tx: Tx, taskId: number): Promise<Task> {
 
 /**
  * Can this contributor take a task now: GitHub linked, not suspended, and holding fewer than the
- * limit (1 until their first merged task, then 2).
+ * limit (1 until their first merged task, then 2). Their row stays locked until the transaction
+ * ends, so two members assigning the same person at once (on two tasks) run one after the
+ * other, and the second sees the first one's task.
  */
 async function checkCanTake(tx: Tx, contributorId: string, taskId: number): Promise<void> {
-  const [person] = await tx.select().from(contributors).where(eq(contributors.id, contributorId)).limit(1);
+  const person = await lockContributor(tx, contributorId);
   if (!person) throw new TaskRuleError("not_found", "No such contributor");
   if (!canWork(person)) {
     throw new TaskRuleError("github_required", "They need GitHub linked (and an active account) to work on a task");
@@ -119,8 +137,19 @@ export async function transitionTask(db: Database, input: TransitionInput): Prom
   return db.transaction((tx) => transitionIn(tx, input));
 }
 
-async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
+/** transitionTask inside a transaction the caller holds (a member's question plus its post). */
+export async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
   const now = input.now ?? new Date();
+  // The person who gets the task is locked before the task (see lockContributor).
+  const taker =
+    input.action === "choose"
+      ? input.assigneeId
+      : input.action === "accept_assign"
+        ? (input.assigneeId ??
+          (await tx.select({ id: tasks.suggestedBy }).from(tasks).where(eq(tasks.id, input.taskId)))[0]?.id ??
+          undefined)
+        : undefined;
+  if (taker) await lockContributor(tx, taker);
   const task = await lockTask(tx, input.taskId);
   const { to, event } = planTransition(task, input.action, input.actor);
   const patch: Partial<typeof tasks.$inferInsert> = { status: to, updatedAt: now };
@@ -153,8 +182,11 @@ async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
       break;
     case "mark_duplicate": {
       if (!input.duplicateOf || input.duplicateOf === task.id) throw new TaskRuleError("invalid", "Which task is it a duplicate of?", "duplicateOf");
-      const [original] = await tx.select({ id: tasks.id }).from(tasks).where(eq(tasks.id, input.duplicateOf));
-      if (!original) throw new TaskRuleError("invalid", `${formatTaskId(input.duplicateOf)} doesn't exist`, "duplicateOf");
+      const [original] = await tx.select({ id: tasks.id, status: tasks.status }).from(tasks).where(eq(tasks.id, input.duplicateOf));
+      // A draft isn't public: a duplicate must point somewhere people can see.
+      if (!original || original.status === "draft") {
+        throw new TaskRuleError("invalid", `${formatTaskId(input.duplicateOf)} doesn't exist`, "duplicateOf");
+      }
       Object.assign(patch, { duplicateOf: input.duplicateOf, closedAt: now });
       break;
     }
@@ -201,6 +233,19 @@ async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
       if (!input.note?.trim()) throw new TaskRuleError("invalid", "Closing needs a public reason", "note");
       Object.assign(patch, { closedReason: input.note.trim(), closedAt: now });
       break;
+    case "reopen":
+      // Back on the board, free for anyone: whoever held it before proposes again.
+      if (!input.note?.trim()) throw new TaskRuleError("invalid", "Reopening needs a public reason", "note");
+      Object.assign(patch, {
+        closedReason: null,
+        closedAt: null,
+        assigneeId: null,
+        assignedAt: null,
+        lastActivityAt: null,
+        prUrl: null,
+        extendedAt: null,
+      });
+      break;
     case "publish":
       break;
   }
@@ -216,13 +261,49 @@ async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
     fromStatus: task.status,
     toStatus: to,
     ...actorColumns(input.actor),
-    subjectContributorId: subjectOf(input.action, task, patch),
+    subjectContributorId: input.quiet ? null : subjectOf(input.action, task, patch),
     note: input.note?.trim() || null,
     prUrl: input.action === "link_pr" || input.action === "merge" ? (patch.prUrl ?? null) : null,
     viaTokenId: input.viaTokenId ?? null,
     createdAt: now,
   });
+  // Closing ends every plan still waiting, so reopening doesn't bring them back.
+  if (input.action === "close") {
+    await declinePending(tx, task.id, input.actor.kind === "member" ? input.actor.id : null, {}, patch.closedReason ?? NOT_CHOSEN_NOTE, now);
+  }
   return updated!;
+}
+
+/**
+ * Every pending proposal on a task becomes "not chosen" with a private note (per proposal, or
+ * the fallback), and gets a members-only event about its author.
+ */
+async function declinePending(
+  tx: Tx,
+  taskId: number,
+  memberId: string | null,
+  notes: Record<string, string>,
+  fallback: string,
+  now: Date,
+): Promise<void> {
+  const pending = await tx
+    .select({ id: taskProposals.id, contributorId: taskProposals.contributorId })
+    .from(taskProposals)
+    .where(and(eq(taskProposals.taskId, taskId), eq(taskProposals.status, "pending")))
+    .for("update");
+  for (const p of pending) {
+    await tx
+      .update(taskProposals)
+      .set({ status: "not_chosen", declineNote: notes[p.id]?.trim() || fallback, decidedBy: memberId, decidedAt: now, updatedAt: now })
+      .where(eq(taskProposals.id, p.id));
+    await tx.insert(taskEvents).values({
+      taskId,
+      kind: "proposal_declined",
+      actorMemberId: memberId,
+      subjectContributorId: p.contributorId,
+      createdAt: now,
+    });
+  }
 }
 
 /**
@@ -235,8 +316,10 @@ export async function chooseProposal(
 ): Promise<Task> {
   const now = input.now ?? new Date();
   return db.transaction(async (tx) => {
+    // Read without a lock to learn the task and the person; transitionIn locks the person, then
+    // the task, and the proposal is checked again under those locks.
     const [proposal] = await tx.select().from(taskProposals).where(eq(taskProposals.id, input.proposalId));
-    if (!proposal) throw new TaskRuleError("not_found", "No such proposal");
+    if (!proposal || proposal.status === "withdrawn") throw new TaskRuleError("not_found", "No such proposal");
     if (proposal.status !== "pending") throw new TaskRuleError("invalid_state", "This proposal isn't pending");
     const task = await transitionIn(tx, {
       taskId: proposal.taskId,
@@ -245,45 +328,57 @@ export async function chooseProposal(
       assigneeId: proposal.contributorId,
       now,
     });
-    await tx
+    // Withdrawn (or decided) since the first read: the whole choice rolls back.
+    const chosen = await tx
       .update(taskProposals)
-      .set({ status: "chosen", decidedBy: input.memberId, decidedAt: now })
-      .where(eq(taskProposals.id, proposal.id));
-    const others = await tx
-      .select({ id: taskProposals.id })
-      .from(taskProposals)
-      .where(and(eq(taskProposals.taskId, proposal.taskId), eq(taskProposals.status, "pending")));
-    for (const other of others) {
-      await tx
-        .update(taskProposals)
-        .set({
-          status: "not_chosen",
-          declineNote: input.notes?.[other.id]?.trim() || NOT_CHOSEN_NOTE,
-          decidedBy: input.memberId,
-          decidedAt: now,
-        })
-        .where(eq(taskProposals.id, other.id));
-    }
+      .set({ status: "chosen", decidedBy: input.memberId, decidedAt: now, updatedAt: now })
+      .where(and(eq(taskProposals.id, proposal.id), eq(taskProposals.status, "pending")))
+      .returning({ id: taskProposals.id });
+    if (chosen.length === 0) throw new TaskRuleError("invalid_state", "This proposal was withdrawn or decided meanwhile");
+    await declinePending(tx, proposal.taskId, input.memberId, input.notes ?? {}, NOT_CHOSEN_NOTE, now);
     return task;
   });
 }
 
 /**
  * A member's change to someone's Werk (a revert, a mistake): a new ledger row, never an edit.
- * The reason is shown to the contributor.
+ * The reason is shown to the contributor. Tied to a task, it also goes on the task's record.
  */
 export async function adjustWerk(
   db: Database,
   input: { contributorId: string; delta: number; reason: string; memberId: string; taskId?: number; now?: Date },
-): Promise<void> {
+): Promise<typeof werkLedger.$inferSelect> {
   if (!Number.isInteger(input.delta) || input.delta === 0) throw new TaskRuleError("invalid", "A whole number, not zero", "delta");
   if (!input.reason.trim()) throw new TaskRuleError("invalid", "Say why: the contributor sees it", "reason");
-  await db.insert(werkLedger).values({
-    contributorId: input.contributorId,
-    delta: input.delta,
-    reason: input.reason.trim(),
-    taskId: input.taskId ?? null,
-    byMemberId: input.memberId,
-    ...(input.now ? { createdAt: input.now } : {}),
+  return db.transaction(async (tx) => {
+    const [person] = await tx.select({ id: contributors.id }).from(contributors).where(eq(contributors.id, input.contributorId));
+    if (!person) throw new TaskRuleError("invalid", "No such contributor", "contributorId");
+    if (input.taskId !== undefined) {
+      const [task] = await tx.select({ id: tasks.id }).from(tasks).where(eq(tasks.id, input.taskId));
+      if (!task) throw new TaskRuleError("invalid", `${formatTaskId(input.taskId)} doesn't exist`, "taskId");
+    }
+    const at = input.now ? { createdAt: input.now } : {};
+    const [row] = await tx
+      .insert(werkLedger)
+      .values({
+        contributorId: input.contributorId,
+        delta: input.delta,
+        reason: input.reason.trim(),
+        taskId: input.taskId ?? null,
+        byMemberId: input.memberId,
+        ...at,
+      })
+      .returning();
+    if (input.taskId !== undefined) {
+      await tx.insert(taskEvents).values({
+        taskId: input.taskId,
+        kind: "werk_adjusted",
+        actorMemberId: input.memberId,
+        subjectContributorId: input.contributorId,
+        note: `${input.delta > 0 ? "+" : ""}${input.delta} Werk: ${input.reason.trim()}`,
+        ...at,
+      });
+    }
+    return row!;
   });
 }

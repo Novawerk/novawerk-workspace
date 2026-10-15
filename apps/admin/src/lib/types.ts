@@ -178,3 +178,17 @@ export type UploadTicket = InferResponseType<Admin["uploads"]["image"]["$post"],
 
 /** GET /admin/metrics?days=: traffic, the intake funnel, agents and the inbox right now. */
 export type AdminMetrics = InferResponseType<Admin["metrics"]["$get"], 200>
+
+// ─── Contributor task board (admin) ──────────────────────────────────────────
+
+export type AdminTaskRow = InferResponseType<Admin["tasks"]["$get"], 200>[number]
+export type AdminTaskDetail = InferResponseType<Admin["tasks"][":id"]["$get"], 200>
+export type AdminProposal = AdminTaskDetail["proposals"][number]
+export type AdminPost = AdminTaskDetail["posts"][number]
+export type AdminTaskEvent = AdminTaskDetail["events"][number]
+export type AdminPerson = AdminProposal["author"]
+export type ProposalQueueGroup = InferResponseType<Admin["proposals"]["$get"], 200>[number]
+export type AdminSuggestion = InferResponseType<Admin["suggestions"]["$get"], 200>[number]
+export type AdminContributor = InferResponseType<Admin["contributors"]["$get"], 200>[number]
+export type AdminWerkRow = InferResponseType<Admin["werk"]["$get"], 200>[number]
+export type ModerationEntry = InferResponseType<Admin["contributors"][":id"]["moderation"]["$get"], 200>[number]

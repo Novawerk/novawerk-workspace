@@ -6,7 +6,7 @@
 //   suggested ──accept──▶ open          ▲   │ release            │ pr_closed
 //   suggested ──accept_assign──▶ assigned   └──────▶ open         └──▶ assigned
 //   suggested ──decline / mark_duplicate──▶ declined / duplicate
-//   open, assigned, in_review ──close──▶ closed
+//   open, assigned, in_review ──close──▶ closed ──reopen──▶ open
 //
 // "Has proposals" is not a state, and neither is "released": an event that puts the task back
 // to open.
@@ -30,7 +30,8 @@ export type TaskAction =
   | "link_pr"
   | "pr_closed"
   | "merge"
-  | "close";
+  | "close"
+  | "reopen";
 
 type Rule = {
   from: readonly TaskStatus[];
@@ -54,9 +55,10 @@ export const TASK_ACTIONS: Record<TaskAction, Rule> = {
   // A merge the webhook sees before any "opened" counts too.
   merge: { from: ["assigned", "in_review"], to: "done", event: "merged", by: ["member", "system"] },
   close: { from: ["open", "assigned", "in_review"], to: "closed", event: "closed", by: ["member"] },
+  reopen: { from: ["closed"], to: "open", event: "reopened", by: ["member"] },
 };
 
-/** Statuses a task never leaves. */
+/** Statuses a task never leaves. A closed task can only be reopened by a member. */
 export const FINAL_STATUSES: readonly TaskStatus[] = ["done", "closed", "declined", "duplicate"];
 
 /** Tasks someone holds: "one task in progress at a time". */

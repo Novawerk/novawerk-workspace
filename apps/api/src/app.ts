@@ -45,6 +45,15 @@ export type {
 
 const factory = createFactory<ApiEnv>();
 
+/** The Postgres error code, from node-postgres or PGlite (Drizzle wraps it in `cause`). */
+function pgCodeOf(err: unknown): string | undefined {
+  for (let e: unknown = err, depth = 0; e && depth < 3; e = (e as { cause?: unknown }).cause, depth++) {
+    const code = (e as { code?: unknown }).code;
+    if (typeof code === "string") return code;
+  }
+  return undefined;
+}
+
 export function createApp(deps: AppDeps) {
   const logger = deps.logger ?? console;
   const verifyGoogleToken = deps.verifyGoogleToken ?? createGoogleVerifier(deps.env.googleClientId);
@@ -100,6 +109,11 @@ export function createApp(deps: AppDeps) {
       return c.json(err.field ? { error: err.message, issues: { [err.field]: [err.message] } } : { error: err.message }, err.httpStatus);
     }
     if (err instanceof HTTPException) return c.json({ error: err.message || "Bad request" }, err.status);
+    // Postgres gave up on one of two transactions waiting on each other (deadlock 40P01,
+    // serialization 40001). Nothing was written; the request can simply run again.
+    if (pgCodeOf(err) === "40P01" || pgCodeOf(err) === "40001") {
+      return c.json({ error: "Someone else changed this at the same moment. Try again." }, 409);
+    }
     logger.error("[api] unhandled error:", err);
     return c.json({ error: "Something went wrong on our side" }, 500);
   });

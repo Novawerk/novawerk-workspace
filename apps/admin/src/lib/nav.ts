@@ -1,6 +1,11 @@
 import type { LinkProps } from "@tanstack/react-router"
 import {
   BotIcon,
+  ClipboardListIcon,
+  CoinsIcon,
+  LightbulbIcon,
+  ListChecksIcon,
+  ShieldIcon,
   ChartColumnIcon,
   LayoutTemplateIcon,
   ListIcon,
@@ -78,6 +83,21 @@ export const NAV: NavGroup[] = [
     items: [
       { title: "Applications", to: "/inbox/applications", icon: UserPlusIcon, keywords: ["join", "members"] },
       { title: "Outbox", to: "/outbox", icon: SendIcon, keywords: ["email", "approve"] },
+    ],
+  },
+  {
+    label: "Contributors",
+    items: [
+      {
+        title: "Tasks",
+        to: "/tasks",
+        icon: ListChecksIcon,
+        keywords: ["task board", "contributors", "nw-", "open source", "drafts"],
+      },
+      { title: "Proposals", to: "/proposals", icon: ClipboardListIcon, keywords: ["plans", "assign", "choose"] },
+      { title: "Suggestions", to: "/suggestions", icon: LightbulbIcon, keywords: ["triage", "ideas", "bugs", "votes"] },
+      { title: "Moderation", to: "/moderation", icon: ShieldIcon, keywords: ["hide", "suspend", "spam", "discussions"] },
+      { title: "Werk", to: "/werk", icon: CoinsIcon, keywords: ["points", "ledger", "adjust"] },
     ],
   },
   {

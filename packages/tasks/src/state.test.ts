@@ -30,15 +30,17 @@ describe("the task lifecycle", () => {
       assigned: ["closed", "done", "in_review", "open"],
       in_review: ["assigned", "closed", "done"],
       done: [],
-      closed: [],
+      closed: ["open"],
       declined: [],
       duplicate: [],
     });
   });
 
-  it("never leaves a final status", () => {
+  it("never leaves a final status, except a member reopening a closed task", () => {
+    expect(planTransition({ status: "closed", assigneeId: null }, "reopen", member)).toEqual({ to: "open", event: "reopened" });
     for (const status of FINAL_STATUSES) {
       for (const action of Object.keys(TASK_ACTIONS) as TaskAction[]) {
+        if (status === "closed" && action === "reopen") continue;
         expect(ruleError(() => planTransition({ status, assigneeId: "lena" }, action, member)).code).toMatch(
           /invalid_state|forbidden/,
         );
@@ -69,8 +71,8 @@ describe("the task lifecycle", () => {
 });
 
 describe("who may do what", () => {
-  it("lets only members publish, triage, choose and close", () => {
-    for (const action of ["publish", "accept", "decline", "mark_duplicate", "choose", "close"] as const) {
+  it("lets only members publish, triage, choose, close and reopen", () => {
+    for (const action of ["publish", "accept", "decline", "mark_duplicate", "choose", "close", "reopen"] as const) {
       const from = TASK_ACTIONS[action].from[0]!;
       expect(ruleError(() => planTransition({ status: from, assigneeId: "lena" }, action, lena)).code).toBe("forbidden");
       expect(ruleError(() => planTransition({ status: from, assigneeId: null }, action, system)).code).toBe("forbidden");

@@ -9,6 +9,7 @@
 //   ./members.ts      a Member's own opt-in public profile (initiators on the wall)
 //   ./reads.ts        the public reads; nothing private leaves through them
 //   ./tokens.ts       personal access tokens for agents: create, list, revoke, authenticate, scopes
+//   ./admin.ts        the members' side (admin panel): reads with everything, moderation, triage
 //
 // The API only wires these to routes. Werk is append-only: there is no function that changes or
 // deletes a ledger row.
@@ -19,6 +20,7 @@ export * from "./github.js";
 export * from "./handles.js";
 export * from "./idle.js";
 export * from "./members.js";
+export * from "./admin.js";
 export * from "./contributors.js";
 export * from "./errors.js";
 export * from "./people.js";

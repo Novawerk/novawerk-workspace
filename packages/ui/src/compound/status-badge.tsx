@@ -49,6 +49,25 @@ export const STATUS_TONES = {
     renewal: "success",
     closed: "muted",
   },
+  task: {
+    draft: "neutral",
+    suggested: "info",
+    open: "info",
+    assigned: "warning",
+    in_review: "warning",
+    done: "success",
+    closed: "muted",
+    declined: "muted",
+    duplicate: "muted",
+  },
+  proposal: {
+    /** An agent's proposal its person hasn't confirmed yet (never in the admin queue). */
+    draft: "muted",
+    pending: "warning",
+    chosen: "success",
+    not_chosen: "muted",
+    withdrawn: "muted",
+  },
 } as const satisfies Record<string, Record<string, Tone>>
 
 type Tone = NonNullable<VariantProps<typeof statusBadgeVariants>["tone"]>
@@ -62,6 +81,7 @@ export type ProjectStatus = StatusOf<"project">
 export type OutboxStatus = StatusOf<"outbox">
 export type PostStatus = StatusOf<"post">
 export type PartnerStage = StatusOf<"partner">
+export type TaskStatus = StatusOf<"task">
 
 /** The statuses for a kind, in workflow order. Handy for filters and selects. */
 export function statusesOf<K extends StatusKind>(kind: K): StatusOf<K>[] {
@@ -69,7 +89,12 @@ export function statusesOf<K extends StatusKind>(kind: K): StatusOf<K>[] {
 }
 
 /** Labels that aren't just the value capitalised. */
-const LABELS: Record<string, string> = { "grant-ask": "Grant ask", drafted: "To review" }
+const LABELS: Record<string, string> = {
+  "grant-ask": "Grant ask",
+  drafted: "To review",
+  in_review: "In review",
+  not_chosen: "Not chosen",
+}
 
 export function statusLabel(status: string) {
   return LABELS[status] ?? status.charAt(0).toUpperCase() + status.slice(1)

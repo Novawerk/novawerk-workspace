@@ -4,12 +4,13 @@
 
 import { createHmac } from "node:crypto";
 
-import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import {
   HANDLE_PATTERN,
   INITIATOR_ROLE,
+  MEMBER_ONLY_EVENT_KINDS,
   PUBLIC_TASK_STATUSES,
   TASK_SIZE_WERK,
   formatTaskId,
@@ -278,7 +279,7 @@ export async function getPublicTask(db: Database, taskId: number): Promise<Publi
     .leftJoin(contributors, eq(contributors.id, taskEvents.actorContributorId))
     .leftJoin(members, eq(members.id, taskEvents.actorMemberId))
     .leftJoin(contributorTokens, eq(contributorTokens.id, taskEvents.viaTokenId))
-    .where(eq(taskEvents.taskId, taskId))
+    .where(and(eq(taskEvents.taskId, taskId), notInArray(taskEvents.kind, [...MEMBER_ONLY_EVENT_KINDS])))
     .orderBy(asc(taskEvents.id));
 
   const voters = await db
