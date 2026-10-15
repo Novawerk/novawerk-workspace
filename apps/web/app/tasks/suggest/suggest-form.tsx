@@ -100,7 +100,13 @@ function Form({ handle }: { handle: string }) {
       return;
     }
     track("suggestion_sent", { kind });
-    toast(shot ? "Thanks. Your suggestion is on the board; the screenshot shows once a member accepts it." : "Thanks. Your suggestion is on the board.");
+    toast(
+      shot
+        ? "Thanks. Your suggestion is on the board; the screenshot shows once a member accepts it."
+        : screenshot?.state === "failed"
+          ? "Thanks. Your suggestion is on the board, without the screenshot."
+          : "Thanks. Your suggestion is on the board.",
+    );
     router.push(`/tasks/${res.data.id}`);
   };
 
@@ -283,10 +289,21 @@ type Shot =
  */
 function ScreenshotField({ value, onChange, error }: { value: Shot | null; onChange: (shot: Shot | null) => void; error?: string }) {
   const id = useId();
+  const labelId = `${id}-label`;
   const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
   const [input, setInput] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  /** Remove puts the caret on the fresh file input, so keyboard users don't lose their place. */
+  const focusInput = useRef(false);
+  useEffect(() => {
+    if (focusInput.current) inputRef.current?.focus();
+    focusInput.current = false;
+  }, [input]);
   /** Which pick is current: an upload that finishes after Remove or a newer pick is ignored. */
   const current = useRef(0);
+  /** A preview the browser couldn't decode is hidden, not shown broken. */
+  const [broken, setBroken] = useState<string | null>(null);
 
   // The local preview's object URL is freed when the picture changes or the form goes away.
   const preview = value && value.state !== "failed" ? value.preview : null;
@@ -299,7 +316,10 @@ function ScreenshotField({ value, onChange, error }: { value: Shot | null; onCha
     if (!file) return;
     const mine = ++current.current;
     const update = (shot: Shot) => {
-      if (current.current === mine) onChange(shot);
+      if (current.current !== mine) return;
+      onChange(shot);
+      // A fresh, empty input after any error: the rejected file's name doesn't linger in it.
+      if (shot.state === "failed") setInput((n) => n + 1);
     };
     const problem = screenshotProblem(file);
     if (problem) return update({ state: "failed", name: file.name, message: problem });
@@ -318,46 +338,66 @@ function ScreenshotField({ value, onChange, error }: { value: Shot | null; onCha
   const clear = () => {
     current.current++;
     onChange(null);
+    focusInput.current = true;
     setInput((n) => n + 1); // a fresh <input type=file>, so the same file can be picked again
   };
 
+  const message = value?.state === "failed" ? value.message : error;
+  const attached = value && value.state !== "failed" ? value : null;
+
   return (
-    <div className="grid gap-1.5">
-      <label htmlFor={id} className={fieldLabel}>
-        Screenshot <span className={fieldHint}>optional</span>
-      </label>
+    <div className="grid gap-1.5" role={attached ? "group" : undefined} aria-labelledby={attached ? labelId : undefined}>
+      {attached ? (
+        <span id={labelId} className={fieldLabel}>
+          Screenshot <span className={fieldHint}>optional</span>
+        </span>
+      ) : (
+        <label htmlFor={id} className={fieldLabel}>
+          Screenshot <span className={fieldHint}>optional</span>
+        </label>
+      )}
       <p id={hintId} className="text-[13px] text-muted">
         PNG or JPEG, up to 2 MB. No personal data, please: it becomes public once a member accepts the suggestion, without its metadata.
       </p>
-      {value && value.state !== "failed" ? (
+      {attached ? (
         <div className="flex items-center gap-3 border border-line bg-paper p-2.5">
-          {/* A local preview of the file just picked (an object URL), not a remote image. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value.preview} alt="" className="size-16 shrink-0 border border-line object-cover" />
+          {broken === attached.preview ? null : (
+            <>
+              {/* A local preview of the file just picked (an object URL), not a remote image. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={attached.preview} alt="" onError={() => setBroken(attached.preview)} className="size-16 shrink-0 border border-line object-cover" />
+            </>
+          )}
           <div className="grid min-w-0 flex-1 gap-0.5 text-sm">
-            <span className="truncate">{value.name}</span>
-            <span className="text-[13px] text-muted" role="status">
-              {value.state === "uploading" ? `Uploading… ${value.percent}%` : "Attached"}
+            <span className="truncate">{attached.name}</span>
+            <span className="text-[13px] text-muted">
+              {/* Only the start and the end are announced, not every percent. */}
+              <span role="status">{attached.state === "uploading" ? "Uploading…" : "Attached"}</span>
+              {attached.state === "uploading" ? <span aria-hidden="true"> {attached.percent}%</span> : null}
             </span>
           </div>
-          <button type="button" className={buttonSmallOutline} onClick={clear}>
+          <button type="button" className={buttonSmallOutline} onClick={clear} aria-label={`Remove ${attached.name}`}>
             Remove
           </button>
         </div>
       ) : (
         <input
           key={input}
+          ref={inputRef}
           id={id}
           type="file"
           accept={SCREENSHOT_ACCEPT}
-          aria-describedby={hintId}
-          aria-invalid={value?.state === "failed" || error ? true : undefined}
+          aria-describedby={message ? `${hintId} ${errorId}` : hintId}
+          aria-invalid={message ? true : undefined}
           onChange={(e) => void pick(e.target.files?.[0])}
           className={`${field} py-1.5 text-sm file:mr-3 file:border file:border-line-strong file:bg-paper file:px-3 file:py-1 file:text-sm`}
         />
       )}
-      {value?.state === "failed" ? <p className="text-sm text-danger">{value.message}</p> : null}
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      {message ? (
+        <p id={errorId} role="alert" className="text-sm text-danger">
+          {message}
+        </p>
+      ) : null}
     </div>
   );
 }

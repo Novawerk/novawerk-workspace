@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { screenshotContentType, screenshotProblem } from "./uploads";
+import { SCREENSHOT_ACCEPT, screenshotContentType, screenshotProblem } from "./uploads";
 
 const file = (name: string, type: string, size = 1000) => ({ name, type, size });
 
@@ -17,5 +17,8 @@ describe("suggestion screenshots", () => {
     expect(screenshotProblem(file("a.pdf", "application/pdf"))).toBe("Use a PNG or a JPEG.");
     expect(screenshotProblem(file("a.png", "image/png", 0))).toBe("That file is empty.");
     expect(screenshotProblem(file("a.png", "image/png", 3 * 1024 * 1024))).toBe("That picture is 3.0 MB. A screenshot can be up to 2 MB.");
+  });
+  it("offers the extensions too in the file picker", () => {
+    expect(SCREENSHOT_ACCEPT.split(",")).toEqual(["image/png", "image/jpeg", ".png", ".jpg", ".jpeg"]);
   });
 });

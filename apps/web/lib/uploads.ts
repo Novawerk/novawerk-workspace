@@ -103,7 +103,10 @@ export async function uploadResume(file: File, onProgress?: (percent: number) =>
 // screenshot gives the ticket, with their session). It goes to the private store and shows on
 // the task only once a member accepts the suggestion, copied without its metadata.
 
-export const SCREENSHOT_ACCEPT = SUGGESTION_SCREENSHOT_TYPES.join(",");
+/** What the file picker offers: the types, and the extensions for systems that leave the type empty. */
+export const SCREENSHOT_ACCEPT = [...SUGGESTION_SCREENSHOT_TYPES, ".png", ".jpg", ".jpeg"].join(",");
+
+export const SCREENSHOTS_OFF = "Screenshots are off right now. Send it without one.";
 
 /** The screenshot's type if we take it (PNG or JPEG), else null. */
 export function screenshotContentType(file: Pick<File, "name" | "type">): SuggestionScreenshotType | null {
@@ -136,7 +139,10 @@ export async function uploadSuggestionScreenshot(file: File, onProgress?: (perce
     method: "POST",
     body: { filename: file.name.trim().slice(0, 200) || "screenshot", contentType },
   });
-  if (!ticket.ok) throw new UploadError(Object.values(ticket.issues).flat()[0] ?? ticket.error);
+  if (!ticket.ok) {
+    if (ticket.status === 503) throw new UploadError(SCREENSHOTS_OFF);
+    throw new UploadError(Object.values(ticket.issues).flat()[0] ?? ticket.error);
+  }
 
   const { put } = await import("@vercel/blob/client");
   try {
