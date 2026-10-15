@@ -401,6 +401,21 @@ const handle = (example: string, max = 40) =>
     .max(max, `Keep it under ${max} characters`)
     .regex(HANDLE_PATTERN, `Lowercase letters, digits and hyphens, e.g. ${example}`);
 
+/**
+ * Handles nobody may choose for /u/<handle>: words that are (or may become) pages, and prefixes the
+ * board makes itself (`anon-` for unnamed people, `contributor-` for new email sign-ups).
+ */
+export const RESERVED_HANDLE_WORDS = [
+  "about", "admin", "anon", "api", "app", "auth", "contrib", "contribute", "contributor", "contributors",
+  "edit", "help", "imprint", "join", "login", "logout", "mcp", "me", "member", "members", "new",
+  "newsletter", "novawerk", "privacy", "public", "security", "settings", "sign-in", "sign-out",
+  "signin", "submit", "support", "system", "task", "tasks", "team", "tokens", "u", "www",
+] as const;
+export const RESERVED_HANDLE_PREFIXES = ["anon-", "contributor-"] as const;
+
+export const isReservedHandle = (handle: string) =>
+  (RESERVED_HANDLE_WORDS as readonly string[]).includes(handle) || RESERVED_HANDLE_PREFIXES.some((p) => handle.startsWith(p));
+
 /** "Zoë Müller-Lüdenscheidt" → "zoe-muller-ludenscheidt". May return "" for text with no letters or digits. */
 export function toHandle(text: string, maxLength = 40): string {
   return text

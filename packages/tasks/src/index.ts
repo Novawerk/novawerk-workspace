@@ -16,6 +16,7 @@
 export * from "./actions.js";
 export * from "./assignee.js";
 export * from "./github.js";
+export * from "./handles.js";
 export * from "./idle.js";
 export * from "./members.js";
 export * from "./contributors.js";

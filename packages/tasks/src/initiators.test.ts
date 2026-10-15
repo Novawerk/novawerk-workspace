@@ -120,3 +120,52 @@ describe("initiators on the wall", () => {
     expect(await listPublicInitiators(db)).toEqual([]);
   });
 });
+
+describe("review fixes", () => {
+  it("keeps member ids out of the wall's cursor", async () => {
+    await updateMemberProfile(db, "jonas", { publicProfile: true, profileHandle: "j-weber" });
+    const lena = await signInWithGitHub(db, { id: 1, login: "lena-k", name: "Lena", avatarUrl: null });
+    await updateProfile(db, lena.id, { public: true });
+    await db.insert(tasks).values({ title: "Done", status: "done", assigneeId: lena.id, area: "web", doneAt: new Date("2026-10-05") });
+    for (const sort of ["newest", "az"]) {
+      const page = await listPublicContributors(db, contributorListQuery.parse({ sort, limit: "1" }));
+      const decoded = JSON.parse(Buffer.from(page.nextCursor!, "base64url").toString("utf8")) as string[];
+      expect(decoded).not.toContain("jonas");
+      expect(decoded).not.toContain(lena.id);
+      expect(decoded.at(-1)).toMatch(/^(lena-k|j-weber)$/);
+    }
+  });
+
+  it("shows an initiator's profile only with a public project, and matches the role loosely", async () => {
+    await updateMemberProfile(db, "mara", { publicProfile: true, profileHandle: "mara-l" }); // a draft project only
+    expect(await getPublicContributor(db, "mara-l")).toBeNull();
+    await db.update(projectMembers).set({ role: " initiator " }).where(eq(projectMembers.memberId, "jonas"));
+    await updateMemberProfile(db, "jonas", { publicProfile: true, profileHandle: "j-weber" });
+    expect((await wall()).map((c) => c.handle)).toEqual(["j-weber"]);
+  });
+
+  it("reserves words, the board's prefixes and members' ids", async () => {
+    const lena = await signInWithGitHub(db, { id: 1, login: "lena-k", name: null, avatarUrl: null });
+    for (const handle of ["admin", "tasks", "anon-1234", "contributor-abcd"]) {
+      expect(await code(() => updateProfile(db, lena.id, { handle }))).toBe("invalid");
+      expect(await code(() => updateMemberProfile(db, "jonas", { profileHandle: handle }))).toBe("invalid");
+    }
+    expect(await code(() => updateProfile(db, lena.id, { handle: "mara" }))).toBe("conflict"); // a member's id
+    expect(await code(() => updateMemberProfile(db, "jonas", { profileHandle: "mara" }))).toBe("conflict");
+    expect(await code(() => updateMemberProfile(db, "jonas", { profileHandle: "jonas" }))).toBe("ok"); // their own id
+    expect((await signInWithGitHub(db, { id: 2, login: "admin", name: null, avatarUrl: null })).handle).toBe("admin-2");
+    expect((await signInWithGitHub(db, { id: 3, login: "anon-bob", name: null, avatarUrl: null })).handle).toBe("gh-anon-bob");
+    expect((await signInWithGitHub(db, { id: 4, login: "mara", name: null, avatarUrl: null })).handle).toBe("mara-2");
+  });
+
+  it("gives a handle asked for twice at once to one person", async () => {
+    const a = await signInWithGitHub(db, { id: 1, login: "a-person", name: null, avatarUrl: null });
+    const results = await Promise.all([
+      code(() => updateProfile(db, a.id, { handle: "same-one" })),
+      code(() => updateMemberProfile(db, "jonas", { profileHandle: "same-one" })),
+      code(() => updateMemberProfile(db, "mara", { profileHandle: "same-one" })),
+    ]);
+    expect(results.filter((r) => r === "ok")).toHaveLength(1);
+    expect(results.filter((r) => r === "conflict")).toHaveLength(2);
+  });
+});

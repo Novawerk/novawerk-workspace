@@ -6,9 +6,10 @@
 import { eq } from "drizzle-orm";
 
 import type { MemberSelfUpdateInput } from "@nw/contracts";
-import { contributors, members, type Database, type Member } from "@nw/db";
+import { members, type Database, type Member } from "@nw/db";
 
 import { TaskRuleError, isUniqueViolation } from "./errors.js";
+import { claimHandle } from "./handles.js";
 
 const TAKEN = "That handle is taken";
 
@@ -20,22 +21,20 @@ export async function updateMemberProfile(db: Database, memberId: string, patch:
   if ((patch.publicProfile ?? me.publicProfile) && !handle) {
     throw new TaskRuleError("invalid", "Choose a handle first: it's the address of your profile", "profileHandle");
   }
-  if (patch.profileHandle && patch.profileHandle !== me.profileHandle) {
-    const [contributor] = await db
-      .select({ id: contributors.id })
-      .from(contributors)
-      .where(eq(contributors.handle, patch.profileHandle))
-      .limit(1);
-    if (contributor) throw new TaskRuleError("conflict", TAKEN, "profileHandle");
-  }
-  const [row] = await db
-    .update(members)
-    .set(Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)))
-    .where(eq(members.id, memberId))
-    .returning()
-    .catch((err: unknown) => {
-      if (isUniqueViolation(err)) throw new TaskRuleError("conflict", TAKEN, "profileHandle");
-      throw err;
-    });
+  const [row] = await db.transaction(async (tx) => {
+    // A new handle: not reserved, not a contributor's or another member's (their id included).
+    if (patch.profileHandle && patch.profileHandle !== me.profileHandle) {
+      await claimHandle(tx, patch.profileHandle, "profileHandle", { memberId });
+    }
+    return tx
+      .update(members)
+      .set(Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)))
+      .where(eq(members.id, memberId))
+      .returning()
+      .catch((err: unknown) => {
+        if (isUniqueViolation(err)) throw new TaskRuleError("conflict", TAKEN, "profileHandle");
+        throw err;
+      });
+  });
   return row!;
 }

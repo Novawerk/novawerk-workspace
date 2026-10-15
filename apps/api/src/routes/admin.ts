@@ -16,6 +16,7 @@ import { adminChatRoutes } from "../admin-chat/routes.js";
 import { postChatRoutes } from "../post-chat/routes.js";
 import { requireAdmin, requireSession } from "../auth.js";
 import { rejectInvalid } from "../http.js";
+import { revalidateWeb } from "../revalidate.js";
 import type { AdminMember, ApiEnv } from "../types.js";
 import { cardRoutes } from "./admin/cards.js";
 import { documentRoutes } from "./admin/documents.js";
@@ -78,6 +79,8 @@ export function adminRoutes(deps: AdminDeps) {
     // Only the member themself switches their public profile on or off; never an admin for them.
     .patch("/me", zValidator("json", memberSelfUpdateInput, rejectInvalid), async (c) => {
       await updateMemberProfile(deps.db, c.get("member").id, c.req.valid("json"));
+      // Their card on the wall and /u/<handle> change at once.
+      await revalidateWeb(deps.env.webRevalidate, deps.logger, ["contributors"]);
       return c.json(await memberSelf(deps.db, c.get("member")), 200);
     })
     .route("/", inboxRoutes(deps))

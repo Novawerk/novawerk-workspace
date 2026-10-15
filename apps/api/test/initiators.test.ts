@@ -1,7 +1,7 @@
 // A Member's own public profile over HTTP (NB-ADR-0013): only they switch it on, through
 // PATCH /admin/me; initiators then show on /public/contributors and /public/initiators.
 
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { members, projectMembers, projects, type Database } from "@nw/db";
 
@@ -49,5 +49,22 @@ describe("PATCH /admin/me", () => {
     await adminFetch(app, "PATCH", "/admin/me", { profileHandle: "ada" }, "ada");
     const grace = (await (await adminFetch(app, "GET", "/admin/me", undefined, "grace")).json()) as any;
     expect(grace.profileHandle).toBeNull();
+  });
+});
+
+describe("website cache", () => {
+  it("refreshes the wall after a member's profile change and a project change", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const { app } = makeApp(db, { env: { webRevalidate: { url: "https://novawerk.io/api/revalidate", secret: "r" } } });
+      await adminFetch(app, "PATCH", "/admin/me", { profileHandle: "grace-h" }, "grace");
+      const [project] = await db.select().from(projects);
+      await adminFetch(app, "PATCH", `/admin/projects/${project!.id}`, { title: "Quiet Desk Berlin" });
+      const bodies = fetchMock.mock.calls.map((call) => ((call as unknown[])[1] as RequestInit).body);
+      expect(bodies).toEqual([JSON.stringify({ tags: ["contributors"] }), JSON.stringify({ tags: ["projects", "contributors"] })]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -205,7 +205,11 @@ export const projectMembers = pgTable(
       .references(() => members.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
   },
-  (t) => [primaryKey({ columns: [t.projectId, t.memberId] })],
+  (t) => [
+    primaryKey({ columns: [t.projectId, t.memberId] }),
+    // "Which projects did this member start": the wall and initiator profiles.
+    index("project_members_member_role_idx").on(t.memberId, t.role),
+  ],
 );
 
 // ─── Project lifecycle ───────────────────────────────────────────────────────

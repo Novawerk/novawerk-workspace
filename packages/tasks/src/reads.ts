@@ -379,7 +379,7 @@ const initiatedProjects = (memberIds: string[]) =>
   memberIds.length
     ? sql`select ${projectMembers.memberId} as member_id, ${projects.slug} as slug, ${projects.title} as title, ${projects.createdAt} as created_at
           from ${projectMembers} join ${projects} on ${projects.id} = ${projectMembers.projectId}
-          where ${projectMembers.role} = ${INITIATOR_ROLE}
+          where lower(trim(${projectMembers.role})) = ${INITIATOR_ROLE.toLowerCase()}
             and ${projects.status} in (${sql.join(PUBLIC_PROJECT_STATUSES.map((st) => sql`${st}`), sql`, `)})
             and ${projectMembers.memberId} in (${sql.join(memberIds.map((id) => sql`${id}`), sql`, `)})
           order by ${projects.createdAt} desc`
@@ -392,19 +392,21 @@ async function projectsStartedBy(db: Database, memberIds: string[]): Promise<Ini
   return query ? rowsOf<InitiatedRow>(await db.execute(query)) : [];
 }
 
-const ID = /^[a-z0-9-]{1,64}$/;
 
 /** Rows of a raw query: node-postgres and PGlite both answer `{ rows }`. */
 const rowsOf = <T>(result: unknown): T[] => (result as { rows: T[] }).rows;
 
-function decodeWallCursor(cursor: string, sort: ContributorListQuery["sort"]): [string, string] {
+/**
+ * The wall's cursor: A–Z is `[handle]`, newest is `[last, handle]`. Handles are unique across
+ * contributors and members (one namespace), so no internal id ever goes into a link.
+ */
+function decodeWallCursor(cursor: string, sort: ContributorListQuery["sort"]): [string] | [string, string] {
   try {
     const value: unknown = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
-    if (Array.isArray(value) && value.length === 2 && typeof value[0] === "string" && typeof value[1] === "string") {
-      const [key, id] = value as [string, string];
-      if (!ID.test(id)) throw new Error("bad id");
-      if (sort === "az" && HANDLE_PATTERN.test(key) && key.length <= 40) return [key, id];
-      if (sort === "newest" && isPgTimestamp(key)) return [key, id];
+    const handleOk = (h: unknown): h is string => typeof h === "string" && h.length <= 40 && HANDLE_PATTERN.test(h);
+    if (sort === "az" && Array.isArray(value) && value.length === 1 && handleOk(value[0])) return [value[0]];
+    if (sort === "newest" && Array.isArray(value) && value.length === 2 && typeof value[0] === "string" && isPgTimestamp(value[0]) && handleOk(value[1])) {
+      return [value[0], value[1]];
     }
   } catch {
     // reported below
@@ -444,17 +446,20 @@ export async function listPublicContributors(db: Database, query: ContributorLis
   const initiatorRows = sql`
     select 'initiator' as kind, m.id as id, m.profile_handle as handle, m.display_name as name, null as avatar_url, m.profile_bio as bio,
       (select max(p.created_at) from project_members pm join projects p on p.id = pm.project_id
-        where pm.member_id = m.id and pm.role = ${INITIATOR_ROLE} and p.status in (${statuses})) as last
+        where pm.member_id = m.id and lower(trim(pm.role)) = ${INITIATOR_ROLE.toLowerCase()} and p.status in (${statuses})) as last
     from members m
     where m.public_profile and m.active and m.profile_handle is not null`;
   const union = query.area ? contributorRows : sql`${contributorRows} union all ${initiatorRows}`;
 
   let after = sql``;
   if (query.cursor) {
-    const [key, id] = decodeWallCursor(query.cursor, query.sort);
-    after = query.sort === "az" ? sql`and (w.handle, w.id) > (${key}, ${id})` : sql`and (w.last, w.id) < (${key}::timestamptz, ${id})`;
+    const decoded = decodeWallCursor(query.cursor, query.sort);
+    after =
+      decoded.length === 1
+        ? sql`and w.handle > ${decoded[0]}`
+        : sql`and (w.last, w.handle) < (${decoded[0]}::timestamptz, ${decoded[1]})`;
   }
-  const order = query.sort === "az" ? sql`w.handle asc, w.id asc` : sql`w.last desc, w.id desc`;
+  const order = query.sort === "az" ? sql`w.handle asc` : sql`w.last desc, w.handle desc`;
   const rows = rowsOf<WallRow>(
     await db.execute(sql`
       select w.*, w.last::text as last_key from (${union}) w
@@ -487,7 +492,7 @@ export async function listPublicContributors(db: Database, query: ContributorLis
     contributors: cards,
     nextCursor:
       rows.length > query.limit && last
-        ? Buffer.from(JSON.stringify(query.sort === "az" ? [last.handle, last.id] : [last.last_key, last.id])).toString("base64url")
+        ? Buffer.from(JSON.stringify(query.sort === "az" ? [last.handle] : [last.last_key, last.handle])).toString("base64url")
         : null,
   };
 }
@@ -553,6 +558,8 @@ async function getPublicMemberProfile(db: Database, handle: string): Promise<Pub
     .limit(1);
   if (!m) return null;
   const started = await projectsStartedBy(db, [m.id]);
+  // The profile is an initiator's: without a public project it isn't shown yet.
+  if (!started.length) return null;
   return {
     kind: "initiator",
     handle: m.handle!,

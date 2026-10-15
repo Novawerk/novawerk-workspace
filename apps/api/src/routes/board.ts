@@ -39,6 +39,7 @@ export function boardRoutes({ db, env }: AppDeps, gate: TokenGate) {
   const token = gate.optional();
   return new Hono<ApiEnv>()
     .use("/blocks", token)
+    .use("/initiators", token)
     .use("/tasks", token)
     .use("/tasks/*", token)
     .use("/contributors", token)
