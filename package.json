@@ -26,7 +26,8 @@
     "post": "tsx scripts/post.ts",
     "provision:member": "tsx scripts/provision-member.ts",
     "backup": "bash scripts/backup.sh",
-    "demo:pipeline": "tsx scripts/demo-pipeline.ts"
+    "demo:pipeline": "tsx scripts/demo-pipeline.ts",
+    "import:tasks": "tsx scripts/import-tasks.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

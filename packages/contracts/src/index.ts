@@ -2410,6 +2410,24 @@ export const adminTaskInput = z.object({
 });
 export type AdminTaskInput = z.input<typeof adminTaskInput>;
 
+/**
+ * `pnpm import:tasks <file.json>`: a list of tasks to publish as open, each like POST
+ * /admin/tasks (no `publish`: an import always publishes). Titles must differ (any case).
+ */
+export const taskImportInput = z
+  .array(adminTaskInput.omit({ publish: true }))
+  .min(1, "The file has no tasks")
+  .max(200, "Up to 200 tasks per import")
+  .superRefine((list, ctx) => {
+    const seen = new Map<string, number>();
+    list.forEach((t, i) => {
+      const key = t.title.trim().toLowerCase();
+      if (seen.has(key)) ctx.addIssue({ code: "custom", path: [i, "title"], message: `Same title as task ${seen.get(key)! + 1} in this file` });
+      seen.set(key, i);
+    });
+  });
+export type TaskImportInput = z.input<typeof taskImportInput>;
+
 /** PATCH /admin/tasks/:id */
 export const adminTaskUpdateInput = z
   .object({
