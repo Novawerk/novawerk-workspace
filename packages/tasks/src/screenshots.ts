@@ -3,7 +3,7 @@
 // records the URL here; declined or a duplicate, the API deletes it. The file operations are the
 // API's (@nw/object-store); these only keep the task row in step.
 
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, isNotNull, like, ne } from "drizzle-orm";
 
 import { SUGGESTION_SCREENSHOT_PREFIX } from "@nw/contracts";
 import { tasks, type Database } from "@nw/db";
@@ -25,6 +25,18 @@ export async function forgetScreenshot(db: Database, taskId: number): Promise<st
   if (!pathname) return null;
   await db.update(tasks).set({ screenshotPathname: null }).where(and(eq(tasks.id, taskId), eq(tasks.screenshotPathname, pathname)));
   return pathname;
+}
+
+/**
+ * Screenshots still private on a task that was already triaged: accepted ones whose public copy
+ * failed (to publish again), and declined or duplicate ones whose delete failed (to delete).
+ */
+export async function screenshotsAfterTriage(db: Database): Promise<{ taskId: number; accepted: boolean }[]> {
+  const rows = await db
+    .select({ id: tasks.id, status: tasks.status, acceptedAt: tasks.acceptedAt })
+    .from(tasks)
+    .where(and(isNotNull(tasks.screenshotPathname), ne(tasks.status, "suggested")));
+  return rows.map((r) => ({ taskId: r.id, accepted: r.acceptedAt !== null }));
 }
 
 /** Private screenshots still attached to a suggestion: the cleanup keeps these. */

@@ -305,6 +305,9 @@ export async function deleteContributor(db: Database, contributorId: string, con
         })),
       );
     }
+    // Their suggestions keep their text ("a former contributor") but lose any private screenshot:
+    // the API deletes their folder, and nothing should point into it.
+    await tx.update(tasks).set({ screenshotPathname: null }).where(eq(tasks.suggestedBy, contributorId));
     await tx.delete(contributors).where(eq(contributors.id, contributorId));
     // One last email, to the address the account had (NB-ADR-0013): the one they sign in with,
     // else GitHub's for notices. The notices cron sends it, then clears the address; it is

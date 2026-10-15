@@ -23,8 +23,6 @@
 //   GET    /admin/werk?contributor=          the ledger                → AdminWerkRow[]
 //   POST   /admin/werk                       a new row (never an edit) → 201 AdminWerkRow
 
-import { randomUUID } from "node:crypto";
-
 import { zValidator } from "@hono/zod-validator";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
@@ -42,7 +40,6 @@ import {
   declineProposalInput,
   declineSuggestionInput,
   duplicateSuggestionInput,
-  formatTaskId,
   memberPostInput,
   moderationInput,
   taskIdParam,
@@ -50,7 +47,6 @@ import {
   werkAdjustInput,
 } from "@nw/contracts";
 import { taskProposals, type Database } from "@nw/db";
-import { readPrivate, stripImageMetadata } from "@nw/object-store";
 import {
   TaskRuleError,
   acceptSuggestion,
@@ -75,12 +71,11 @@ import {
   setThreadLocked,
   transitionTask,
   updateTask,
-  forgetScreenshot,
   pendingScreenshot,
-  publishScreenshot,
 } from "@nw/tasks";
 
 import { notFound, notFoundIfInvalid, rejectInvalid } from "../../http.js";
+import { dropSuggestionScreenshot as dropScreenshotOf, publishSuggestionScreenshot as publishScreenshotOf } from "../../screenshots.js";
 import { revalidateWeb } from "../../revalidate.js";
 import type { ApiEnv } from "../../types.js";
 import type { AdminDeps } from "./shared.js";
@@ -105,32 +100,8 @@ async function proposalTask(db: Database, proposalId: string): Promise<number> {
 }
 
 export function boardAdminRoutes({ db, env, files, logger }: AdminDeps) {
-  /**
-   * Accepted: the screenshot goes public, without its metadata (EXIF, comments). The private one
-   * is deleted. A failure leaves it private and attached for the next try; the accept stands.
-   */
-  const publishSuggestionScreenshot = async (taskId: number) => {
-    const pathname = await pendingScreenshot(db, taskId);
-    if (!pathname || !files?.ready.private || !files.ready.public) return;
-    try {
-      const file = await readPrivate(files, pathname);
-      if (!file) return void (await forgetScreenshot(db, taskId));
-      const clean = stripImageMetadata(file.body, file.contentType);
-      const ext = file.contentType === "image/png" ? "png" : "jpg";
-      const url = await files.putPublic(`tasks/${formatTaskId(taskId)}/screenshot-${randomUUID()}.${ext}`, clean, file.contentType);
-      await publishScreenshot(db, taskId, url);
-      await files.deletePrivate(pathname);
-    } catch (err) {
-      logger.error(`[admin] screenshot of ${formatTaskId(taskId)} not published:`, err instanceof Error ? err.message : err);
-    }
-  };
-  /** Declined or a duplicate: the private screenshot goes. */
-  const dropSuggestionScreenshot = async (taskId: number) => {
-    const pathname = await forgetScreenshot(db, taskId);
-    if (pathname && files?.ready.private) {
-      await files.deletePrivate(pathname).catch((err: unknown) => logger.warn("[admin] screenshot delete failed:", err instanceof Error ? err.message : err));
-    }
-  };
+  const publishSuggestionScreenshot = (taskId: number) => publishScreenshotOf(db, files, logger, taskId);
+  const dropSuggestionScreenshot = (taskId: number) => dropScreenshotOf(db, files, logger, taskId);
 
   const tasksApp = new Hono<ApiEnv>()
     .get("/", zValidator("query", taskFilterQuery, rejectInvalid), async (c) =>

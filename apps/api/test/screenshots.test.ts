@@ -6,7 +6,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { contributors, members, tasks, type Database } from "@nw/db";
 
-import { deleteUnsentScreenshots } from "../src/screenshot-cleanup.js";
+import { deleteUnsentScreenshots, finishTriagedScreenshots } from "../src/screenshot-cleanup.js";
 import { FakeFiles, TEST_MEMBERS, WEB_ORIGIN, adminFetch, contributorCookie, createTestDb, makeApp, resetDb, type TestApp } from "./helpers.js";
 
 let db: Database;
@@ -139,5 +139,93 @@ describe("suggestion screenshots", () => {
 
     await call(app, "DELETE", "/contrib/me", { confirmHandle: "lena-k" });
     expect(files.deletedPrivate).toContain(sent);
+  });
+});
+
+describe("review fixes", () => {
+  it("still signs out and answers 200 when the file store fails during account deletion", async () => {
+    const files = new FakeFiles();
+    files.listPrivate = async () => {
+      throw new Error("Blob is down");
+    };
+    const { app } = makeApp(db, { files });
+    const res = await app.request("/contrib/me", {
+      method: "DELETE",
+      headers: { Cookie: cookie, Origin: WEB_ORIGIN, "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmHandle: "lena-k" }),
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie")).toMatch(/nw_contributor=;/);
+  });
+
+  it("attaches one upload to one suggestion, and forgets it with the account", async () => {
+    const files = new FakeFiles();
+    const { app } = makeApp(db, { files });
+    const pathname = await upload(app, files);
+    const first = await call(app, "POST", "/contrib/suggestions", suggestion(pathname));
+    expect(first.status).toBe(201);
+    const again = await call(app, "POST", "/contrib/suggestions", { ...suggestion(pathname), title: "Again" });
+    expect(again.status).toBe(400);
+    expect(again.body.issues.screenshot).toBeDefined();
+
+    await call(app, "DELETE", "/contrib/me", { confirmHandle: "lena-k" });
+    const [row] = await db.select().from(tasks).where(eq(tasks.id, first.body.number));
+    expect(row?.screenshotPathname).toBeNull();
+  });
+
+  it("keeps a screenshot private when the public copy fails, and publishes it the next night", async () => {
+    const files = new FakeFiles();
+    const putPublic = files.putPublic.bind(files);
+    let fail = true;
+    files.putPublic = async (...args) => {
+      if (fail) throw new Error("Blob hiccup");
+      return putPublic(...args);
+    };
+    const { app, logger } = makeApp(db, { files });
+    const pathname = await upload(app, files);
+    const created = await call(app, "POST", "/contrib/suggestions", suggestion(pathname));
+    await adminFetch(app, "POST", `/admin/suggestions/${created.body.id}/accept`, { area: "web", size: "S", criteria: ["Done"] });
+    expect(logger.error).toHaveBeenCalled();
+    let [row] = await db.select().from(tasks).where(eq(tasks.id, created.body.number));
+    expect(row).toMatchObject({ screenshotPathname: pathname, screenshotUrl: null });
+
+    fail = false;
+    expect(await finishTriagedScreenshots(db, files, logger)).toEqual({ published: 1, deleted: 0 });
+    [row] = await db.select().from(tasks).where(eq(tasks.id, created.body.number));
+    expect(row?.screenshotPathname).toBeNull();
+    expect(row?.screenshotUrl).toMatch(/^https:\/\/public\.blob\.example\//);
+  });
+
+  it("types the public copy by its bytes, and deletes one it can't read instead of publishing it", async () => {
+    const files = new FakeFiles();
+    const { app } = makeApp(db, { files });
+    // A JPEG declared as PNG: published as a JPEG, without its EXIF.
+    const seg = (marker: number, data: Buffer) => {
+      const head = Buffer.from([0xff, marker, 0, 0]);
+      head.writeUInt16BE(data.length + 2, 2);
+      return Buffer.concat([head, data]);
+    };
+    const jpegWithGps = Buffer.concat([
+      Buffer.from([0xff, 0xd8]),
+      seg(0xe1, Buffer.from("Exif\0\0GPS 52.52N")),
+      seg(0xc0, Buffer.alloc(15)),
+      seg(0xc4, Buffer.from("table")),
+      seg(0xda, Buffer.alloc(10)),
+      Buffer.from("scan"),
+      Buffer.from([0xff, 0xd9]),
+    ]);
+    const pathname = await upload(app, files, jpegWithGps, "image/png");
+    const created = await call(app, "POST", "/contrib/suggestions", suggestion(pathname));
+    await adminFetch(app, "POST", `/admin/suggestions/${created.body.id}/accept`, { area: "web", size: "S", criteria: ["Done"] });
+    const [stored] = [...files.publicFiles.entries()];
+    expect(stored![0]).toMatch(/\.jpg$/);
+    expect(stored![1].contentType).toBe("image/jpeg");
+    expect(stored![1].body.toString("latin1")).not.toContain("GPS");
+
+    const junk = await upload(app, files, Buffer.from("\x89PNG\r\n\x1a\nnot really"), "image/png");
+    const second = await call(app, "POST", "/contrib/suggestions", { ...suggestion(junk), title: "Second" });
+    await adminFetch(app, "POST", `/admin/suggestions/${second.body.id}/accept`, { area: "web", size: "S", criteria: ["Done"] });
+    expect(files.publicFiles.size).toBe(1);
+    expect(files.deletedPrivate).toContain(junk);
   });
 });

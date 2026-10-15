@@ -299,11 +299,14 @@ export function contribRoutes({ db, env, githubApi, files, logger = console }: A
       .delete("/me", sessionOnly, zValidator("json", accountDeleteInput, rejectInvalid), async (c) => {
         const me = c.get("contributor");
         await deleteContributor(db, me.id, c.req.valid("json").confirmHandle);
-        // Their screenshots go too (best effort: the nightly cleanup catches the rest).
+        // Their screenshots go too (best effort: the nightly cleanup catches the rest). The account
+        // is already gone, so nothing here may stop the cookie being cleared.
         if (files?.ready.private) {
-          await Promise.all((await files.listPrivate(screenshotFolderOf(me.id))).map((f) => files.deletePrivate(f.pathname))).catch(
-            (err: unknown) => logger.warn("[contrib] screenshot cleanup on delete failed:", err instanceof Error ? err.message : err),
-          );
+          try {
+            await Promise.all((await files.listPrivate(screenshotFolderOf(me.id))).map((f) => files.deletePrivate(f.pathname)));
+          } catch (err) {
+            logger.warn("[contrib] screenshot cleanup on delete failed:", err instanceof Error ? err.message : err);
+          }
         }
         await refreshProfiles();
         deleteCookie(c, CONTRIBUTOR_COOKIE, sessionCookieOptions(c, 0));

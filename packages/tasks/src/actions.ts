@@ -308,7 +308,12 @@ export async function suggestTask(
         createdAt: now,
         updatedAt: now,
       })
-      .returning();
+      .returning()
+      .catch((err: unknown) => {
+        // The unique index: one upload belongs to one suggestion.
+        if (isUniqueViolation(err)) throw new TaskRuleError("invalid", "That screenshot is already on another suggestion", "screenshot");
+        throw err;
+      });
     await tx.insert(taskEvents).values({
       taskId: task!.id,
       kind: "suggested",

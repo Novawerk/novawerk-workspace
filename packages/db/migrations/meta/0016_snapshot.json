@@ -1,5 +1,5 @@
 {
-  "id": "fa232c5f-1194-4711-a6de-d0db415f526b",
+  "id": "00ff147f-244a-4ec1-8e62-d8e91ee448b8",
   "prevId": "1b79b50b-4b3f-43be-9445-ce8141fd0ae6",
   "version": "7",
   "dialect": "postgresql",
@@ -4083,6 +4083,22 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tasks_screenshot_pathname_key": {
+          "name": "tasks_screenshot_pathname_key",
+          "columns": [
+            {
+              "expression": "screenshot_pathname",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"tasks\".\"screenshot_pathname\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}

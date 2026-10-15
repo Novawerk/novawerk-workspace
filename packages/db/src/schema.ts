@@ -777,6 +777,8 @@ export const tasks = pgTable(
     index("tasks_status_updated_idx").on(t.status, t.updatedAt),
     index("tasks_assignee_idx").on(t.assigneeId),
     index("tasks_suggested_by_idx").on(t.suggestedBy),
+    // One upload belongs to one suggestion.
+    uniqueIndex("tasks_screenshot_pathname_key").on(t.screenshotPathname).where(sql`${t.screenshotPathname} is not null`),
   ],
 );
 

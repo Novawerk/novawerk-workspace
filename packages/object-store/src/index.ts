@@ -15,6 +15,8 @@
 import { BlobNotFoundError, del, get, head, list, put } from "@vercel/blob";
 import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 
+export { detectImageType, stripImage, stripImageMetadata, type StrippableType } from "./strip.js";
+
 /** Store tokens (`BLOB_PUBLIC_READ_WRITE_TOKEN`, `BLOB_PRIVATE_READ_WRITE_TOKEN`). Either may be missing. */
 export interface FileStoreConfig {
   publicToken?: string;
@@ -114,8 +116,6 @@ export function safeFilename(filename: string): string {
 }
 
 /** True for URLs that point into a Vercel Blob public store. */
-export { stripImageMetadata } from "./strip.js";
-
 export function isPublicBlobUrl(url: string): boolean {
   try {
     const { protocol, hostname } = new URL(url);
