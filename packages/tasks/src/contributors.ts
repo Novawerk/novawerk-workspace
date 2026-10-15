@@ -3,7 +3,7 @@
 
 import { randomBytes } from "node:crypto";
 
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import {
   isReservedHandle,
@@ -162,12 +162,9 @@ async function insertWithFreeHandle(
  * (a former employer's mailbox, say) can't get into a GitHub-only account with it.
  */
 async function keepGitHubEmail(db: Database, c: Contributor, email: string | null | undefined): Promise<Contributor> {
-  if (c.notifyEmail || !email) return c;
-  const [updated] = await db
-    .update(contributors)
-    .set({ notifyEmail: email })
-    .where(and(eq(contributors.id, c.id), isNull(contributors.notifyEmail)))
-    .returning();
+  // notify_email only ever comes from GitHub, so it follows their current verified primary.
+  if (!email || c.notifyEmail === email) return c;
+  const [updated] = await db.update(contributors).set({ notifyEmail: email }).where(eq(contributors.id, c.id)).returning();
   return updated ?? c;
 }
 

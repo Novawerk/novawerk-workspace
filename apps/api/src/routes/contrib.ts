@@ -118,7 +118,7 @@ export function contribRoutes({ db, env, githubApi, logger = console }: AppDeps,
       // ─── Reading my own things ──────────────────────────────────────────────
       .get("/me", scope("tasks:read"), (c) => {
         const me = toContributorMe(c.get("contributor"));
-        return c.json(c.get("token") ? { ...me, email: null } : me, 200);
+        return c.json(c.get("token") ? { ...me, email: null, notifyEmail: null } : me, 200);
       })
       .get("/me/proposals", scope("tasks:read"), async (c) => c.json(await myProposals(db, c.get("contributor").id), 200))
       .get("/me/tasks", scope("tasks:read"), async (c) => c.json(await myTasks(db, c.get("contributor").id), 200))
@@ -246,7 +246,7 @@ export function contribRoutes({ db, env, githubApi, logger = console }: AppDeps,
         const row = await updateProfile(db, c.get("contributor").id, patch);
         await refreshProfiles();
         const me = toContributorMe(row);
-        return c.json(c.get("token") ? { ...me, email: null } : me, 200);
+        return c.json(c.get("token") ? { ...me, email: null, notifyEmail: null } : me, 200);
       })
       .delete("/me", sessionOnly, zValidator("json", accountDeleteInput, rejectInvalid), async (c) => {
         await deleteContributor(db, c.get("contributor").id, c.req.valid("json").confirmHandle);

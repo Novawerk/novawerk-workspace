@@ -110,14 +110,15 @@ describe("accounts", () => {
   it("keeps GitHub's verified email for notices only: never a way to sign in", async () => {
     const newcomer = await signInWithGitHub(db, { id: 400, login: "neu", name: null, avatarUrl: null, email: "neu@example.com" });
     expect(newcomer).toMatchObject({ email: null, notifyEmail: "neu@example.com" });
-    expect(toContributorMe(newcomer).notifyEmail).toBe("n***@example.com");
-    // Later sign-ins don't change it; an existing account without one gets it.
-    expect((await signInWithGitHub(db, { id: 400, login: "neu", name: null, avatarUrl: null, email: "other@example.com" })).notifyEmail).toBe("neu@example.com");
+    expect(toContributorMe(newcomer).notifyEmail).toBe("n***@example.com"); // masked for its owner
+    // It follows GitHub's current verified primary; a sign-in without one keeps it.
+    expect((await signInWithGitHub(db, { id: 400, login: "neu", name: null, avatarUrl: null, email: "new@example.com" })).notifyEmail).toBe("new@example.com");
+    expect((await signInWithGitHub(db, { id: 400, login: "neu", name: null, avatarUrl: null, email: null })).notifyEmail).toBe("new@example.com");
     expect((await signInWithGitHub(db, { id: 101, login: "lena-k", name: null, avatarUrl: null, email: "lena@example.com" })).notifyEmail).toBe("lena@example.com");
 
     // Whoever controls that mailbox can't get into the GitHub account with an emailed code:
     // signing in by email finds (or makes) an account by `email` only.
-    const stranger = await signInWithEmail(db, "neu@example.com");
+    const stranger = await signInWithEmail(db, "new@example.com");
     expect(stranger.id).not.toBe(newcomer.id);
     expect(stranger.githubId).toBeNull();
 
