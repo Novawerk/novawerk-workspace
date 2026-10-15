@@ -1,0 +1,171 @@
+/*
+ * Colours for the builders scene. The canvas reads these with getComputedStyle, so the pixel art
+ * follows the theme like the rest of the page. Block colours come from the brand palette: web green,
+ * admin zinc, api blue, agents deep green, docs warm grey, ci light green.
+ * Dark values apply with the system setting (unless the page pins data-theme="light") or with
+ * data-theme="dark" on <html>.
+ */
+.scene {
+  --bs-web: #1f7a4a;
+  --bs-admin: #3f3f46;
+  --bs-api: #2a5dc8;
+  --bs-agents: #0a3920;
+  --bs-docs: #a8a29e;
+  --bs-ci: #6fb58c;
+  --bs-fig-ink: #3f3f46;
+  --bs-fig-head: #e8d9c4;
+  --bs-ground: #e4e4e7;
+  --bs-ground-2: #ececef;
+  --bs-soil: #b8ae9f;
+  --bs-shadow: rgb(0 0 0 / 0.16);
+  --bs-ladder: #9a8b78;
+  --bs-star: #1f7a4a;
+  --bs-core: #0a3920;
+  --bs-core-lit: #b7f0cf;
+  --bs-ring: #18181b;
+  --bs-flag: #0a3920;
+  --bs-on-flag: #ffffff;
+  --bs-paper: #ffffff;
+  --bs-ink: #18181b;
+  --bs-muted: #52525b;
+  --bs-line: #c4c4cb;
+
+  position: relative;
+  margin-inline: auto;
+  width: 100%;
+  color: var(--bs-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .scene {
+    --bs-web: #4cb07a;
+    --bs-admin: #d4d4d8;
+    --bs-api: #7aa2f0;
+    --bs-agents: #a7dcbc;
+    --bs-docs: #78716c;
+    --bs-ci: #2f7d52;
+    --bs-fig-ink: #a1a1aa;
+    --bs-fig-head: #c9b79f;
+    --bs-ground: #232327;
+    --bs-ground-2: #1c1c1f;
+    --bs-soil: #3f3a34;
+    --bs-shadow: rgb(0 0 0 / 0.45);
+    --bs-ladder: #7a6c5c;
+    --bs-star: #4cb07a;
+    --bs-core: #0a3920;
+    --bs-core-lit: #e9fff2;
+    --bs-ring: #f4f4f5;
+    --bs-flag: #4cb07a;
+    --bs-on-flag: #04150b;
+    --bs-paper: #161618;
+    --bs-ink: #f4f4f5;
+    --bs-muted: #a1a1aa;
+    --bs-line: #3f3f46;
+  }
+}
+
+:global(:root[data-theme="dark"]) .scene {
+  --bs-web: #4cb07a;
+  --bs-admin: #d4d4d8;
+  --bs-api: #7aa2f0;
+  --bs-agents: #a7dcbc;
+  --bs-docs: #78716c;
+  --bs-ci: #2f7d52;
+  --bs-fig-ink: #a1a1aa;
+  --bs-fig-head: #c9b79f;
+  --bs-ground: #232327;
+  --bs-ground-2: #1c1c1f;
+  --bs-soil: #3f3a34;
+  --bs-shadow: rgb(0 0 0 / 0.45);
+  --bs-ladder: #7a6c5c;
+  --bs-star: #4cb07a;
+  --bs-core: #0a3920;
+  --bs-core-lit: #e9fff2;
+  --bs-ring: #f4f4f5;
+  --bs-flag: #4cb07a;
+  --bs-on-flag: #04150b;
+  --bs-paper: #161618;
+  --bs-ink: #f4f4f5;
+  --bs-muted: #a1a1aa;
+  --bs-line: #3f3f46;
+}
+
+.canvas {
+  display: block;
+  margin-inline: auto;
+  max-width: 100%;
+  image-rendering: pixelated;
+  touch-action: manipulation;
+}
+
+.canvas[data-hover="true"] {
+  cursor: pointer;
+}
+
+.flag {
+  position: absolute;
+  height: 14px;
+  padding: 0 4px;
+  background: var(--bs-flag);
+  color: var(--bs-on-flag);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.label {
+  position: absolute;
+  transform: translateX(-50%);
+  color: var(--bs-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.card {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 3px;
+  width: max-content;
+  max-width: 230px;
+  transform: translate(-50%, calc(-100% - 8px));
+  border: 1px solid var(--bs-line);
+  border-radius: 12px;
+  background: var(--bs-paper);
+  color: var(--bs-ink);
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.25);
+}
+
+/* Covers the gap between the card and what it points at, so the pointer can travel up to the link. */
+.card::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 10px;
+}
+
+.card a {
+  justify-self: start;
+  text-decoration: underline;
+  text-decoration-color: var(--bs-line);
+  text-underline-offset: 4px;
+}
+
+.card a:hover {
+  text-decoration-color: var(--bs-ink);
+}
+
+.muted {
+  color: var(--bs-muted);
+}
