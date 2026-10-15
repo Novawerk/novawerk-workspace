@@ -15,6 +15,8 @@
 import { BlobNotFoundError, del, get, head, list, put } from "@vercel/blob";
 import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 
+export { detectImageType, stripImage, stripImageMetadata, type StrippableType } from "./strip.js";
+
 /** Store tokens (`BLOB_PUBLIC_READ_WRITE_TOKEN`, `BLOB_PRIVATE_READ_WRITE_TOKEN`). Either may be missing. */
 export interface FileStoreConfig {
   publicToken?: string;
@@ -66,6 +68,15 @@ export interface Files {
   deletePrivate(pathname: string): Promise<void>;
   /** Delete public images we stored. URLs from anywhere else are ignored. */
   deletePublicImages(urls: string[]): Promise<void>;
+  /** Put a file in the public store at exactly `pathname` (kept if already there); its URL. */
+  putPublic(pathname: string, body: Buffer, contentType: string): Promise<string>;
+}
+
+/** A private file's bytes, or null when there is no such file. */
+export async function readPrivate(files: Files, pathname: string): Promise<{ body: Buffer; contentType: string } | null> {
+  const opened = await files.openPrivate(pathname);
+  if (!opened) return null;
+  return { body: Buffer.from(await new Response(opened.stream).arrayBuffer()), contentType: opened.contentType };
 }
 
 /** Client tokens live this long: enough to pick a file and upload it. */
@@ -175,6 +186,10 @@ export class BlobFiles implements Files {
 
   async deletePrivate(pathname: string): Promise<void> {
     await del(pathname, { token: this.token("private") });
+  }
+
+  async putPublic(pathname: string, body: Buffer, contentType: string): Promise<string> {
+    return putPublicOnce(this.token("public"), pathname, body, contentType);
   }
 
   async deletePublicImages(urls: string[]): Promise<void> {

@@ -303,10 +303,17 @@ export async function suggestTask(
         where: input.where,
         wherePath: input.path?.trim() || null,
         wantsIt: input.doItMyself,
+        // Checked by the caller: the caller's own upload, there, a PNG or JPEG under 2 MB.
+        screenshotPathname: input.screenshot?.pathname ?? null,
         createdAt: now,
         updatedAt: now,
       })
-      .returning();
+      .returning()
+      .catch((err: unknown) => {
+        // The unique index: one upload belongs to one suggestion.
+        if (isUniqueViolation(err)) throw new TaskRuleError("invalid", "That screenshot is already on another suggestion", "screenshot");
+        throw err;
+      });
     await tx.insert(taskEvents).values({
       taskId: task!.id,
       kind: "suggested",

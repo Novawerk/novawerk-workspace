@@ -147,6 +147,8 @@ export interface AdminTaskEvent {
 }
 
 export interface AdminTaskDetail extends AdminTaskRow {
+  /** A suggestion's screenshot: in the private store until triage (`attached`), then public (`url`). */
+  screenshot: { attached: boolean; url: string | null };
   body: string;
   criteria: string[];
   skills: string[];
@@ -477,6 +479,7 @@ export async function getAdminTask(db: Database, taskId: number, now = new Date(
     wherePath: t.wherePath,
     wantsIt: t.wantsIt,
     threadLocked: t.threadLockedAt !== null,
+    screenshot: { attached: t.screenshotPathname !== null, url: t.screenshotUrl },
     // Plans that count: withdrawn ones (and anything not sent yet) stay out.
     proposals: (await proposalsWhere(db, eq(taskProposals.taskId, taskId))).filter((p) =>
       (["pending", "chosen", "not_chosen"] as ProposalStatus[]).includes(p.status),

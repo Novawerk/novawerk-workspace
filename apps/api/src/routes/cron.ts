@@ -12,6 +12,7 @@ import { notFound } from "../http.js";
 import { deleteExpiredIntakeSessions } from "../intake-chat/cleanup.js";
 import { deleteUnconfirmed } from "../newsletter.js";
 import { deleteUnsentResumes } from "../resume-cleanup.js";
+import { deleteUnsentScreenshots, finishTriagedScreenshots } from "../screenshot-cleanup.js";
 import { deleteOldCodes } from "../sign-in-codes.js";
 import type { ApiEnv, AppDeps, Logger } from "../types.js";
 
@@ -34,6 +35,15 @@ export function cronRoutes(deps: AppDeps & { logger: Logger }) {
     .get("/intake-cleanup", async (c) => c.json({ deleted: await deleteExpiredIntakeSessions(db) }, 200))
     .get("/analytics-cleanup", async (c) => c.json({ deleted: await deleteExpiredAnalyticsEvents(db) }, 200))
     .get("/resume-cleanup", async (c) => c.json({ deleted: await deleteUnsentResumes(db, files) }, 200))
+    .get("/screenshot-cleanup", async (c) =>
+      c.json(
+        {
+          deleted: await deleteUnsentScreenshots(db, files, new Date(), deps.logger),
+          triage: await finishTriagedScreenshots(db, files, deps.logger),
+        },
+        200,
+      ),
+    )
     .get("/sign-in-cleanup", async (c) => c.json({ deleted: await deleteOldCodes(db) }, 200))
     // Nightly: catch up on pull requests GitHub didn't deliver, remind and release idle tasks.
     .get("/github-sync", async (c) => c.json(await syncWithGitHub(deps), 200))

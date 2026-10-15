@@ -33,6 +33,10 @@
       "schedule": "30 3 * * *"
     },
     {
+      "path": "/cron/screenshot-cleanup",
+      "schedule": "35 3 * * *"
+    },
+    {
       "path": "/cron/sign-in-cleanup",
       "schedule": "45 3 * * *"
     },

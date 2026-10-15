@@ -299,6 +299,7 @@ export async function getPublicTask(db: Database, taskId: number): Promise<Publi
     closedReason: t.closedReason,
     duplicateOf: t.duplicateOf ? formatTaskId(t.duplicateOf) : null,
     threadLocked: t.threadLockedAt !== null,
+    screenshotUrl: t.screenshotUrl,
     proposals: proposals.map((p) => toPublicProposal(p.proposal, p.author as PersonRow | null, p.tokenName)),
     posts: thread,
     events: events.map(

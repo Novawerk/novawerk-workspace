@@ -245,6 +245,7 @@ function task(number: number, over: Partial<SampleTask>): SampleTask {
     wherePath: null,
     wantsIt: false,
     threadLocked: false,
+    screenshot: { attached: false, url: null },
     proposals: [],
     posts: [],
     voters: [],

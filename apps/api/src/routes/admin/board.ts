@@ -71,9 +71,11 @@ import {
   setThreadLocked,
   transitionTask,
   updateTask,
+  pendingScreenshot,
 } from "@nw/tasks";
 
-import { notFoundIfInvalid, rejectInvalid } from "../../http.js";
+import { notFound, notFoundIfInvalid, rejectInvalid } from "../../http.js";
+import { dropSuggestionScreenshot as dropScreenshotOf, publishSuggestionScreenshot as publishScreenshotOf } from "../../screenshots.js";
 import { revalidateWeb } from "../../revalidate.js";
 import type { ApiEnv } from "../../types.js";
 import type { AdminDeps } from "./shared.js";
@@ -97,7 +99,10 @@ async function proposalTask(db: Database, proposalId: string): Promise<number> {
   return row.taskId;
 }
 
-export function boardAdminRoutes({ db, env, logger }: AdminDeps) {
+export function boardAdminRoutes({ db, env, files, logger }: AdminDeps) {
+  const publishSuggestionScreenshot = (taskId: number) => publishScreenshotOf(db, files, logger, taskId);
+  const dropSuggestionScreenshot = (taskId: number) => dropScreenshotOf(db, files, logger, taskId);
+
   const tasksApp = new Hono<ApiEnv>()
     .get("/", zValidator("query", taskFilterQuery, rejectInvalid), async (c) =>
       c.json(await listAdminTasks(db, c.req.valid("query").filter), 200),
@@ -219,6 +224,17 @@ export function boardAdminRoutes({ db, env, logger }: AdminDeps) {
       c.json(await listSuggestions(db, c.req.valid("query").sort), 200),
     )
 
+    // Triage: the suggestion's screenshot while it is still private. Members only, never cached.
+    .get("/:id/screenshot", zValidator("param", taskIdParam, notFoundIfInvalid), async (c) => {
+      const { id } = c.req.valid("param");
+      const pathname = await pendingScreenshot(db, id);
+      const opened = pathname && files?.ready.private ? await files.openPrivate(pathname) : null;
+      if (!opened) return c.json(notFound, 404);
+      return new Response(opened.stream, {
+        headers: { "Content-Type": opened.contentType, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" },
+      });
+    })
+
     .post(
       "/:id/accept",
       zValidator("param", taskIdParam, notFoundIfInvalid),
@@ -227,6 +243,7 @@ export function boardAdminRoutes({ db, env, logger }: AdminDeps) {
         const { id } = c.req.valid("param");
         await suggestionOr404(db, id);
         await acceptSuggestion(db, c.get("member").id, id, c.req.valid("json"));
+        await publishSuggestionScreenshot(id);
         return c.json(await getAdminTask(db, id), 200);
       },
     )
@@ -240,6 +257,7 @@ export function boardAdminRoutes({ db, env, logger }: AdminDeps) {
         await suggestionOr404(db, id);
         const actor = { kind: "member", id: c.get("member").id } as const;
         await transitionTask(db, { taskId: id, action: "mark_duplicate", actor, duplicateOf: c.req.valid("json").of });
+        await dropSuggestionScreenshot(id);
         return c.json(await getAdminTask(db, id), 200);
       },
     )
@@ -265,6 +283,7 @@ export function boardAdminRoutes({ db, env, logger }: AdminDeps) {
         await suggestionOr404(db, id);
         const actor = { kind: "member", id: c.get("member").id } as const;
         await transitionTask(db, { taskId: id, action: "decline", actor, note: c.req.valid("json").note });
+        await dropSuggestionScreenshot(id);
         return c.json(await getAdminTask(db, id), 200);
       },
     );
