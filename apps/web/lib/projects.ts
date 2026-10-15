@@ -27,6 +27,7 @@ export async function getProjects(): Promise<PublicProject[]> {
 
   const apiUrl = process.env.API_URL?.trim();
   if (!apiUrl) {
+    console.warn("[web] projects read skipped: API_URL is not set, showing the built-in list");
     cacheLife("hours");
     return FALLBACK_PROJECTS;
   }
