@@ -303,6 +303,8 @@ export async function suggestTask(
         where: input.where,
         wherePath: input.path?.trim() || null,
         wantsIt: input.doItMyself,
+        // Checked by the caller: the caller's own upload, there, a PNG or JPEG under 2 MB.
+        screenshotPathname: input.screenshot?.pathname ?? null,
         createdAt: now,
         updatedAt: now,
       })

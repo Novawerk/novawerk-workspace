@@ -230,6 +230,12 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
   then stand on `/contributors` with `kind: "initiator"` and that project, are listed on
   `GET /public/initiators` (the flags in the builders scene), and get `/u/<handle>`. Handles are
   one namespace across contributors and members. A Member's email never leaves.
+- **Suggestion screenshots** (PNG/JPEG, 2 MB) go from the browser to the private store
+  (`_suggestions/<contributor>/…`, a ticket from `POST /contrib/uploads/suggestion-screenshot`).
+  Only members see them during triage. Accepting copies the image to the public store with its
+  metadata stripped (EXIF, XMP, IPTC, comments, text chunks: `@nw/object-store`
+  stripImageMetadata). Declining, a duplicate or deleting the account deletes it, and an
+  upload never sent goes after a day (`/cron/screenshot-cleanup`).
 - **Werk ledger** (`werk_ledger`) is append-only: a merge adds one row per task and PR (unique
   `(task_id, pr)`), and a member's change is a new row with a reason. Nothing updates a row.
 - **GitHub.** A PR counts only when it names an assigned task (`Task: NW-42`, or NW-42 in its

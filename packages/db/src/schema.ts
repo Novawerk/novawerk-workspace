@@ -747,6 +747,13 @@ export const tasks = pgTable(
     wherePath: text("where_path"),
     /** Suggestions: "I'd like to do this myself". */
     wantsIt: boolean("wants_it").notNull().default(false),
+    /**
+     * Suggestions: the screenshot in the PRIVATE store (`_suggestions/<contributor>/…`) until a
+     * member triages it. Cleared then: copied to the public store on accept, deleted otherwise.
+     */
+    screenshotPathname: text("screenshot_pathname"),
+    /** The public copy (metadata stripped), set when a member accepts the suggestion. */
+    screenshotUrl: text("screenshot_url"),
     /** Suggestions: a member asked a question in the thread. */
     needsInfo: boolean("needs_info").notNull().default(false),
     duplicateOf: integer("duplicate_of").references((): AnyPgColumn => tasks.id, { onDelete: "set null" }),

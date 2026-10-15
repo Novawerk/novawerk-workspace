@@ -213,6 +213,7 @@ describe("Vercel deployment", () => {
       { path: "/cron/intake-cleanup", schedule: "0 3 * * *" },
       { path: "/cron/analytics-cleanup", schedule: "15 3 * * *" },
       { path: "/cron/resume-cleanup", schedule: "30 3 * * *" },
+      { path: "/cron/screenshot-cleanup", schedule: "35 3 * * *" },
       { path: "/cron/sign-in-cleanup", schedule: "45 3 * * *" },
       { path: "/cron/github-sync", schedule: "0 4 * * *" },
       { path: "/cron/contributor-notices", schedule: "15 4 * * *" },

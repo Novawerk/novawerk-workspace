@@ -2018,6 +2018,8 @@ export interface PublicTaskDetail extends PublicTask {
   closedReason: string | null;
   duplicateOf: string | null;
   threadLocked: boolean;
+  /** A suggestion's screenshot, public once a member accepted it (metadata stripped); else null. */
+  screenshotUrl: string | null;
   proposals: PublicProposal[];
   posts: PublicPost[];
   /** Oldest first. */
@@ -2211,6 +2213,27 @@ export const postInput = z.object({
 });
 export type PostInput = z.infer<typeof postInput>;
 
+// Suggestion screenshots: the browser uploads to the PRIVATE store with a ticket; the file shows
+// publicly (copied without metadata) only once a member accepts the suggestion.
+
+export const SUGGESTION_SCREENSHOT_TYPES = ["image/png", "image/jpeg"] as const;
+export type SuggestionScreenshotType = (typeof SUGGESTION_SCREENSHOT_TYPES)[number];
+export const MAX_SUGGESTION_SCREENSHOT_BYTES = 2 * 1024 * 1024;
+/** `_suggestions/<contributor id>/<uuid>-<file name>` in the private store. */
+export const SUGGESTION_SCREENSHOT_PREFIX = "_suggestions/";
+
+/** POST /contrib/uploads/suggestion-screenshot */
+export const suggestionScreenshotUploadInput = z.object({
+  filename: z.string().trim().min(1).max(200),
+  contentType: z.enum(SUGGESTION_SCREENSHOT_TYPES, { error: "A PNG or JPEG" }),
+});
+export type SuggestionScreenshotUploadInput = z.infer<typeof suggestionScreenshotUploadInput>;
+
+export interface SuggestionScreenshotTicket {
+  token: string;
+  pathname: string;
+}
+
 /** POST /contrib/suggestions. No size and no Werk: a member sets them when accepting. */
 export const suggestionInput = z.object({
   title: z.string().trim().min(3, "Give it a short title").max(120, "Keep it under 120 characters"),
@@ -2221,6 +2244,15 @@ export const suggestionInput = z.object({
   path: z.string().trim().max(200, "Keep it under 200 characters").optional(),
   /** "I'd like to do this myself." */
   doItMyself: z.boolean().default(false),
+  /** A screenshot uploaded with a ticket from POST /contrib/uploads/suggestion-screenshot. */
+  screenshot: z
+    .object({
+      pathname: z
+        .string()
+        .max(300)
+        .regex(/^_suggestions\/[0-9a-f-]{36}\/[0-9a-f-]{36}-[a-z0-9.-]{1,80}$/, "That upload didn't work. Attach the screenshot again."),
+    })
+    .optional(),
 });
 export type SuggestionInput = z.input<typeof suggestionInput>;
 

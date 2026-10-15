@@ -21,6 +21,7 @@
 //   POST   /contrib/proposals/:id/confirm an agent's draft counts from now     browser
 //   POST   /contrib/tasks/:id/posts       post or reply → 201 { id }           [discussion:write]
 //   POST   /contrib/posts/:id/report      report a post { reason? }            [discussion:write]
+//   POST   /contrib/uploads/suggestion-screenshot  a private upload ticket [suggestions:write]
 //   POST   /contrib/suggestions           suggest a task → 201 { id, number }  [suggestions:write]
 //   PUT    /contrib/tasks/:id/vote        +1 a suggestion                      [suggestions:write]
 //   DELETE /contrib/tasks/:id/vote        take it back                         [suggestions:write]
@@ -35,6 +36,8 @@
 //   DELETE /contrib/me { confirmHandle }  delete the account, sign out         browser
 //
 // * Through a token the profile's handle, visibility (public, onWall) and pledge stay browser-only.
+
+import { randomUUID } from "node:crypto";
 
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -55,8 +58,13 @@ import {
   suggestionInput,
   taskIdParam,
   tokenCreateInput,
+  MAX_SUGGESTION_SCREENSHOT_BYTES,
+  SUGGESTION_SCREENSHOT_TYPES,
+  suggestionScreenshotUploadInput,
   type ProposalResult,
+  type SuggestionScreenshotTicket,
 } from "@nw/contracts";
+import { safeFilename, type Files } from "@nw/object-store";
 import type { Contributor, TaskProposal } from "@nw/db";
 import { parsePullRequestUrl } from "@nw/github";
 import {
@@ -77,6 +85,7 @@ import {
   releaseHeldTask,
   reportPost,
   revokeToken,
+  screenshotFolderOf,
   suggestTask,
   toContributorMe,
   toPublicProposal,
@@ -89,6 +98,7 @@ import {
 
 import { sessionCookieOptions } from "../auth.js";
 import { CONTRIBUTOR_COOKIE, currentContributor } from "../contributor-auth.js";
+import { FixedWindowLimiter } from "../intake-chat/rate-limit.js";
 import { issuesFrom, notFoundIfInvalid, rejectInvalid, validationFailed } from "../http.js";
 import { contributorOrToken, scope, sessionOnly, viaOf, type TokenGate } from "../token-gate.js";
 import type { ApiEnv, AppDeps } from "../types.js";
@@ -96,6 +106,21 @@ import type { ApiEnv, AppDeps } from "../types.js";
 const MAX_BODY_BYTES = 64 * 1024;
 /** Proposals, posts and tokens are uuids. */
 const uuidParam = z.object({ id: z.uuid() });
+
+/** Screenshot tickets per contributor per hour (in-memory, per instance). */
+export const SCREENSHOT_TICKETS_PER_HOUR = 10;
+
+/** A screenshot sent with a suggestion: the caller's own upload, there, a PNG or JPEG under 2 MB. */
+async function checkScreenshot(files: Files | undefined, contributorId: string, pathname: string): Promise<void> {
+  const field = "screenshot";
+  if (!files?.ready.private) throw new TaskRuleError("invalid", "Screenshots are off right now. Send it without one.", field);
+  if (!pathname.startsWith(screenshotFolderOf(contributorId))) throw new TaskRuleError("invalid", "That isn't your upload", field);
+  const stored = await files.statPrivate(pathname);
+  if (!stored) throw new TaskRuleError("invalid", "That upload didn't work. Attach the screenshot again.", field);
+  if (stored.size > MAX_SUGGESTION_SCREENSHOT_BYTES || !(SUGGESTION_SCREENSHOT_TYPES as readonly string[]).includes(stored.contentType)) {
+    throw new TaskRuleError("invalid", "A PNG or JPEG up to 2 MB", field);
+  }
+}
 
 /** Your own view of a proposal you just wrote: says whether it is a draft. */
 function proposalResult(row: TaskProposal, me: Contributor, viaAgent: string | null): ProposalResult {
@@ -105,8 +130,9 @@ function proposalResult(row: TaskProposal, me: Contributor, viaAgent: string | n
 /** Profile fields a token may not change. */
 const BROWSER_ONLY_PROFILE = ["handle", "public", "onWall", "acceptPledge"] as const;
 
-export function contribRoutes({ db, env, githubApi }: AppDeps, gate: TokenGate, origins: readonly string[]) {
+export function contribRoutes({ db, env, githubApi, files, logger = console }: AppDeps, gate: TokenGate, origins: readonly string[]) {
   const session = (c: Parameters<typeof getCookie>[0]) => currentContributor(db, getCookie(c, CONTRIBUTOR_COOKIE), env.sessionSecret);
+  const screenshotTickets = new FixedWindowLimiter(SCREENSHOT_TICKETS_PER_HOUR, 60 * 60_000);
   return (
     new Hono<ApiEnv>()
       .use("*", contributorOrToken(gate, session, origins))
@@ -180,8 +206,30 @@ export function contribRoutes({ db, env, githubApi }: AppDeps, gate: TokenGate, 
       )
 
       // ─── Suggestions and +1 ─────────────────────────────────────────────────
+      // A screenshot for a suggestion: a ticket for one upload to the PRIVATE store, under the
+      // caller's own folder. It shows publicly only once a member accepts the suggestion.
+      .post(
+        "/uploads/suggestion-screenshot",
+        scope("suggestions:write"),
+        zValidator("json", suggestionScreenshotUploadInput, rejectInvalid),
+        async (c) => {
+          if (!files?.ready.private) return c.json({ error: "Screenshots are off right now." }, 503);
+          const me = c.get("contributor");
+          if (me.suspendedAt) throw new TaskRuleError("suspended", "This account is suspended");
+          if (!screenshotTickets.take(me.id)) throw new TaskRuleError("rate_limited", "Up to 10 screenshots an hour. Try again later.");
+          const { filename, contentType } = c.req.valid("json");
+          const ticket = await files.uploadTicket("private", {
+            pathname: `${screenshotFolderOf(me.id)}${randomUUID()}-${safeFilename(filename)}`,
+            contentTypes: [contentType],
+            maxBytes: MAX_SUGGESTION_SCREENSHOT_BYTES,
+          });
+          return c.json({ token: ticket.token, pathname: ticket.pathname } satisfies SuggestionScreenshotTicket, 200);
+        },
+      )
       .post("/suggestions", scope("suggestions:write"), zValidator("json", suggestionInput, rejectInvalid), async (c) => {
-        const task = await suggestTask(db, c.get("contributor"), c.req.valid("json"), new Date(), viaOf(c));
+        const input = c.req.valid("json");
+        if (input.screenshot) await checkScreenshot(files, c.get("contributor").id, input.screenshot.pathname);
+        const task = await suggestTask(db, c.get("contributor"), input, new Date(), viaOf(c));
         return c.json({ id: formatTaskId(task.id), number: task.id }, 201);
       })
       .put("/tasks/:id/vote", scope("suggestions:write"), zValidator("param", taskIdParam, notFoundIfInvalid), async (c) => {
@@ -245,7 +293,14 @@ export function contribRoutes({ db, env, githubApi }: AppDeps, gate: TokenGate, 
         return c.json(c.get("token") ? { ...me, email: null } : me, 200);
       })
       .delete("/me", sessionOnly, zValidator("json", accountDeleteInput, rejectInvalid), async (c) => {
-        await deleteContributor(db, c.get("contributor").id, c.req.valid("json").confirmHandle);
+        const me = c.get("contributor");
+        await deleteContributor(db, me.id, c.req.valid("json").confirmHandle);
+        // Their screenshots go too (best effort: the nightly cleanup catches the rest).
+        if (files?.ready.private) {
+          await Promise.all((await files.listPrivate(screenshotFolderOf(me.id))).map((f) => files.deletePrivate(f.pathname))).catch(
+            (err: unknown) => logger.warn("[contrib] screenshot cleanup on delete failed:", err instanceof Error ? err.message : err),
+          );
+        }
         deleteCookie(c, CONTRIBUTOR_COOKIE, sessionCookieOptions(c, 0));
         return c.json({ ok: true as const }, 200);
       })

@@ -66,6 +66,15 @@ export interface Files {
   deletePrivate(pathname: string): Promise<void>;
   /** Delete public images we stored. URLs from anywhere else are ignored. */
   deletePublicImages(urls: string[]): Promise<void>;
+  /** Put a file in the public store at exactly `pathname` (kept if already there); its URL. */
+  putPublic(pathname: string, body: Buffer, contentType: string): Promise<string>;
+}
+
+/** A private file's bytes, or null when there is no such file. */
+export async function readPrivate(files: Files, pathname: string): Promise<{ body: Buffer; contentType: string } | null> {
+  const opened = await files.openPrivate(pathname);
+  if (!opened) return null;
+  return { body: Buffer.from(await new Response(opened.stream).arrayBuffer()), contentType: opened.contentType };
 }
 
 /** Client tokens live this long: enough to pick a file and upload it. */
@@ -105,6 +114,8 @@ export function safeFilename(filename: string): string {
 }
 
 /** True for URLs that point into a Vercel Blob public store. */
+export { stripImageMetadata } from "./strip.js";
+
 export function isPublicBlobUrl(url: string): boolean {
   try {
     const { protocol, hostname } = new URL(url);
@@ -175,6 +186,10 @@ export class BlobFiles implements Files {
 
   async deletePrivate(pathname: string): Promise<void> {
     await del(pathname, { token: this.token("private") });
+  }
+
+  async putPublic(pathname: string, body: Buffer, contentType: string): Promise<string> {
+    return putPublicOnce(this.token("public"), pathname, body, contentType);
   }
 
   async deletePublicImages(urls: string[]): Promise<void> {

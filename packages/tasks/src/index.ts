@@ -25,6 +25,7 @@ export * from "./contributors.js";
 export * from "./errors.js";
 export * from "./people.js";
 export * from "./reads.js";
+export * from "./screenshots.js";
 export * from "./state.js";
 export * from "./tokens.js";
 export * from "./transitions.js";

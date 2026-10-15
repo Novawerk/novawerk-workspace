@@ -189,8 +189,10 @@ export class FakeFiles implements Files {
   readonly ready: Record<FileAccess, boolean>;
   readonly tickets: { access: FileAccess; request: TicketRequest }[] = [];
   /** `uploadedAt` defaults to now. */
-  readonly privateFiles = new Map<string, { contentType: string; body: string; uploadedAt?: Date }>();
+  readonly privateFiles = new Map<string, { contentType: string; body: string | Buffer; uploadedAt?: Date }>();
   readonly deletedPublic: string[] = [];
+  /** What went to the public store: pathname → bytes and type. */
+  readonly publicFiles = new Map<string, { body: Buffer; contentType: string }>();
   readonly deletedPrivate: string[] = [];
 
   constructor(ready: Partial<Record<FileAccess, boolean>> = {}) {
@@ -222,6 +224,11 @@ export class FakeFiles implements Files {
   async deletePrivate(pathname: string): Promise<void> {
     this.deletedPrivate.push(pathname);
     this.privateFiles.delete(pathname);
+  }
+
+  async putPublic(pathname: string, body: Buffer, contentType: string): Promise<string> {
+    this.publicFiles.set(pathname, { body, contentType });
+    return `https://public.blob.example/${pathname}`;
   }
 
   async deletePublicImages(urls: string[]): Promise<void> {
