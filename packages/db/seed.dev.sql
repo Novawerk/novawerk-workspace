@@ -188,3 +188,93 @@ select 'd1000000-0000-4000-8000-000000000009', id, 'custom', 'Tasting evening', 
 from projects where slug = 'berlin-food-map'
 on conflict do nothing;
 
+
+-- ─── Contributor task board: open tasks about our own software ──────────────
+-- Real work on this repo, so the board and the API have something to show. Two demo contributors
+-- (fictional, example.com): Lena with a public profile and one merged task, and someone who signed in by
+-- email, has no GitHub yet and still has the neutral handle. Task numbers are fixed so links like /tasks/NW-3 stay stable.
+
+insert into contributors (id, handle, display_name, bio, public, github_id, github_login, email, created_at)
+values
+  ('c1000000-0000-4000-8000-000000000001', 'lena-k', 'Lena Krause', 'Frontend, accessibility, small fixes.', true,
+   90000001, 'lena-k', null, now() - interval '40 days'),
+  ('c1000000-0000-4000-8000-000000000002', 'contributor-3b9e', 'contributor-3b9e', null, false,
+   null, null, 'mira@example.com', now() - interval '3 days')
+on conflict do nothing;
+
+insert into tasks (id, kind, title, summary, body, criteria, area, size, skills, status, assignee_id, assigned_at,
+                   pr_url, suggested_by, "where", accepted_at, done_at, created_at, updated_at)
+overriding system value
+values
+  (1, 'task', 'Add /.well-known/security.txt to the website',
+   'Tell security researchers where to write, in the standard place.',
+   'People who find a security problem look for `/.well-known/security.txt` (RFC 9116). We have none. Add it to `apps/web` as a static file with a contact and an expiry date, and link it from the footer of `/privacy`.',
+   '["GET /.well-known/security.txt answers 200 with Contact and Expires", "Expires is less than a year ahead", "The privacy page links to it"]',
+   'web', 'S', '{nextjs}', 'open', null, null, null, null, null, null, null, now() - interval '9 days', now() - interval '9 days'),
+  (2, 'task', 'Paginate the admin lists',
+   'Inbox, outbox and subscribers load every row at once.',
+   'The admin routes for submissions, applications, the outbox and newsletter subscribers return every row. Add cursor pagination in the API (newest first) and a "Load more" button in `apps/admin`, the way `GET /public/tasks` pages.',
+   '["Each list loads 50 rows and a cursor", "Load more appends the next page", "API tests cover the last page and a bad cursor"]',
+   'api', 'M', '{hono,drizzle,react}', 'open', null, null, null, null, null, null, null, now() - interval '7 days', now() - interval '2 days'),
+  (3, 'task', 'Move the public rate limits to Postgres',
+   'Today each serverless instance counts on its own.',
+   '`FixedWindowLimiter` in `apps/api/src/intake-chat/rate-limit.ts` lives in memory, so the real limit is "N per warm instance". Store the windows in Postgres (one small table, cleaned up by a cron route) and keep the same interface.',
+   '["The CV ticket, newsletter and chat limits hold across instances", "A cron route deletes old windows, like /cron/sign-in-cleanup", "Schema change with a generated migration"]',
+   'api', 'L', '{postgres,drizzle}', 'open', null, null, null, null, null, null, null, now() - interval '6 days', now() - interval '6 days'),
+  (4, 'task', 'Write agents/README.md: running an agent offline',
+   'Newcomers don''t know every agent runs without secrets.',
+   'Every agent has `dryRunServices`: PGlite, a stubbed Claude and in-memory records. There is no `agents/README.md` yet. Write one: how `pnpm agent --list` and `pnpm agent <id> --dry-run` work, and what each fake does.',
+   '["agents/README.md shows pnpm agent <id> --dry-run", "Each fake service is named once", "No secrets needed to follow it"]',
+   'docs', 'S', '{markdown}', 'assigned', 'c1000000-0000-4000-8000-000000000001', now() - interval '2 days',
+   null, null, null, null, null, now() - interval '5 days', now() - interval '2 days'),
+  (5, 'task', 'Dark mode for the public site',
+   'A light and a dark token set, following the visitor''s system setting.',
+   'The prototype defines the dark tokens (lighter green #4cb07a on #0c0c0e). Add them to `apps/web` with `prefers-color-scheme`, check every page, and keep the green button fill #1f7a4a in both themes.',
+   '["Every page reads well in both themes", "Contrast passes AA", "No flash of the wrong theme on load"]',
+   'web', 'L', '{css,tailwind}', 'open', null, null, null, null, null, null, null, now() - interval '4 days', now() - interval '1 day'),
+  (6, 'task', 'Show the post card''s size next to the download button',
+   'Members can''t tell which format they are about to download.',
+   'The post editor in `apps/admin` offers card downloads per format. Show the pixel size (for example 1080 × 1440) next to each button.',
+   '["Each download button shows its size", "Sizes come from CARD_FORMATS in @nw/contracts"]',
+   'admin', 'S', '{react}', 'done', 'c1000000-0000-4000-8000-000000000001', now() - interval '20 days',
+   'https://github.com/Novawerk/novawerk-workspace/pull/4', null, null, null, now() - interval '14 days', now() - interval '25 days', now() - interval '14 days'),
+  (7, 'bug', 'Status chips overflow on a phone',
+   '', 'On /tasks on a 375 px wide phone the status chips run off the screen instead of scrolling sideways. Expected: one row that scrolls. Steps: open /tasks on a phone, look at the filters.',
+   '[]', null, null, '{}', 'suggested', null, null, null, 'c1000000-0000-4000-8000-000000000002', 'site', null, null,
+   now() - interval '1 day', now() - interval '1 day')
+on conflict do nothing;
+
+select setval(pg_get_serial_sequence('tasks', 'id'), greatest((select max(id) from tasks), 1));
+
+insert into task_proposals (id, task_id, contributor_id, approach, testing, eta, created_at)
+values ('c2000000-0000-4000-8000-000000000001', 2, 'c1000000-0000-4000-8000-000000000001',
+        'Cursor pagination in the four admin routes, reusing the board''s cursor helper; a Load more button in each table.',
+        'API tests for the first, middle and last page; I''ll click through the admin lists by hand.',
+        'week', now() - interval '1 day')
+on conflict do nothing;
+
+insert into task_posts (id, task_id, author_contributor_id, body, created_at)
+values ('c3000000-0000-4000-8000-000000000001', 5, 'c1000000-0000-4000-8000-000000000001',
+        'Should the admin panel follow later, or only the public site?', now() - interval '20 hours')
+on conflict do nothing;
+insert into task_posts (id, task_id, parent_id, author_member_id, body, created_at)
+select 'c3000000-0000-4000-8000-000000000002', 5, 'c3000000-0000-4000-8000-000000000001', 'mara',
+       'Only the public site. The admin panel has its own theme already.', now() - interval '18 hours'
+on conflict do nothing;
+
+insert into task_events (task_id, kind, from_status, to_status, actor_member_id, actor_contributor_id, pr_url, note, created_at)
+select * from (values
+  (4, 'assigned', 'open'::task_status, 'assigned'::task_status, 'mara', null::uuid, null, null, now() - interval '2 days'),
+  (6, 'assigned', 'open'::task_status, 'assigned'::task_status, 'mara', null::uuid, null, null, now() - interval '20 days'),
+  (6, 'pr_linked', 'assigned'::task_status, 'in_review'::task_status, null, 'c1000000-0000-4000-8000-000000000001'::uuid,
+   'https://github.com/Novawerk/novawerk-workspace/pull/4', null, now() - interval '16 days'),
+  (6, 'merged', 'in_review'::task_status, 'done'::task_status, null, null::uuid,
+   'https://github.com/Novawerk/novawerk-workspace/pull/4', null, now() - interval '14 days'),
+  (7, 'suggested', null, 'suggested'::task_status, null, 'c1000000-0000-4000-8000-000000000002'::uuid, null, null, now() - interval '1 day')
+) as e(task_id, kind, from_status, to_status, actor_member_id, actor_contributor_id, pr_url, note, created_at)
+where not exists (select 1 from task_events);
+
+insert into werk_ledger (contributor_id, delta, reason, task_id, pr, created_at)
+values ('c1000000-0000-4000-8000-000000000001', 1, 'Merged NW-6: Show the post card''s size next to the download button', 6,
+        'https://github.com/Novawerk/novawerk-workspace/pull/4', now() - interval '14 days')
+on conflict do nothing;

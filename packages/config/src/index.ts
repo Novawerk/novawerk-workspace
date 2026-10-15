@@ -17,6 +17,11 @@ export interface AppConfig {
   database: { url: string };
   /** Vercel Blob stores: public (project images) and private (documents). See @nw/object-store. */
   files: { publicToken: string; privateToken: string };
+  /**
+   * The GitHub App that signs contributors in (user authorization, OAuth web flow). Only the
+   * API uses it; it asks for no repository permissions.
+   */
+  githubApp: { clientId: string; clientSecret: string };
 }
 
 export type ConfigSection = keyof AppConfig;
@@ -50,6 +55,10 @@ const SECTIONS: { [K in ConfigSection]: { vars: readonly string[]; build: (v: Re
       publicToken: v["BLOB_PUBLIC_READ_WRITE_TOKEN"]!,
       privateToken: v["BLOB_PRIVATE_READ_WRITE_TOKEN"]!,
     }),
+  },
+  githubApp: {
+    vars: ["GITHUB_APP_CLIENT_ID", "GITHUB_APP_CLIENT_SECRET"],
+    build: (v) => ({ clientId: v["GITHUB_APP_CLIENT_ID"]!, clientSecret: v["GITHUB_APP_CLIENT_SECRET"]! }),
   },
 };
 

@@ -5,7 +5,7 @@
 //     only then can sendApproved() send it, once.
 //   - notifyTeam() (./notify.ts) for our own inbox. It refuses any non-novawerk.io address.
 //   - sendSignInCode() (./sign-in.ts): a fixed email with a 6-digit code, which the API sends
-//     to an active member's own address when they sign in by email.
+//     to an active member's own address, or a contributor's, when they sign in by email.
 //   - sendNewsletterConfirmation() (./newsletter.ts): a fixed double opt-in email with one
 //     confirmation link, to the address that just asked for the newsletter (NB-ADR-0011).
 
@@ -25,7 +25,7 @@ export {
 
 export { notifyTeam, type NotifyOptions, type TeamNotification } from "./notify.js";
 
-export { SIGN_IN_CODE_PATTERN, sendSignInCode, signInCodeEmail, type SignInCodeOptions } from "./sign-in.js";
+export { SIGN_IN_CODE_PATTERN, sendSignInCode, signInCodeEmail, type SignInAudience, type SignInCodeOptions } from "./sign-in.js";
 
 export {
   newsletterConfirmationEmail,

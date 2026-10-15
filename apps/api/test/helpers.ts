@@ -9,6 +9,7 @@ import type { FileAccess, Files, ListedFile, OpenedFile, StoredFile, TicketReque
 
 import { createApp } from "../src/app.js";
 import { SESSION_COOKIE, signSession } from "../src/auth.js";
+import { CONTRIBUTOR_COOKIE, signContributorSession, type GitHubOAuth } from "../src/contributor-auth.js";
 import type {
   AdminChatDeps,
   ApiConfig,
@@ -58,6 +59,8 @@ export function makeApp(
     sendSignInCode?: SignInCodeSender;
     sendNewsletterConfirmation?: NewsletterConfirmationSender;
     inboundMail?: InboundMailOptions;
+    githubOAuth?: GitHubOAuth;
+    sendContributorSignInCode?: SignInCodeSender;
   } = {},
 ) {
   const sent: TeamNotification[] = [];
@@ -86,6 +89,8 @@ export function makeApp(
     ...(opts.sendSignInCode ? { sendSignInCode: opts.sendSignInCode } : {}),
     ...(opts.sendNewsletterConfirmation ? { sendNewsletterConfirmation: opts.sendNewsletterConfirmation } : {}),
     ...(opts.inboundMail ? { inboundMail: opts.inboundMail } : {}),
+    ...(opts.githubOAuth ? { githubOAuth: opts.githubOAuth } : {}),
+    ...(opts.sendContributorSignInCode ? { sendContributorSignInCode: opts.sendContributorSignInCode } : {}),
   });
   return { app, notify, sent, logger };
 }
@@ -139,6 +144,11 @@ export function postJson(body: unknown, headers: Record<string, string> = {}): R
 
 export async function sessionCookie(memberId: string, secret = TEST_SECRET): Promise<string> {
   return `${SESSION_COOKIE}=${await signSession(memberId, secret)}`;
+}
+
+/** The contributor session cookie for a contributor id. */
+export async function contributorCookie(contributorId: string, secret = TEST_SECRET): Promise<string> {
+  return `${CONTRIBUTOR_COOKIE}=${await signContributorSession(contributorId, secret)}`;
 }
 
 const long = (label: string) => `${label}: ${Array(6).fill("detail").join(" ")}`;

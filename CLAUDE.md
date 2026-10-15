@@ -18,12 +18,12 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
 |------|------|-------|
 | `apps/web` | Public site: `/` (portfolio), `/about`, forms `/submit` and `/join`, `/imprint`, `/privacy`; `POST /api/revalidate` (the API marks the `projects` cache stale) | Next.js 16 App Router, Tailwind v4 |
 | `apps/admin` | Internal admin panel (admin.novawerk.io) | React 19 SPA, Vite+, TanStack Router + Query, shadcn (Base UI, `base-vega`), AI Elements |
-| `apps/api` | The only entry to the database from the internet: `/public` (forms, portfolio, intake chat, visit events), `/auth`, `/admin` (incl. the assistant chat), `/cron`, `/webhooks` | Hono on Vercel Functions |
+| `apps/api` | The only entry to the database from the internet: `/public` (forms, portfolio, task board, intake chat, visit events), `/auth` (members; `/auth/contributor` for contributors), `/admin` (incl. the assistant chat), `/contrib` (signed-in contributors), `/cron`, `/webhooks` | Hono on Vercel Functions |
 | `agents/` | Agent entry points + runner (`pnpm agent <id>`). Their workflows (`agent-<id>.yml`) live in the private repo and check this one out | TypeScript on GitHub Actions |
 | `packages/db` | **All** Postgres tables (Drizzle schema + migrations) and the agents' query surface | Drizzle, node-postgres |
 | `packages/contracts` | Zod schemas + DTOs shared by web, admin and api (form inputs, `PublicProject`) | zod 4 |
 | `packages/ui` | Shared shadcn components: `core/`, `compound/`, `ai-elements/` | shadcn base-vega, Tailwind v4 |
-| `packages/*` (others) | `config`, `email`, `agent-core`, `agent-harness` (chat agent loop), `intake`, `promo` (project lifecycle, posts and their pictures), `ceremonies`, `partners`, `kb`, `jira`, `records`, `object-store`, `types` | TypeScript |
+| `packages/*` (others) | `config`, `email`, `agent-core`, `agent-harness` (chat agent loop), `intake`, `promo` (project lifecycle, posts and their pictures), `tasks` (the contributor task board: state machine, rules, public reads), `ceremonies`, `partners`, `kb`, `jira`, `records`, `object-store`, `types` | TypeScript |
 | `knowledge/` | Canonical facts: who we are, how we work (Markdown + frontmatter). The website reads it. | — |
 | `posts/` | Posts written in the repo, one folder each (`posts/README.md`); synced to Postgres on merge | `pnpm post` |
 | `records/` | Not in this repo. Minutes, ADRs, finance notes, partner history live in the private repo; link them locally (see Commands). Gitignored here. | — |
@@ -50,6 +50,9 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
 - Change a table → edit `packages/db/src/schema.ts` → `pnpm db:generate` → commit the migration.
   Never hand-edit files in `packages/db/migrations/`.
 - Validate input with `@nw/contracts` at both ends (browser and API).
+- **Contributors are not Members** (NB-ADR-0013): their own `contributors` table, GitHub or
+  emailed-code sign-in, the `nw_contributor` cookie, no admin panel. Task board rules live in
+  `@nw/tasks`; see `docs/architecture.md`, "Contributor task board".
 - Everyone is a **Member**. There are no tiers. `members.can_admin` is a permission, not a rank.
   Every active member signs in to the admin panel (Google or an emailed code); without
   `can_admin` they see only the projects they are on (NB-ADR-0008). The API enforces it.
@@ -58,7 +61,8 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
   - agents only call `queueEmail()`; agent workflows never get `RESEND_API_KEY` (a test enforces it);
   - the API's approve route calls `approveEmail()` then `sendApproved()`;
   - `notifyTeam()` may only email a novawerk.io inbox and needs no approval;
-  - `sendSignInCode()` sends a fixed template with a sign-in code to a member's own address;
+  - `sendSignInCode()` sends a fixed template with a sign-in code to the address signing in (a
+    member's own, or a contributor's; NB-ADR-0013);
   - `sendNewsletterConfirmation()` sends a fixed double opt-in template with one confirmation
     link to the address that just signed up, rate-limited per address (NB-ADR-0011). Newsletter
     issues are not part of this exception, and go only to confirmed subscribers.

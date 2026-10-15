@@ -1652,3 +1652,462 @@ export interface AdminMetrics {
     oldestPendingEmailAt: string | null;
   };
 }
+
+// ─── Contributor task board ──────────────────────────────────────────────────
+// Open tasks about our own software (docs/contributor-board-design.md). Anyone reads them;
+// contributors (not Members: their own account type, NB-ADR-0013) propose, discuss, suggest
+// and +1. The rules are enforced in the API (@nw/tasks), never only in the browser.
+
+/** Every stored status. `draft` is members only and never public. */
+export const TASK_STATUSES = [
+  "draft",
+  "suggested",
+  "open",
+  "assigned",
+  "in_review",
+  "done",
+  "closed",
+  "declined",
+  "duplicate",
+] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+/** The statuses anyone can see. */
+export const PUBLIC_TASK_STATUSES = TASK_STATUSES.filter((s) => s !== "draft") as Exclude<TaskStatus, "draft">[];
+export type PublicTaskStatus = Exclude<TaskStatus, "draft">;
+
+export const TASK_SIZES = ["S", "M", "L", "XL"] as const;
+export type TaskSize = (typeof TASK_SIZES)[number];
+
+/** Werk per size. Recognition only: it never turns into money, and there are no levels. */
+export const TASK_SIZE_WERK: Record<TaskSize, number> = { S: 1, M: 3, L: 8, XL: 20 };
+
+/** Where the work happens. Also the filter on /contributors. */
+export const TASK_AREAS = ["web", "admin", "api", "agents", "docs", "ci", "posts"] as const;
+export type TaskArea = (typeof TASK_AREAS)[number];
+
+export const TASK_KINDS = ["task", "improvement", "bug"] as const;
+export type TaskKind = (typeof TASK_KINDS)[number];
+
+/** What a contributor may suggest. */
+export const SUGGESTION_KINDS = ["improvement", "bug"] as const;
+export type SuggestionKind = (typeof SUGGESTION_KINDS)[number];
+
+/** "Where in the product" on the suggest form. */
+export const SUGGESTION_WHERE = ["site", "admin", "api", "agents", "posts", "videos", "unsure"] as const;
+export type SuggestionWhere = (typeof SUGGESTION_WHERE)[number];
+
+export const PROPOSAL_STATUSES = ["pending", "chosen", "not_chosen", "withdrawn"] as const;
+export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
+
+/** The rough timeline on a proposal: a few days, about a week, two weeks. */
+export const PROPOSAL_ETAS = ["days", "week", "two_weeks"] as const;
+export type ProposalEta = (typeof PROPOSAL_ETAS)[number];
+
+/** What a task event records. Status changes carry from/to; the rest only a note. */
+export const TASK_EVENT_KINDS = [
+  "created",
+  "published",
+  "suggested",
+  "info_requested",
+  "accepted",
+  "declined",
+  "duplicate",
+  "assigned",
+  "released",
+  "pr_linked",
+  "pr_closed",
+  "merged",
+  "closed",
+] as const;
+export type TaskEventKind = (typeof TASK_EVENT_KINDS)[number];
+
+export const PROFILE_ACCENTS = ["green", "blue", "teal", "plum", "amber", "ink"] as const;
+export type ProfileAccent = (typeof PROFILE_ACCENTS)[number];
+export const PROFILE_BANNERS = ["plain", "grid", "dots", "star"] as const;
+export type ProfileBanner = (typeof PROFILE_BANNERS)[number];
+
+/** Scopes of a personal access token (the token API comes later). */
+export const TOKEN_SCOPES = [
+  "tasks:read",
+  "proposals:write",
+  "discussion:write",
+  "tasks:work",
+  "suggestions:write",
+  "profile:write",
+] as const;
+export type TokenScope = (typeof TOKEN_SCOPES)[number];
+
+/** Limits per contributor, enforced by the API. */
+export const TASK_LIMITS = {
+  proposalsPerDay: 5,
+  postsPerDay: 30,
+  openSuggestions: 3,
+  /** One task at a time until the first merge (NB-ADR-0013)… */
+  tasksInProgress: 1,
+  /** …then up to two. */
+  tasksInProgressAfterFirstMerge: 2,
+  /** Tasks go back on the board after this many days without activity. */
+  idleReleaseDays: 14,
+} as const;
+
+/** 42 → "NW-42". */
+export const formatTaskId = (n: number) => `NW-${n}`;
+
+/** "NW-42", "nw-42" or "42" → 42; anything else → null. */
+export function parseTaskId(value: string): number | null {
+  const match = /^(?:nw-)?(\d{1,9})$/i.exec(value.trim());
+  if (!match) return null;
+  const n = Number(match[1]);
+  return n > 0 ? n : null;
+}
+
+/** `:id` in /public/tasks/:id and /contrib/tasks/:id. */
+export const taskIdParam = z.object({
+  id: z.string().transform((v, ctx) => {
+    const n = parseTaskId(v);
+    if (n === null) {
+      ctx.addIssue({ code: "custom", message: "Not a task id" });
+      return z.NEVER;
+    }
+    return n;
+  }),
+});
+
+/** A comma-separated query value ("web,api") as a list of known values. */
+const csvOf = <T extends readonly [string, ...string[]]>(options: T) =>
+  z.preprocess(
+    (v) =>
+      (Array.isArray(v) ? v : typeof v === "string" ? [v] : [])
+        .flatMap((s: unknown) => String(s).split(","))
+        .map((s) => s.trim())
+        .filter(Boolean),
+    z.array(z.enum(options)).max(options.length),
+  );
+
+/**
+ * The status filter on /tasks. `active` (the default) is suggested, open, in progress and in
+ * review; `proposals` is open with at least one pending proposal; `in_progress` is assigned;
+ * `closed` also covers declined and duplicate suggestions.
+ */
+export const TASK_STATUS_FILTERS = [
+  "active",
+  "suggested",
+  "open",
+  "proposals",
+  "in_progress",
+  "in_review",
+  "done",
+  "closed",
+  "all",
+] as const;
+export type TaskStatusFilter = (typeof TASK_STATUS_FILTERS)[number];
+
+/** `updated`: last change first. `votes`: Most wanted (suggestions by +1s). */
+export const TASK_SORTS = ["updated", "votes"] as const;
+export type TaskSort = (typeof TASK_SORTS)[number];
+
+/** GET /public/tasks. Lists are comma-separated in the query string. */
+export const taskListQuery = z.object({
+  area: csvOf(TASK_AREAS).optional(),
+  size: csvOf(TASK_SIZES).optional(),
+  status: z.enum(TASK_STATUS_FILTERS).default("active"),
+  /** Tasks with any of these skills. */
+  skills: z.preprocess(
+    (v) => (typeof v === "string" ? v.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) : v),
+    z.array(z.string().max(40)).max(10),
+  ).optional(),
+  /** Matches the title, the summary, or the id ("NW-42", "42"). */
+  q: z.string().trim().max(100).optional(),
+  sort: z.enum(TASK_SORTS).default("updated"),
+  /** `nextCursor` from the previous page. */
+  cursor: z.string().max(200).regex(/^[A-Za-z0-9_-]+$/).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+});
+export type TaskListQuery = z.infer<typeof taskListQuery>;
+
+/** Someone on a task, a post or a vote, as the public sees them. */
+export type PublicPerson =
+  /** `public: false`: show the handle, unlinked; no name or picture. */
+  | { kind: "contributor"; handle: string; name: string | null; avatarUrl: string | null; public: boolean }
+  /** A Member writing on the board: the "Novawerk" tag. */
+  | { kind: "member"; name: string }
+  /** Someone who deleted their account. */
+  | { kind: "former" };
+
+/** One row on /tasks (and on the board). */
+export interface PublicTask {
+  /** "NW-42" */
+  id: string;
+  number: number;
+  kind: TaskKind;
+  title: string;
+  summary: string;
+  area: TaskArea | null;
+  size: TaskSize | null;
+  /** From the size; null until a member sizes a suggestion. */
+  werk: number | null;
+  skills: string[];
+  status: PublicTaskStatus;
+  /** Pending proposals: "3 proposals" on an open task. */
+  proposalCount: number;
+  /** Visible posts and replies. */
+  postCount: number;
+  /** +1s (suggestions). */
+  voteCount: number;
+  assignee: PublicPerson | null;
+  suggestedBy: PublicPerson | null;
+  /** Suggestions: where in the product. */
+  where: SuggestionWhere | null;
+  needsInfo: boolean;
+  prUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicTaskPage {
+  tasks: PublicTask[];
+  /** Pass as `cursor` for the next page; null on the last one. */
+  nextCursor: string | null;
+}
+
+/** A proposal as everyone sees it. The decline note is never here (GET /contrib/me/proposals). */
+export interface PublicProposal {
+  id: string;
+  author: PublicPerson;
+  approach: string;
+  testing: string;
+  eta: ProposalEta;
+  status: Exclude<ProposalStatus, "withdrawn">;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A post or a reply. A hidden one keeps its place without its text or author. */
+export interface PublicPost {
+  id: string;
+  author: PublicPerson | null;
+  /** Null when hidden: "Hidden by Novawerk: off-topic or spam". */
+  body: string | null;
+  hidden: boolean;
+  /** The token's name when an agent wrote it: "via agent · <name>". */
+  viaAgent: string | null;
+  createdAt: string;
+  /** Replies, oldest first. Always empty on a reply. */
+  replies: PublicPost[];
+}
+
+export interface PublicTaskEvent {
+  kind: TaskEventKind;
+  from: PublicTaskStatus | null;
+  to: PublicTaskStatus | null;
+  actor: PublicPerson | null;
+  note: string | null;
+  prUrl: string | null;
+  createdAt: string;
+}
+
+/** GET /public/tasks/:id */
+export interface PublicTaskDetail extends PublicTask {
+  body: string;
+  criteria: string[];
+  repo: string;
+  wherePath: string | null;
+  wantsIt: boolean;
+  closedReason: string | null;
+  duplicateOf: string | null;
+  threadLocked: boolean;
+  proposals: PublicProposal[];
+  posts: PublicPost[];
+  /** Oldest first. */
+  events: PublicTaskEvent[];
+  voters: PublicPerson[];
+}
+
+/** A card on /contributors. Never a Werk number: the wall doesn't rank. */
+export interface PublicContributor {
+  handle: string;
+  name: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  /** Areas of their merged tasks. */
+  areas: TaskArea[];
+  /** Their latest merge or accepted idea. */
+  lastContributionAt: string;
+  /** Has an accepted suggestion: the "idea" mark. */
+  idea: boolean;
+}
+
+export const CONTRIBUTOR_SORTS = ["newest", "az"] as const;
+export type ContributorSort = (typeof CONTRIBUTOR_SORTS)[number];
+
+/** GET /public/contributors */
+export const contributorListQuery = z.object({
+  sort: z.enum(CONTRIBUTOR_SORTS).default("newest"),
+  area: z.enum(TASK_AREAS).optional(),
+  /** `nextCursor` from the previous page. */
+  cursor: z.string().max(200).regex(/^[A-Za-z0-9_-]+$/).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(48),
+});
+export type ContributorListQuery = z.infer<typeof contributorListQuery>;
+
+export interface PublicContributorPage {
+  contributors: PublicContributor[];
+  /** Pass as `cursor` for the next page; null on the last one. */
+  nextCursor: string | null;
+}
+
+export interface PublicTaskRef {
+  id: string;
+  title: string;
+  area: TaskArea | null;
+  werk: number | null;
+}
+
+/** GET /public/contributors/:handle (public profiles only). */
+export interface PublicContributorProfile {
+  handle: string;
+  name: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  about: string | null;
+  links: string[];
+  accent: ProfileAccent;
+  banner: ProfileBanner;
+  githubLogin: string | null;
+  since: string;
+  stats: { done: number; inProgress: number; werk: number };
+  inProgress: PublicTaskRef[];
+  done: (PublicTaskRef & { mergedAt: string | null })[];
+  ideasAccepted: PublicTaskRef[];
+}
+
+/** The signed-in contributor, for themselves only (GET /auth/contributor/me). */
+export interface ContributorMe {
+  id: string;
+  handle: string;
+  displayName: string;
+  /** Their own address; the settings page masks it. Never in a public response. */
+  email: string | null;
+  github: { id: number; login: string | null } | null;
+  avatarUrl: string | null;
+  bio: string | null;
+  about: string | null;
+  links: string[];
+  accent: ProfileAccent;
+  banner: ProfileBanner;
+  public: boolean;
+  onWall: boolean;
+  pledgeAccepted: boolean;
+  /** Still the neutral handle an email sign-up gets (`contributor-7f3a`): ask them to pick one. */
+  defaultHandle: boolean;
+  /** GitHub is linked and the account isn't suspended: they may propose and work on tasks. */
+  canWork: boolean;
+  suspended: boolean;
+  createdAt: string;
+}
+
+/** The proposer's own view of a proposal, with the private decline note. */
+export interface MyProposal extends PublicProposal {
+  taskId: string;
+  taskTitle: string;
+  declineNote: string | null;
+  withdrawn: boolean;
+}
+
+// Inputs
+
+const contributorEmail = z.string().trim().toLowerCase().max(200).pipe(z.email("That doesn't look like an email address"));
+
+/** POST /auth/contributor/email/start */
+export const contributorEmailStartInput = z.object({ email: contributorEmail });
+export type ContributorEmailStartInput = z.infer<typeof contributorEmailStartInput>;
+
+/** POST /auth/contributor/email/verify */
+export const contributorEmailVerifyInput = z.object({
+  email: contributorEmail,
+  code: z.string().trim().regex(/^\d{6}$/, "Six digits"),
+});
+export type ContributorEmailVerifyInput = z.infer<typeof contributorEmailVerifyInput>;
+
+/** `returnTo` on GET /auth/contributor/github/start: a path on the website, never another site. */
+export const githubStartQuery = z.object({
+  returnTo: z
+    .string()
+    .max(300)
+    .regex(/^\/(?![/\\])[^\s]*$/, "A path on novawerk.io")
+    .optional(),
+});
+
+const markdown = (label: string, min: number, max: number) =>
+  z
+    .string()
+    .trim()
+    .min(min, min > 1 ? `${label}: at least ${min} characters` : `${label}: please write something`)
+    .max(max, `${label}: keep it under ${max} characters`);
+
+/** POST /contrib/tasks/:id/proposals */
+export const proposalInput = z.object({
+  approach: markdown("What you'll change", 1, 4000),
+  testing: z.string().trim().max(4000, "Keep it under 4000 characters").default(""),
+  eta: z.enum(PROPOSAL_ETAS, { error: "Pick a rough timeline" }),
+  /** "I read what done means for this task, and I'll release it if I can't finish." */
+  readCriteria: mustAccept("Please confirm you read what done means for this task"),
+});
+export type ProposalInput = z.input<typeof proposalInput>;
+
+/** PATCH /contrib/proposals/:id */
+export const proposalUpdateInput = z
+  .object({
+    approach: markdown("What you'll change", 1, 4000).optional(),
+    testing: z.string().trim().max(4000, "Keep it under 4000 characters").optional(),
+    eta: z.enum(PROPOSAL_ETAS).optional(),
+  })
+  .refine(hasChanges, { message: "Nothing to update" });
+export type ProposalUpdateInput = z.infer<typeof proposalUpdateInput>;
+
+/** POST /contrib/tasks/:id/posts */
+export const postInput = z.object({
+  body: markdown("Your post", 1, 4000),
+  /** The post this replies to. One level only. */
+  replyTo: z.uuid().optional(),
+});
+export type PostInput = z.infer<typeof postInput>;
+
+/** POST /contrib/suggestions. No size and no Werk: a member sets them when accepting. */
+export const suggestionInput = z.object({
+  title: z.string().trim().min(3, "Give it a short title").max(120, "Keep it under 120 characters"),
+  kind: z.enum(SUGGESTION_KINDS, { error: "Improvement or bug?" }),
+  body: markdown("What and why", 20, 4000),
+  where: z.enum(SUGGESTION_WHERE, { error: "Pick where in the product" }),
+  /** An optional page or path, e.g. /tasks or apps/api/src/app.ts. */
+  path: z.string().trim().max(200, "Keep it under 200 characters").optional(),
+  /** "I'd like to do this myself." */
+  doItMyself: z.boolean().default(false),
+});
+export type SuggestionInput = z.input<typeof suggestionInput>;
+
+/** PATCH /contrib/me/profile */
+export const profileUpdateInput = z
+  .object({
+    handle: handle("lena-k", 39).optional(),
+    displayName: z.string().trim().min(1, "Enter a name").max(100, "Keep it under 100 characters").optional(),
+    bio: nullableText(160).optional(),
+    about: nullableText(1500).optional(),
+    links: z
+      .array(z.url({ protocol: /^https?$/, error: "Links start with https://" }).max(300))
+      .max(4, "Up to 4 links")
+      .optional(),
+    accent: z.enum(PROFILE_ACCENTS).optional(),
+    banner: z.enum(PROFILE_BANNERS).optional(),
+    public: z.boolean().optional(),
+    onWall: z.boolean().optional(),
+    /** The pledge and DCO tick on first run. Can't be taken back here. */
+    acceptPledge: z.literal(true).optional(),
+  })
+  .refine(hasChanges, { message: "Nothing to update" });
+export type ProfileUpdateInput = z.infer<typeof profileUpdateInput>;
+
+/** DELETE /contrib/me: type your handle to confirm. */
+export const accountDeleteInput = z.object({ confirmHandle: z.string().trim().toLowerCase().min(1).max(40) });
+export type AccountDeleteInput = z.infer<typeof accountDeleteInput>;

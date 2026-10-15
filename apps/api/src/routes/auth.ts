@@ -19,7 +19,8 @@ import {
   signSession,
 } from "../auth.js";
 import { rejectInvalid, validationFailed } from "../http.js";
-import { checkCode, issueCode } from "../sign-in-codes.js";
+import { FixedWindowLimiter, clientIp } from "../intake-chat/rate-limit.js";
+import { VERIFY_TRIES_PER_IP_PER_HOUR, checkCode, issueCode } from "../sign-in-codes.js";
 import { toAdminMember, type ApiEnv, type AppDeps, type GoogleVerifier, type Logger } from "../types.js";
 
 const googleSignInInput = z.object({ credential: z.string().min(1).max(8192) });
@@ -35,6 +36,7 @@ export function authRoutes({
   verifyGoogleToken,
   sendSignInCode,
 }: AppDeps & { logger: Logger; verifyGoogleToken: GoogleVerifier }) {
+  const verifyTries = new FixedWindowLimiter(VERIFY_TRIES_PER_IP_PER_HOUR, 60 * 60_000);
   return new Hono<ApiEnv>()
     .post("/google", zValidator("json", googleSignInInput, rejectInvalid), async (c) => {
       let email: string;
@@ -69,6 +71,9 @@ export function authRoutes({
     })
 
     .post("/email/verify", zValidator("json", emailVerifyInput, rejectInvalid), async (c) => {
+      if (!verifyTries.take(clientIp(c))) {
+        return c.json({ error: "Too many tries from your network. Please try again later." }, 429);
+      }
       const { email, code } = c.req.valid("json");
       if (!(await checkCode(db, email, code, env.sessionSecret))) {
         return c.json(validationFailed({ code: ["That code is wrong or has expired"] }), 400);

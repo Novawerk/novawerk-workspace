@@ -1,8 +1,10 @@
 import type { AgentHooks, ModelProvider } from "@nw/agent-harness";
-import type { Database, Member } from "@nw/db";
+import type { Contributor, Database, Member } from "@nw/db";
 import type { Files } from "@nw/object-store";
 import type { CardFontLoader } from "@nw/promo/cards";
 import type { TeamNotification } from "@nw/email";
+
+import type { GitHubOAuth } from "./contributor-auth.js";
 
 /** Plain config values. Built from env in src/deps.ts; tests pass their own. */
 export interface ApiConfig {
@@ -10,6 +12,11 @@ export interface ApiConfig {
   allowedOrigins: string[];
   /** Browser origins allowed to call /auth/* and /admin/* with the session cookie. */
   adminOrigins: string[];
+  /**
+   * Browser origins allowed to call /auth/contributor/* and /contrib/* with the contributor
+   * cookie: the website. Defaults to the web origins in `allowedOrigins`.
+   */
+  contributorOrigins?: string[];
   /** OAuth client id of the admin panel's Google Identity Services button. */
   googleClientId: string;
   /** HS256 key for the `nw_session` cookie. */
@@ -37,7 +44,7 @@ export interface OutboxSender {
   resendApiKey?: string;
 }
 
-/** Emails a member their 6-digit sign-in code. Wraps `sendSignInCode` from @nw/email. */
+/** Emails a 6-digit sign-in code. Wraps `sendSignInCode` from @nw/email (member or contributor wording). */
 export type SignInCodeSender = (to: string, code: string) => Promise<unknown>;
 
 /** Emails the newsletter's confirmation link. Wraps `sendNewsletterConfirmation` from @nw/email. */
@@ -143,10 +150,14 @@ export interface AppDeps {
   files?: Files;
   /** Signing in by email. Optional: without it /auth/email/* answer 503 (Google still works). */
   sendSignInCode?: SignInCodeSender;
+  /** Contributors' codes: the task board wording. Optional: without it /auth/contributor/email/* answer 503. */
+  sendContributorSignInCode?: SignInCodeSender;
   /** Double opt-in emails. Optional: without it POST /public/subscribe answers 503. */
   sendNewsletterConfirmation?: NewsletterConfirmationSender;
   /** Optional: without it POST /webhooks/resend answers 404. */
   inboundMail?: InboundMailOptions;
+  /** Contributor sign-in with GitHub. Optional: without it /auth/contributor/github/* answer 503. */
+  githubOAuth?: GitHubOAuth;
 }
 
 /** The signed-in member as the admin panel sees it. */
@@ -166,5 +177,6 @@ export const toAdminMember = (m: Member): AdminMember => ({
 
 /** Hono env for every router in this app. */
 export interface ApiEnv {
-  Variables: { member: AdminMember };
+  /** `member` on /admin (src/auth.ts), `contributor` on /contrib (src/contributor-auth.ts). Never both. */
+  Variables: { member: AdminMember; contributor: Contributor };
 }
