@@ -62,6 +62,17 @@ panel without Google. Real values live in Vercel and GitHub Actions secrets;
 Changing a table: edit `packages/db/src/schema.ts`, run `pnpm db:generate`,
 commit the migration.
 
+## Contributing
+
+Anyone can help build this, one task at a time. Pick a task at
+[novawerk.io/tasks](https://novawerk.io/tasks) (launching soon), propose a plan, and once a
+Member assigns it to you, open a pull request from your fork with `Task: NW-<n>` in its body.
+Commits are signed off (`git commit -s`).
+
+- [CONTRIBUTING.md](CONTRIBUTING.md): the flow, local setup, conventions, what we review for.
+- [AGENTS.md](AGENTS.md): a brief for your coding agent.
+- [SECURITY.md](SECURITY.md): report vulnerabilities to security@novawerk.io, never in public.
+
 ## History
 
 In October 2026 three repos became this one: `nw-back-office` (this repo's

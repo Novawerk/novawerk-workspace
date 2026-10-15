@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Find work or suggest a task
+    url: https://novawerk.io/tasks
+    about: Work happens on the task board. Pick a task, propose a plan, or suggest a new one.
+  - name: Report a security vulnerability
+    url: https://github.com/Novawerk/novawerk-workspace/blob/main/SECURITY.md
+    about: Never in public. Email security@novawerk.io.
