@@ -780,6 +780,17 @@ const EVENT_TEXT: Record<PublicTaskEvent["kind"], string> = {
   closed: "Closed",
   inactivity_reminder: "No activity for a week",
   extended: "A week more",
+  reopened: "Reopened",
+  thread_locked: "Thread locked",
+  thread_unlocked: "Thread opened again",
+  member_posted: "Novawerk replied",
+  // Members only: the API never sends these on the public timeline.
+  edited: "Edited",
+  proposal_declined: "Proposal declined",
+  post_hidden: "Post hidden",
+  post_unhidden: "Post shown again",
+  reports_dismissed: "Reports dismissed",
+  werk_adjusted: "Werk adjusted",
 };
 
 const EVENT_DOT: Record<PublicTaskEvent["kind"], string> = {
@@ -798,6 +809,16 @@ const EVENT_DOT: Record<PublicTaskEvent["kind"], string> = {
   closed: "bg-st-closed",
   inactivity_reminder: "bg-st-proposed",
   extended: "bg-st-progress",
+  reopened: "bg-st-open",
+  thread_locked: "bg-st-closed",
+  thread_unlocked: "bg-st-open",
+  member_posted: "bg-st-open",
+  edited: "bg-st-open",
+  proposal_declined: "bg-st-closed",
+  post_hidden: "bg-st-closed",
+  post_unhidden: "bg-st-open",
+  reports_dismissed: "bg-st-open",
+  werk_adjusted: "bg-st-done",
 };
 
 const FUTURE: Record<BoardState, string[]> = {
@@ -810,10 +831,14 @@ const FUTURE: Record<BoardState, string[]> = {
   closed: [],
 };
 
-/** The task's events, starting with when it opened (from `createdAt` when no event says so). */
+/**
+ * The task's status history, starting with when it opened (from `createdAt` when no event says
+ * so). A member's reply is in the thread already, so it stays off the timeline.
+ */
 function withStart(task: PublicTaskDetail): PublicTaskEvent[] {
-  const opened = task.events.some((e) => e.kind === "created" || e.kind === "published" || e.kind === "suggested");
-  if (opened) return task.events;
+  const events = task.events.filter((e) => e.kind !== "member_posted");
+  const opened = events.some((e) => e.kind === "created" || e.kind === "published" || e.kind === "suggested");
+  if (opened) return events;
   const start: PublicTaskEvent = {
     kind: task.kind === "task" ? "published" : "suggested",
     from: null,
@@ -824,7 +849,7 @@ function withStart(task: PublicTaskDetail): PublicTaskEvent[] {
     viaAgent: null,
     createdAt: task.createdAt,
   };
-  return [start, ...task.events];
+  return [start, ...events];
 }
 
 function Timeline({ task, state }: { task: PublicTaskDetail; state: BoardState }) {
