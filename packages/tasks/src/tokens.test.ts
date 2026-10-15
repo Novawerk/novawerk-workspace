@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { proposalInput, suggestionInput, tokenCreateInput } from "@nw/contracts";
-import { contributorTokens, taskProposals, tasks, type Contributor, type Database } from "@nw/db";
+import { contributorTokens, members, taskProposals, tasks, type Contributor, type Database } from "@nw/db";
 import { createTestDb, resetDb } from "@nw/db/testing";
 
 import {
@@ -27,6 +27,8 @@ import {
   signInWithEmail,
   signInWithGitHub,
   suggestTask,
+  transitionTask,
+  updateProposal,
   vote,
   withdrawProposal,
 } from "./index.js";
@@ -133,7 +135,7 @@ describe("what an agent writes", () => {
     await db.update(tasks).set({ status: "assigned", assigneeId: jonas.id }).where(eq(tasks.id, task.id));
     expect(await code(() => confirmDraftProposal(db, lena, draft.id))).toBe("invalid_state");
     await withdrawProposal(db, lena, draft.id);
-    expect((await db.select().from(taskProposals).where(eq(taskProposals.id, draft.id)))[0]?.status).toBe("withdrawn");
+    expect(await db.select().from(taskProposals).where(eq(taskProposals.id, draft.id))).toEqual([]); // a discarded draft is gone
 
     const mira = await signInWithEmail(db, "mira@example.com");
     const another = await openTask();
@@ -166,6 +168,26 @@ describe("what an agent writes", () => {
     expect(detail?.posts[0]?.viaAgent).toBe("my script");
     expect(detail?.events.at(-1)).toMatchObject({ kind: "pr_linked", viaAgent: "my script" });
     expect((await getPublicTask(db, s.id))?.events[0]).toMatchObject({ kind: "suggested", viaAgent: "my script" });
+  });
+
+  it("leaves the task's last change alone for a draft, and drops drafts once the task moves on", async () => {
+    const task = await openTask({ updatedAt: new Date("2026-10-01") });
+    const { id: tokenId } = await newToken(lena);
+    await propose(db, lena, task.id, plan, undefined, { tokenId });
+    expect((await db.select().from(tasks).where(eq(tasks.id, task.id)))[0]?.updatedAt.toISOString()).toBe("2026-10-01T00:00:00.000Z");
+    await db.insert(members).values({ id: "ada", displayName: "Ada", email: "ada@novawerk.io" }).onConflictDoNothing();
+    await transitionTask(db, { taskId: task.id, action: "close", actor: { kind: "member", id: "ada" }, note: "Not needed" });
+    expect(await db.select().from(taskProposals).where(eq(taskProposals.status, "draft"))).toEqual([]);
+  });
+
+  it("refuses a token rewriting or withdrawing a confirmed proposal", async () => {
+    const task = await openTask();
+    const { id: tokenId } = await newToken(lena);
+    const draft = await propose(db, lena, task.id, plan, undefined, { tokenId });
+    await confirmDraftProposal(db, lena, draft.id);
+    expect(await code(() => updateProposal(db, lena, draft.id, { approach: "x" }, new Date(), { tokenId }))).toBe("forbidden");
+    expect(await code(() => withdrawProposal(db, lena, draft.id, new Date(), { tokenId }))).toBe("forbidden");
+    expect(await code(() => updateProposal(db, lena, draft.id, { eta: "days" }))).toBe("ok"); // the browser may
   });
 
   it("lists my +1s", async () => {

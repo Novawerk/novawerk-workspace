@@ -11,7 +11,7 @@ import { contributors, members, taskPosts, tasks, werkLedger, type Database } fr
 import type { GitHubApi, PullRequestFacts } from "@nw/github";
 
 import { readEnv } from "../src/deps.js";
-import { contributorCookie, createTestDb, makeApp, resetDb, TEST_MEMBERS, type TestApp } from "./helpers.js";
+import { WEB_ORIGIN, contributorCookie, createTestDb, makeApp, resetDb, TEST_MEMBERS, type TestApp } from "./helpers.js";
 
 const SECRET = "webhook-secret-0123456789";
 const CRON = "cron-secret-0123456789";
@@ -220,7 +220,7 @@ describe("the assignee's routes, reports and blocks", () => {
     const call = async (method: string, path: string, body?: unknown) => {
       const res = await app.request(path, {
         method,
-        headers: { Cookie: cookie, ...(body ? { "Content-Type": "application/json" } : {}) },
+        headers: { Cookie: cookie, Origin: WEB_ORIGIN, ...(body ? { "Content-Type": "application/json" } : {}) },
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
       return { status: res.status, body: (await res.json()) as any };
@@ -244,7 +244,7 @@ describe("the assignee's routes, reports and blocks", () => {
     expect((await call("POST", `/contrib/tasks/${t.id}/release`, { reason: "Busy" })).status).toBe(409); // in review now
     const other = await assignedTask({ title: "Other", status: "assigned" });
     // No body at all is fine.
-    const released = await app.request(`/contrib/tasks/${other.id}/release`, { method: "POST", headers: { Cookie: cookie } });
+    const released = await app.request(`/contrib/tasks/${other.id}/release`, { method: "POST", headers: { Cookie: cookie, Origin: WEB_ORIGIN } });
     expect(await released.json()).toEqual({ ok: true });
 
     // Without the App, linking by hand says how to do it instead.
@@ -252,7 +252,7 @@ describe("the assignee's routes, reports and blocks", () => {
     const noApp = makeApp(db).app;
     const res = await noApp.request(`/contrib/tasks/${third.id}/pr`, {
       method: "POST",
-      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      headers: { Cookie: cookie, Origin: WEB_ORIGIN, "Content-Type": "application/json" },
       body: JSON.stringify({ url: "https://github.com/Novawerk/novawerk-workspace/pull/7" }),
     });
     expect(res.status).toBe(503);

@@ -58,6 +58,17 @@ export async function guideFor(db: Database, c: Contributor, taskId: number): Pr
 }
 
 /**
+ * Before asking GitHub about a PR: is this the caller's task, in progress, and the PR on its
+ * repository? So nobody can make the API fetch arbitrary pull requests.
+ */
+export async function checkCanLinkPr(db: Database, c: Contributor, taskId: number, repo: string): Promise<void> {
+  const task = await heldTask(db, c, taskId);
+  if (!canWork(c)) throw new TaskRuleError("github_required", "Link your GitHub account first: we match pull requests by it");
+  if (task.status !== "assigned") throw new TaskRuleError("invalid_state", "Only a task in progress can get a pull request linked");
+  if (repo.toLowerCase() !== task.repo.toLowerCase()) throw new TaskRuleError("invalid", `A pull request on ${task.repo}`, "url");
+}
+
+/**
  * Link a PR by hand, when the board didn't pick it up. `pr` is the PR as GitHub sees it now (the
  * API fetches it with the App): it must be open, on the task's repository, from the assignee's
  * linked GitHub account, and name this task. Anything else is refused, so a task can't wait in

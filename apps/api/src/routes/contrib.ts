@@ -4,8 +4,11 @@
 // (GitHub linked, limits, whose proposal, which state) are @nw/tasks', and a broken one answers
 // with its status through app.onError.
 //
-// [scope] is what a token needs; "browser" routes refuse tokens. Through a token a proposal is a
-// draft until its person confirms it, and everything is recorded as "via agent · <token name>".
+// [scope] is what a token needs; "browser" routes refuse tokens; every route has one of the two
+// (a test checks). Through a token a proposal is a draft until its person confirms it, a token
+// edits and discards drafts only, and proposals, posts, suggestions, PR links, releases and
+// extensions are recorded as "via agent · <token name>". Browser writes must come from the
+// website's origins or carry JSON.
 //
 //   GET    /contrib/me                    who I am (no email through a token)  [tasks:read]
 //   GET    /contrib/me/proposals          mine, with private notes and drafts  [tasks:read]
@@ -52,11 +55,14 @@ import {
   suggestionInput,
   taskIdParam,
   tokenCreateInput,
+  type ProposalResult,
 } from "@nw/contracts";
+import type { Contributor, TaskProposal } from "@nw/db";
 import { parsePullRequestUrl } from "@nw/github";
 import {
   TaskRuleError,
   addPost,
+  checkCanLinkPr,
   confirmDraftProposal,
   createToken,
   deleteContributor,
@@ -91,14 +97,19 @@ const MAX_BODY_BYTES = 64 * 1024;
 /** Proposals, posts and tokens are uuids. */
 const uuidParam = z.object({ id: z.uuid() });
 
+/** Your own view of a proposal you just wrote: says whether it is a draft. */
+function proposalResult(row: TaskProposal, me: Contributor, viaAgent: string | null): ProposalResult {
+  return { ...toPublicProposal(row, me, viaAgent), status: row.status as ProposalResult["status"], draft: row.status === "draft" };
+}
+
 /** Profile fields a token may not change. */
 const BROWSER_ONLY_PROFILE = ["handle", "public", "onWall", "acceptPledge"] as const;
 
-export function contribRoutes({ db, env, githubApi }: AppDeps, gate: TokenGate) {
+export function contribRoutes({ db, env, githubApi }: AppDeps, gate: TokenGate, origins: readonly string[]) {
   const session = (c: Parameters<typeof getCookie>[0]) => currentContributor(db, getCookie(c, CONTRIBUTOR_COOKIE), env.sessionSecret);
   return (
     new Hono<ApiEnv>()
-      .use("*", contributorOrToken(gate, session))
+      .use("*", contributorOrToken(gate, session, origins))
       .use("*", bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json({ error: "Request body too large" }, 413) }))
 
       // ─── Reading my own things ──────────────────────────────────────────────
@@ -122,7 +133,7 @@ export function contribRoutes({ db, env, githubApi }: AppDeps, gate: TokenGate) 
         async (c) => {
           const me = c.get("contributor");
           const row = await propose(db, me, c.req.valid("param").id, c.req.valid("json"), undefined, viaOf(c));
-          return c.json({ ...toPublicProposal(row, me, c.get("token")?.name ?? null), draft: row.status === "draft" }, 201);
+          return c.json(proposalResult(row, me, c.get("token")?.name ?? null), 201);
         },
       )
       .patch(
@@ -132,18 +143,18 @@ export function contribRoutes({ db, env, githubApi }: AppDeps, gate: TokenGate) 
         zValidator("json", proposalUpdateInput, rejectInvalid),
         async (c) => {
           const me = c.get("contributor");
-          const row = await updateProposal(db, me, c.req.valid("param").id, c.req.valid("json"));
-          return c.json({ ...toPublicProposal(row, me), draft: row.status === "draft" }, 200);
+          const row = await updateProposal(db, me, c.req.valid("param").id, c.req.valid("json"), new Date(), viaOf(c));
+          return c.json(proposalResult(row, me, c.get("token")?.name ?? null), 200);
         },
       )
       .delete("/proposals/:id", scope("proposals:write"), zValidator("param", uuidParam, notFoundIfInvalid), async (c) => {
-        await withdrawProposal(db, c.get("contributor"), c.req.valid("param").id);
+        await withdrawProposal(db, c.get("contributor"), c.req.valid("param").id, new Date(), viaOf(c));
         return c.json({ ok: true as const }, 200);
       })
       .post("/proposals/:id/confirm", sessionOnly, zValidator("param", uuidParam, notFoundIfInvalid), async (c) => {
         const me = c.get("contributor");
         const row = await confirmDraftProposal(db, me, c.req.valid("param").id);
-        return c.json(toPublicProposal(row, me), 200);
+        return c.json(proposalResult(row, me, null), 200);
       })
 
       // ─── Discussion ─────────────────────────────────────────────────────────
@@ -192,6 +203,8 @@ export function contribRoutes({ db, env, githubApi }: AppDeps, gate: TokenGate) 
           // The PR as GitHub sees it: open, by the assignee's account, naming this task.
           const ref = parsePullRequestUrl(c.req.valid("json").url);
           if (!ref) throw new TaskRuleError("invalid", "A pull request link", "url");
+          // Their task, in progress, a PR on its repository: only then ask GitHub.
+          await checkCanLinkPr(db, c.get("contributor"), c.req.valid("param").id, ref.repo);
           if (!githubApi) {
             return c.json({ error: 'Linking by hand isn\'t available yet. Put "Task: NW-<n>" in your pull request\'s description instead.' }, 503);
           }

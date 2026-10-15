@@ -2051,6 +2051,14 @@ export interface ContributorMe {
   createdAt: string;
 }
 
+/**
+ * The answer to writing a proposal (POST, PATCH, confirm): your own view, so a draft says so.
+ */
+export interface ProposalResult extends Omit<PublicProposal, "status"> {
+  status: Exclude<ProposalStatus, "withdrawn">;
+  draft: boolean;
+}
+
 /** The proposer's own view of a proposal, with the private decline note. */
 export interface MyProposal extends PublicProposal {
   taskId: string;

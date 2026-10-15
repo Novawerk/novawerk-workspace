@@ -101,8 +101,9 @@ export async function revokeToken(db: Database, contributorId: string, tokenId: 
 }
 
 /**
- * The contributor and token for a bearer secret: live (not revoked, not expired) and its owner
- * still there. Null otherwise. Notes when it was last used.
+ * The contributor and token for a bearer secret: live (not revoked, not expired), its owner still
+ * there and not suspended. Null otherwise. Notes when it was last used. Signing out of the
+ * website ends browser sessions only; a token lives until it expires or is revoked.
  */
 export async function authenticateToken(
   db: Database,
@@ -119,6 +120,8 @@ export async function authenticateToken(
         eq(contributorTokens.secretHash, hashTokenSecret(secret)),
         isNull(contributorTokens.revokedAt),
         gt(contributorTokens.expiresAt, now),
+        // A suspended account's tokens stop too. Signing out doesn't stop tokens: revoke them.
+        isNull(contributors.suspendedAt),
       ),
     )
     .limit(1);

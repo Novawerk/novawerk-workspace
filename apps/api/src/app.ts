@@ -66,9 +66,8 @@ export function createApp(deps: AppDeps) {
     });
   const adminCors = credentialed(deps.env.adminOrigins);
   // The website, with the contributor cookie. Never the admin panel's origins.
-  const contributorCors = credentialed(
-    deps.env.contributorOrigins ?? deps.env.allowedOrigins.filter((o) => !deps.env.adminOrigins.includes(o)),
-  );
+  const contributorOrigins = deps.env.contributorOrigins ?? deps.env.allowedOrigins.filter((o) => !deps.env.adminOrigins.includes(o));
+  const contributorCors = credentialed(contributorOrigins);
 
   const tokens = new TokenGate(deps.db);
 
@@ -87,7 +86,7 @@ export function createApp(deps: AppDeps) {
     .route("/public", boardRoutes(deps, tokens))
     .route("/auth/contributor", contributorAuthRoutes({ ...deps, logger }))
     .route("/auth", authRoutes({ ...deps, logger, verifyGoogleToken }))
-    .route("/contrib", contribRoutes(deps, tokens))
+    .route("/contrib", contribRoutes(deps, tokens, contributorOrigins))
     .route("/mcp", mcpRoutes({ ...deps, logger }, tokens))
     .route("/admin", adminRoutes({ ...deps, logger }))
     .route("/cron", cronRoutes({ ...deps, logger }))

@@ -40,6 +40,7 @@ import type { Contributor } from "@nw/db";
 import {
   TaskRuleError,
   addPost,
+  checkCanLinkPr,
   getPublicTask,
   guideFor,
   linkPrByHand,
@@ -308,6 +309,7 @@ export function buildMcpServer(
         // As on the website: the PR as GitHub sees it must be open, theirs, and name the task.
         const ref = parsePullRequestUrl(prLinkInput.parse({ url }).url);
         if (!ref) throw new TaskRuleError("invalid", "A pull request link");
+        await checkCanLinkPr(db, me, taskNumber(task_id), ref.repo);
         if (!githubApi) throw new TaskRuleError("invalid", 'Linking by hand isn\'t available yet. Put "Task: NW-<n>" in the pull request\'s description instead.');
         const pr = await githubApi.getPullRequest(ref.repo, ref.number);
         if (!pr) throw new TaskRuleError("invalid", "We can't find that pull request");
@@ -357,12 +359,30 @@ export function buildMcpServer(
   return server;
 }
 
-/** POST/GET/DELETE /mcp. Stateless: every request gets its own server and transport. */
+/**
+ * POST /mcp. Stateless: every request gets its own server and transport. One JSON-RPC message per
+ * request (no batches: each call counts against a budget). A browser may call it only from our
+ * own origins. GET (a stream) and DELETE (a session) don't exist here: 405.
+ */
 export function mcpRoutes(deps: AppDeps & { logger: Logger }, gate: TokenGate) {
   const anonymous = new FixedWindowLimiter(ANONYMOUS_MCP_PER_HOUR, 60 * 60_000);
   return new Hono<ApiEnv>()
     .use("*", bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json({ error: "Request body too large" }, 413) }))
-    .all("/", async (c) => {
+    .on(["GET", "DELETE"], "/", (c) => c.json({ error: "Method not allowed: this server is stateless, POST only" }, 405, { Allow: "POST" }))
+    .post("/", async (c) => {
+      const origin = c.req.header("origin");
+      if (origin && !deps.env.allowedOrigins.includes(origin)) return c.json({ error: "Not allowed from this origin" }, 403);
+
+      let message: unknown;
+      try {
+        message = await c.req.raw.clone().json();
+      } catch {
+        return c.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, 400);
+      }
+      if (Array.isArray(message)) {
+        return c.json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "One message per request: batches aren't supported" } }, 400);
+      }
+
       const auth = await gate.authenticate(c);
       if (auth.kind === "invalid") return c.json({ error: invalidTokenMessage }, 401);
       if (auth.kind === "ok") gate.take(auth.token.id, "read");
@@ -372,7 +392,7 @@ export function mcpRoutes(deps: AppDeps & { logger: Logger }, gate: TokenGate) {
       const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
       await server.connect(transport);
       try {
-        return await transport.handleRequest(c.req.raw);
+        return await transport.handleRequest(c.req.raw, { parsedBody: message });
       } finally {
         void server.close();
       }

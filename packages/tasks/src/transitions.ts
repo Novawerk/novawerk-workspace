@@ -206,6 +206,10 @@ async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
   }
 
   const [updated] = await tx.update(tasks).set(patch).where(eq(tasks.id, task.id)).returning();
+  // Agents' drafts only make sense on an open task: once it moves on, they go.
+  if (task.status === "open" && to !== "open") {
+    await tx.delete(taskProposals).where(and(eq(taskProposals.taskId, task.id), eq(taskProposals.status, "draft")));
+  }
   await tx.insert(taskEvents).values({
     taskId: task.id,
     kind: event,

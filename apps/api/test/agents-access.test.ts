@@ -31,7 +31,7 @@ type Auth = { cookie?: string; bearer?: string };
 
 async function call(app: TestApp, method: string, path: string, auth: Auth, body?: unknown) {
   const headers: Record<string, string> = {};
-  if (auth.cookie) headers.Cookie = auth.cookie;
+  if (auth.cookie) Object.assign(headers, { Cookie: auth.cookie, Origin: "https://novawerk.io" });
   if (auth.bearer) headers.Authorization = `Bearer ${auth.bearer}`;
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const res = await app.request(path, { method, headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
@@ -254,5 +254,106 @@ describe("/mcp", () => {
   it("refuses a bad token outright", async () => {
     const { app } = makeApp(db);
     expect((await rpc(app, "tools/list", {}, "nwt_nope")).status).toBe(401);
+  });
+});
+
+describe("review fixes", () => {
+  it("every /contrib route has a scope or is browser-only (default deny)", async () => {
+    const { contribRoutes } = await import("../src/routes/contrib.js");
+    const { ACCESS_RULE, TokenGate } = await import("../src/token-gate.js");
+    const routes = contribRoutes({ db, env: { sessionSecret: "x".repeat(40) } } as never, new TokenGate(db), []).routes;
+    const endpoints = new Map<string, boolean>();
+    for (const r of routes) {
+      if (r.method === "ALL") continue;
+      const key = `${r.method} ${r.path}`;
+      endpoints.set(key, (endpoints.get(key) ?? false) || ACCESS_RULE in (r.handler as object));
+    }
+    expect(endpoints.size).toBeGreaterThan(20);
+    expect([...endpoints].filter(([, ruled]) => !ruled).map(([k]) => k)).toEqual([]);
+  });
+
+  it("a token edits and discards drafts only, never a confirmed proposal", async () => {
+    const { app } = makeApp(db);
+    const token = await makeToken(app, ["proposals:write"]);
+    const task = await openTask();
+    const draft = (await call(app, "POST", `/contrib/tasks/${task.id}/proposals`, { bearer: token.secret }, plan)).body;
+    expect(draft).toMatchObject({ status: "draft", draft: true });
+    expect((await call(app, "PATCH", `/contrib/proposals/${draft.id}`, { bearer: token.secret }, { eta: "days" })).body).toMatchObject({ eta: "days", draft: true });
+    await call(app, "POST", `/contrib/proposals/${draft.id}/confirm`, { cookie });
+    const rewrite = await call(app, "PATCH", `/contrib/proposals/${draft.id}`, { bearer: token.secret }, { approach: "Something else" });
+    expect(rewrite.status).toBe(403);
+    expect((await call(app, "DELETE", `/contrib/proposals/${draft.id}`, { bearer: token.secret })).status).toBe(403);
+    expect((await call(app, "GET", `/public/tasks/NW-${task.id}`, {})).body.proposals[0].approach).toBe(plan.approach);
+
+    // A draft discarded through the token is gone, and doesn't count.
+    const other = await openTask({ title: "Other" });
+    const second = (await call(app, "POST", `/contrib/tasks/${other.id}/proposals`, { bearer: token.secret }, plan)).body;
+    expect((await call(app, "DELETE", `/contrib/proposals/${second.id}`, { bearer: token.secret })).body).toEqual({ ok: true });
+    expect((await db.select().from(taskProposals)).map((p) => p.id)).toEqual([draft.id]);
+  });
+
+  it("stops a suspended account's tokens, and ignores Authorization headers that aren't ours", async () => {
+    const { app } = makeApp(db);
+    const token = await makeToken(app, []);
+    expect((await call(app, "GET", "/public/tasks", { bearer: "ghp_someone_elses" })).status).toBe(200);
+    await db.update(contributors).set({ suspendedAt: new Date() });
+    expect((await call(app, "GET", "/contrib/me", { bearer: token.secret })).status).toBe(401);
+  });
+
+  it("refuses browser writes from other sites", async () => {
+    const { app } = makeApp(db);
+    const s = await openTask({ status: "suggested", kind: "bug" });
+    const put = (headers: Record<string, string>) =>
+      app.request(`/contrib/tasks/${s.id}/vote`, { method: "PUT", headers: { Cookie: cookie, ...headers } });
+    expect((await put({ Origin: "https://evil.example" })).status).toBe(403);
+    expect((await put({})).status).toBe(403);
+    expect((await put({ "Content-Type": "application/json" })).status).toBe(200);
+    expect((await put({ Origin: "https://novawerk.io" })).status).toBe(200);
+  });
+
+  it("asks GitHub about a PR only for the caller's own task in progress", async () => {
+    let asked = 0;
+    const githubApi = {
+      comment: async () => undefined,
+      addLabels: async () => undefined,
+      recentPullRequests: async () => [],
+      getPullRequest: async () => {
+        asked++;
+        return null;
+      },
+    };
+    const { app } = makeApp(db, { githubApi });
+    const notMine = await openTask({ status: "assigned" });
+    const res = await call(app, "POST", `/contrib/tasks/${notMine.id}/pr`, { cookie }, { url: "https://github.com/Novawerk/novawerk-workspace/pull/1" });
+    expect(res.status).toBe(403);
+    expect(asked).toBe(0);
+  });
+
+  it("limits anonymous board reads per network", async () => {
+    const { app } = makeApp(db);
+    const from = { "x-forwarded-for": "198.51.100.77" };
+    let status = 200;
+    for (let i = 0; i <= 600 && status === 200; i++) status = (await app.request("/public/tasks?limit=1", { headers: from })).status;
+    expect(status).toBe(429);
+    expect((await app.request("/public/tasks?limit=1", { headers: { "x-forwarded-for": "198.51.100.78" } })).status).toBe(200);
+  });
+});
+
+describe("/mcp transport rules", () => {
+  const post = (app: TestApp, body: unknown, headers: Record<string, string> = {}) =>
+    app.request("/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...headers },
+      body: JSON.stringify(body),
+    });
+
+  it("takes one message per request, from our origins, POST only", async () => {
+    const { app } = makeApp(db);
+    const one = { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} };
+    expect((await post(app, [one, { ...one, id: 2 }])).status).toBe(400);
+    expect((await post(app, one, { Origin: "https://evil.example" })).status).toBe(403);
+    expect((await post(app, one, { Origin: "https://novawerk.io" })).status).toBe(200);
+    expect((await app.request("/mcp", { method: "GET" })).status).toBe(405);
+    expect((await app.request("/mcp", { method: "DELETE" })).status).toBe(405);
   });
 });

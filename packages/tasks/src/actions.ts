@@ -146,7 +146,8 @@ export async function propose(
         if (isUniqueViolation(err)) throw new TaskRuleError("conflict", ALREADY_PROPOSED);
         throw err;
       });
-    await touch(tx, taskId, now);
+    // A draft isn't on the board yet: the task's "last changed" moves when it is confirmed.
+    if (!via) await touch(tx, taskId, now);
     return row!;
   });
 }
@@ -180,29 +181,45 @@ export async function confirmDraftProposal(db: Database, c: Contributor, proposa
 }
 
 /** Edit your own pending proposal while the task is open. */
+/**
+ * Edit your own pending proposal or draft while the task is open. Through a token only a draft
+ * can change: a proposal its person confirmed is theirs, and an agent can't rewrite it.
+ */
 export async function updateProposal(
   db: Database,
   c: Contributor,
   proposalId: string,
   patch: ProposalUpdateInput,
   now = new Date(),
+  via?: Via,
 ): Promise<TaskProposal> {
   notSuspended(c);
   const proposal = await ownPendingProposal(db, c, proposalId);
+  if (via && proposal.status !== "draft") {
+    throw new TaskRuleError("forbidden", "A token can only edit drafts. Change a confirmed proposal on novawerk.io.");
+  }
   const fields = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
   const [row] = await db
     .update(taskProposals)
-    .set({ ...fields, updatedAt: now })
+    .set({ ...fields, ...(via ? { viaTokenId: via.tokenId } : {}), updatedAt: now })
     .where(eq(taskProposals.id, proposal.id))
     .returning();
-  await touch(db, proposal.taskId, now);
+  if (row!.status !== "draft") await touch(db, proposal.taskId, now);
   return row!;
 }
 
-/** Withdraw your own pending proposal. The row stays (it counts towards the daily limit). */
-export async function withdrawProposal(db: Database, c: Contributor, proposalId: string, now = new Date()): Promise<void> {
+/**
+ * Withdraw your own pending proposal: the row stays (it counts towards the daily limit). A draft
+ * is simply deleted: it never counted. Through a token only drafts can go.
+ */
+export async function withdrawProposal(db: Database, c: Contributor, proposalId: string, now = new Date(), via?: Via): Promise<void> {
   notSuspended(c);
   const proposal = await ownPendingProposal(db, c, proposalId);
+  if (proposal.status === "draft") {
+    await db.delete(taskProposals).where(and(eq(taskProposals.id, proposal.id), eq(taskProposals.status, "draft")));
+    return;
+  }
+  if (via) throw new TaskRuleError("forbidden", "A token can only discard drafts. Withdraw a confirmed proposal on novawerk.io.");
   await db.update(taskProposals).set({ status: "withdrawn", updatedAt: now }).where(eq(taskProposals.id, proposal.id));
   await touch(db, proposal.taskId, now);
 }

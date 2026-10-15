@@ -236,8 +236,14 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
   scope), on the board's `/public` reads (optional) and on `/mcp`. A token never manages
   tokens, confirms drafts, deletes the account, or changes the handle or who sees the profile.
   A proposal made with a token is a `draft` until its person confirms it in the browser
-  (`POST /contrib/proposals/:id/confirm`). Posts, proposals and task events keep
-  `via_token_id`, shown as "via agent · <token name>". Each token has an hourly budget (1000
+  (`POST /contrib/proposals/:id/confirm`); a token edits and discards drafts only, and drafts
+  go when their task leaves `open`. Proposals, posts and task events (suggestions, PR links,
+  releases, extensions) keep `via_token_id`, shown as "via agent · <token name>"; votes,
+  reports and profile edits aren't marked. A suspended account's tokens stop; signing out ends
+  browser sessions only, tokens live until revoked or expired. Browser writes on `/contrib`
+  must come from the website's origins or carry JSON. Anonymous board reads have a looser
+  per-network budget (600 an hour). `/mcp` takes one JSON-RPC message per POST, only from our
+  origins in a browser. Each token has an hourly budget (1000
   reads, 100 writes; in memory, per instance). The MCP server (`apps/api/src/mcp.ts`, official
   TypeScript SDK, stateless Streamable HTTP) calls the same `@nw/tasks` functions; reading works
   without a token. `apps/web/public/llms.txt` tells agents how.
