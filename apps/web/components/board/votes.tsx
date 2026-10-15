@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 
 import { track } from "@/lib/analytics";
 import { api } from "@/lib/contrib-api";
-import { useSession, useToast } from "@/lib/session";
+import { usePassiveSession, useSession, useToast } from "@/lib/session";
 
 import { plural } from "./labels";
 
@@ -21,7 +21,7 @@ const VotesContext = createContext<Votes>({ voted: null, delta: {}, toggle: asyn
 
 /** My +1s (GET /contrib/me/votes), shared by every suggestion row on the page. */
 export function VotesProvider({ children }: { children: React.ReactNode }) {
-  const { session } = useSession();
+  const { session } = usePassiveSession();
   const toast = useToast();
   const [voted, setVoted] = useState<Set<string> | null>(null);
   const [delta, setDelta] = useState<Record<string, number>>({});

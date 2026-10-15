@@ -5,7 +5,7 @@ import Link from "next/link";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { boardState, plural, personLabel, prLabel, STATE_DOT, werkOf, type BoardState } from "./labels";
+import { boardState, plural, personLabel, prLabel, safeMarkdownHref, STATE_DOT, UGC_REL, werkOf, type BoardState } from "./labels";
 
 // ─── Tags ────────────────────────────────────────────────────────────────────
 // One component: size, area, skills and type share height, border and type; area adds a square.
@@ -158,11 +158,10 @@ const BOARD_ELEMENTS = [...PROFILE_ELEMENTS, "em", "code", "pre", "blockquote", 
 
 const mdComponents: Components = {
   a: ({ href, children }) => {
-    const safe = href && /^(https?:|mailto:|\/)/.test(href) ? href : undefined;
+    const safe = safeMarkdownHref(href);
     if (!safe) return <span>{children}</span>;
-    const external = /^https?:/.test(safe);
     return (
-      <a href={safe} {...(external ? { target: "_blank", rel: "nofollow ugc noopener noreferrer" } : {})}>
+      <a href={safe.href} {...(safe.external ? { target: "_blank", rel: UGC_REL } : {})}>
         {children}
       </a>
     );

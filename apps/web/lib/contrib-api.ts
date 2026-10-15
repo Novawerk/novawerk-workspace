@@ -20,6 +20,9 @@ export function apiBase(): string | null {
 
 const UNREACHABLE = "We couldn't reach the task board. Check your connection and try again.";
 
+/** Fired on window when a /contrib call answers 401: the session provider resets to signed out. */
+export const SIGNED_OUT_EVENT = "nw:contributor-signed-out";
+
 export async function api<T>(
   path: `/${"public" | "contrib" | "auth/contributor"}${string}`,
   { method = "GET", body }: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } = {},
@@ -40,6 +43,9 @@ export async function api<T>(
   }
   const json = (await res.json().catch(() => null)) as unknown;
   if (res.ok) return { ok: true, data: json as T };
+  if (res.status === 401 && path.startsWith("/contrib") && typeof window !== "undefined") {
+    window.dispatchEvent(new Event(SIGNED_OUT_EVENT));
+  }
   const err = (json ?? {}) as Partial<ApiError> & { error?: string };
   const issues = err.issues && typeof err.issues === "object" ? (err.issues as Record<string, string[]>) : {};
   const error =
@@ -58,10 +64,29 @@ export function fieldError(result: ApiResult<unknown>, field: string): string | 
   return result.ok ? undefined : result.issues[field]?.[0];
 }
 
+/** A path on this site, the same rule as the API's `githubStartQuery`: no "//host", no backslash, no whitespace. */
+const SAFE_PATH = /^\/(?![/\\])[^\s]*$/;
+
+/**
+ * Where to send someone after signing in: `value` if it is a path on this site, else `fallback`.
+ * Rejects "//example.com", "/\\example.com" and encoded tricks like "/%09/example.com" (decoded
+ * by the time it gets here), and anything that resolves to another origin.
+ */
+export function safeReturnPath(value: string | null | undefined, fallback = "/tasks"): string {
+  if (!value || !SAFE_PATH.test(value)) return fallback;
+  if (typeof window !== "undefined") {
+    try {
+      if (new URL(value, window.location.origin).origin !== window.location.origin) return fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return value;
+}
+
 /** Where "Continue with GitHub" goes. The API sends the visitor back to `returnTo` afterwards. */
 export function githubStartUrl(returnTo: string): string | null {
   const base = apiBase();
   if (!base) return null;
-  const path = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/tasks";
-  return `${base}/auth/contributor/github/start?returnTo=${encodeURIComponent(path)}`;
+  return `${base}/auth/contributor/github/start?returnTo=${encodeURIComponent(safeReturnPath(returnTo))}`;
 }

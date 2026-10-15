@@ -4,8 +4,10 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { Avatar, SizeBadge } from "@/components/board/bits";
+import { TASK_LIMIT_LINE } from "@/components/board/labels";
 import { TaskList } from "@/components/board/task-row";
-import { scenePeople } from "@/components/board/wall";
+import { SCENE_MIN_BLOCKS, scenePeople } from "@/components/board/wall";
+import { buildModel, summaryLine } from "@/components/builders/model";
 import { BuildersScene } from "@/components/builders/builders-scene";
 import { NewsletterForm } from "@/components/newsletter-form";
 import { buttonAccent, buttonOutline, container, eyebrow, textLink } from "@/components/ui";
@@ -98,7 +100,7 @@ export default async function ContributePage() {
             <ul className="grid list-disc gap-2 pl-5 text-muted">
               <li>You don&apos;t need to be a Member. Contributors and Members are different things.</li>
               <li>We don&apos;t mentor whole projects. Tasks are small enough to finish alone.</li>
-              <li>One task at a time. Release it if life gets busy; nothing counts against you.</li>
+              <li>{TASK_LIMIT_LINE} Release a task if life gets busy; nothing counts against you.</li>
             </ul>
           </div>
         </div>
@@ -146,7 +148,12 @@ export default async function ContributePage() {
               See everyone →
             </Link>
           </div>
-          <BuildersScene blocks={blocks} people={scenePeople(faces, initiators)} size="compact" />
+          {blocks.length >= SCENE_MIN_BLOCKS ? (
+            <BuildersScene blocks={blocks} people={scenePeople(faces, initiators)} size="compact" />
+          ) : blocks.length > 0 ? (
+            // A handful of blocks looks like an empty floor: the line says it until the tower grows.
+            <p className="text-muted md:text-center">{summaryLine(buildModel(blocks, scenePeople(faces, initiators)))}</p>
+          ) : null}
         </div>
       </section>
 

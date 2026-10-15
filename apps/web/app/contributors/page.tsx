@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { Avatar } from "@/components/board/bits";
 import { formatDate } from "@/components/board/labels";
-import { firstContributions, scenePeople } from "@/components/board/wall";
+import { firstContributions, SCENE_MIN_BLOCKS, scenePeople } from "@/components/board/wall";
 import { BuildersScene } from "@/components/builders/builders-scene";
 import { container, eyebrow } from "@/components/ui";
 import { getBlocks, getContributorPage, getInitiators } from "@/lib/board";
@@ -69,7 +69,7 @@ export default async function ContributorsPage() {
           <h2 id="blocks" className="text-2xl font-semibold tracking-tight sm:text-3xl">
             One block at a time
           </h2>
-          <BuildersScene blocks={blocks} people={scenePeople(everyone?.contributors ?? [], initiators)} size="full" />
+          <BuildersScene blocks={blocks} people={scenePeople(everyone?.contributors ?? [], initiators)} size={blocks.length >= SCENE_MIN_BLOCKS ? "full" : "compact"} />
           <p className="text-[13px] text-muted">Point at a block or a person.</p>
         </div>
       </section>

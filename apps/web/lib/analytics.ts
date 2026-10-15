@@ -54,9 +54,12 @@ function state(): TrackerState | null {
   return (window.__nwAnalytics ??= { visit: randomId(), queue: [], timer: null });
 }
 
-/** A pathname the API accepts: percent-encode anything outside its character set. */
+/**
+ * A pathname the API accepts: percent-encode anything outside its character set. Profile
+ * addresses lose the handle (/u/lena-k → /u/_), so a count never names a person.
+ */
 export function cleanPath(pathname: string): string {
-  const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const path = (pathname.startsWith("/") ? pathname : `/${pathname}`).replace(/^\/u\/[^/]+/, "/u/_");
   return path
     .replace(/[^A-Za-z0-9\-._~/()@%]/g, (c) => encodeURIComponent(c).replace(/[^%A-Za-z0-9]/g, ""))
     .slice(0, 200);

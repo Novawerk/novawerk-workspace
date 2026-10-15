@@ -12,7 +12,7 @@ import { createContext, useContext, useEffect, useId, useState } from "react";
 import { sendForm } from "@/lib/api";
 import { track } from "@/lib/analytics";
 import { api, githubStartUrl } from "@/lib/contrib-api";
-import { useSession, useToast } from "@/lib/session";
+import { usePassiveSession, useToast } from "@/lib/session";
 
 import { buttonInk, buttonOutline, field, fieldHint, fieldLabel, textLink } from "../ui";
 import { Dialog, dialogButton, dialogButtonAccent, dialogField } from "./dialog";
@@ -84,7 +84,7 @@ export function SignInPanel({
   error?: string | null;
   onSignedIn?: (me: ContributorMe) => void;
 }) {
-  const { setMe } = useSession();
+  const { setMe } = usePassiveSession();
   const github = githubStartUrl(returnTo);
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -239,7 +239,7 @@ export const needsSetup = (me: ContributorMe) => me.defaultHandle || !me.pledgeA
  * default), the monthly newsletter (off by default, double opt-in), and the pledge + DCO tick.
  */
 export function FirstRunDialog() {
-  const { session, setMe, signOut } = useSession();
+  const { session, setMe, signOut } = usePassiveSession();
   const toast = useToast();
   const me = session.status === "signed-in" ? session.me : null;
   const open = !!me && needsSetup(me);
@@ -255,7 +255,7 @@ export function FirstRunDialog() {
   // Prefill once per account: adjusting state during render, not in an effect.
   if (me && seededFor !== me.id) {
     setSeededFor(me.id);
-    setHandle(me.defaultHandle ? "" : me.handle);
+    setHandle(me.handle);
     setName(me.defaultHandle ? "" : me.displayName);
     setPublic(me.public);
   }
@@ -271,7 +271,8 @@ export function FirstRunDialog() {
       acceptPledge: pledge ? (true as const) : undefined,
     };
     const local: Record<string, string> = {};
-    if (me.defaultHandle && !handle.trim()) local.handle = "Pick a handle";
+    if (!handle.trim()) local.handle = "Pick a handle";
+    else if (me.defaultHandle && handle.trim().toLowerCase() === me.handle) local.handle = "Pick a handle of your own";
     if (!pledge) local.acceptPledge = "Please agree to the pledge to continue";
     const parsed = profileUpdateInput.safeParse(patch);
     if (!parsed.success) for (const issue of parsed.error.issues) local[String(issue.path[0] ?? "form")] ??= issue.message;
@@ -298,7 +299,10 @@ export function FirstRunDialog() {
   return (
     <Dialog
       open={open}
-      onClose={() => void signOut()}
+      // Required: Escape and the backdrop don't close it. "Sign out" in the footer is the way out
+      // (it ends every session, so it must never happen by accident).
+      onClose={() => {}}
+      dismissible={false}
       title="Set up your contributor account"
       meta="One step. You can change all of this later in Settings."
       width="sm:max-w-[520px]"
@@ -318,14 +322,20 @@ export function FirstRunDialog() {
       <DialogInput
         id="fr-handle"
         label="Handle"
-        hint={me.github?.login ? "Shown on tasks you take. From GitHub; you can change it." : "Shown on tasks you take. Lowercase letters, digits and hyphens."}
+        hint={
+          me.github?.login
+            ? "Shown on tasks you take. From GitHub; you can change it."
+            : me.defaultHandle
+              ? `We picked @${me.handle} for now; change it here. Lowercase letters, digits and hyphens.`
+              : "Shown on tasks you take. Lowercase letters, digits and hyphens."
+        }
         value={handle}
         onChange={setHandle}
         mono
         error={issues.handle}
-        placeholder="e.g. lena-k"
+        placeholder="your-handle"
       />
-      <DialogInput id="fr-name" label="Display name" value={name} onChange={setName} error={issues.displayName} placeholder="e.g. Lena Kovač" />
+      <DialogInput id="fr-name" label="Display name" value={name} onChange={setName} error={issues.displayName} placeholder="Your name" />
       <Check checked={isPublic} onChange={setPublic}>
         Show my profile publicly <span className="text-muted">(off by default; tasks still show your handle)</span>
       </Check>

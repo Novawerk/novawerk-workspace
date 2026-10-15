@@ -89,6 +89,12 @@ function BoardShell({
   const [loaded, setLoaded] = useState<{ query: string; page: PublicTaskPage | null; extra: PublicTask[]; cursor: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState(filters.q);
+  const [syncedQ, setSyncedQ] = useState(filters.q);
+  // The URL changed from outside the box (Back, a cleared filter): show its search.
+  if (syncedQ !== filters.q) {
+    setSyncedQ(filters.q);
+    setQuery(filters.q);
+  }
   const searchId = useId();
   const skillsId = useId();
   const sortId = useId();
@@ -137,6 +143,10 @@ function BoardShell({
   );
   const n = activeFilterCount(filters);
   const update = setFilters ?? (() => {});
+  const clearAll = () => {
+    setQuery("");
+    update({ ...DEFAULT_FILTERS, view: filters.view }, null);
+  };
   const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const chip =
     "h-[30px] shrink-0 border border-line-strong bg-paper px-[11px] text-[13px] whitespace-nowrap aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-paper disabled:opacity-60";
@@ -246,7 +256,7 @@ function BoardShell({
             <option value="votes">Most wanted (suggestions)</option>
           </select>
           {n > 0 ? (
-            <button type="button" className={`${textLink} text-sm`} onClick={() => update({ ...DEFAULT_FILTERS, view: filters.view }, null)}>
+            <button type="button" className={`${textLink} text-sm`} onClick={() => clearAll()}>
               Clear {n} {n === 1 ? "filter" : "filters"}
             </button>
           ) : null}
@@ -267,7 +277,7 @@ function BoardShell({
             title="No tasks match these filters"
             actions={
               <>
-                <button type="button" className={buttonOutline} onClick={() => update({ ...DEFAULT_FILTERS, view: filters.view }, null)}>
+                <button type="button" className={buttonOutline} onClick={() => clearAll()}>
                   Clear filters
                 </button>
                 <Link href="/tasks/suggest" className={buttonOutline}>

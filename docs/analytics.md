@@ -66,7 +66,7 @@ The schema is `webEventInput` in `@nw/contracts`; the API stores nothing else.
 | `form_step` | `form` pitch/join, `step`, `of` | a plain-form step is shown |
 | `form_submitted` | `form` pitch/join/newsletter | a plain form or the newsletter went through |
 | `form_failed` | `form`, `reason` invalid/unavailable | it didn't |
-| `task_view` | `status` | a task page opened (no task id) |
+| `task_view` | `status` | a task page opened (no task id; profile paths are counted as `/u/_`, never with the handle) |
 | `task_filter` | `filter` search/area/size/status/skills/sort/view | a board control changed (which one, never its value) |
 | `propose_open` | `edit`, `signedIn` | "Propose a plan" or "Edit proposal" pressed |
 | `propose_sent` | `edit` | a proposal sent, edited or confirmed from an agent's draft |

@@ -1,16 +1,22 @@
 "use client";
 
 // Who is signed in, for the browser. The contributor session is an httpOnly cookie on the API's
-// domain, so the website can't read it on the server: every page prerenders for a visitor and this
-// provider asks GET /auth/contributor/me after load, then the viewer's controls appear.
+// domain, so the website can't read it on the server: every page prerenders for a visitor, and the
+// browser asks GET /auth/contributor/me after load, then the viewer's controls appear.
+//
+// It asks only when it matters: on task board pages (whatever calls useSession()), or anywhere
+// when this browser signed in before (a "nw:contributor" flag in localStorage, no personal data).
+// The header and the other always-there parts read the session passively and never trigger it.
 // Members don't sign in here; their session (admin panel) never opens /contrib.
 
 import type { ContributorMe } from "@nw/contracts";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-import { api } from "./contrib-api";
+import { api, SIGNED_OUT_EVENT } from "./contrib-api";
 
 export type Session =
+  /** Nobody asked yet (a page outside the task board, never signed in here). Shown as a visitor. */
+  | { status: "idle" }
   | { status: "loading" }
   | { status: "signed-out" }
   /** The API isn't configured or can't be reached: show public pages, hide account controls. */
@@ -19,6 +25,8 @@ export type Session =
 
 type SessionContextValue = {
   session: Session;
+  /** Ask the API once, if nobody has yet. */
+  ensure: () => void;
   /** Ask the API again (after signing in, linking GitHub, saving the profile). */
   refresh: () => Promise<Session>;
   /** Replace the signed-in contributor with what an API call just returned. */
@@ -28,11 +36,29 @@ type SessionContextValue = {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
+const HINT_KEY = "nw:contributor";
+function hint(on?: boolean): boolean {
+  try {
+    if (on === true) window.localStorage.setItem(HINT_KEY, "1");
+    else if (on === false) window.localStorage.removeItem(HINT_KEY);
+    return window.localStorage.getItem(HINT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session>({ status: "loading" });
-  const started = useRef(false);
+  const [session, setSessionState] = useState<Session>({ status: "idle" });
+  const asked = useRef(false);
+
+  const setSession = useCallback((next: Session) => {
+    if (next.status === "signed-in") hint(true);
+    if (next.status === "signed-out") hint(false);
+    setSessionState(next);
+  }, []);
 
   const refresh = useCallback(async (): Promise<Session> => {
+    asked.current = true;
     const res = await api<ContributorMe>("/auth/contributor/me");
     const next: Session = res.ok
       ? { status: "signed-in", me: res.data }
@@ -41,17 +67,31 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         : { status: "unavailable" };
     setSession(next);
     return next;
-  }, []);
+  }, [setSession]);
 
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
+  const ensure = useCallback(() => {
+    if (asked.current) return;
+    asked.current = true;
+    setSessionState((s) => (s.status === "idle" ? { status: "loading" } : s));
     void refresh();
   }, [refresh]);
+
+  // Signed in here before: ask on every page, so the header shows the account.
+  useEffect(() => {
+    if (hint()) ensure();
+  }, [ensure]);
+
+  // Any /contrib call that comes back 401 means the session ended (expired, signed out elsewhere).
+  useEffect(() => {
+    const onSignedOut = () => setSession({ status: "signed-out" });
+    window.addEventListener(SIGNED_OUT_EVENT, onSignedOut);
+    return () => window.removeEventListener(SIGNED_OUT_EVENT, onSignedOut);
+  }, [setSession]);
 
   const value = useMemo<SessionContextValue>(
     () => ({
       session,
+      ensure,
       refresh,
       setMe: (me) => setSession({ status: "signed-in", me }),
       signOut: async () => {
@@ -59,16 +99,29 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setSession({ status: "signed-out" });
       },
     }),
-    [session, refresh],
+    [session, ensure, refresh, setSession],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
-export function useSession(): SessionContextValue {
+function useSessionContext(): SessionContextValue {
   const value = useContext(SessionContext);
   if (!value) throw new Error("useSession needs <SessionProvider>");
   return value;
+}
+
+/** The session, for task board pages: asks the API if nobody has yet ("idle" reads as loading). */
+export function useSession(): SessionContextValue {
+  const value = useSessionContext();
+  const { ensure } = value;
+  useEffect(() => ensure(), [ensure]);
+  return value.session.status === "idle" ? { ...value, session: { status: "loading" } } : value;
+}
+
+/** The session as it is, without asking: for the header and other parts on every page. */
+export function usePassiveSession(): SessionContextValue {
+  return useSessionContext();
 }
 
 /** The signed-in contributor, or null (loading, signed out, or unavailable). */

@@ -67,7 +67,7 @@ export function CtaSection({ traffic }: { traffic: AdminMetrics["traffic"] }) {
     <Section
       id="metrics-cta"
       title="Calls to action"
-      description="Clicks on the “Pitch a project” and “Join” links, by where they sit on the site."
+      description="Clicks on the calls to action (Pitch a project, Contribute, Find a task, Set up your agent; Join before it closed), by where they sit on the site."
     >
       <div className="grid gap-3 lg:grid-cols-2">
         <Panel title="Link clicks" description={`${formatCount(total)} clicks in the range`}>

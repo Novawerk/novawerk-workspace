@@ -158,8 +158,10 @@ you. That makes a contributor account. It isn't Novawerk membership.
 
 - **What we keep about you:** your handle and display name; your email address
   if you sign in with a code; your GitHub account's number, login name and
-  picture link if you sign in with GitHub (we read only your public GitHub
-  profile and never keep your GitHub token); what you write on your profile
+  picture link if you sign in with GitHub, plus the primary email address
+  GitHub has verified for you, so the notices below reach you (we read only
+  your public GitHub profile and that address, and never keep your GitHub
+  token); what you write on your profile
   (bio, about, links, colours); whether your profile is public and on the
   contributors wall; when you accepted the community pledge.
 - **What you do on the board:** your proposals, posts and replies, suggestions,
@@ -174,9 +176,16 @@ you. That makes a contributor account. It isn't Novawerk membership.
 - **Tokens for agents:** if you make a personal access token, we keep its name,
   its scopes, when it expires and when it was last used, and only a hash of the
   token itself. Everything a token does shows "via agent".
-- **Emails:** we email you sign-in codes, when a member decides on your
-  proposal, and when a task you hold needs a nudge. The newsletter only if you
-  sign up for it separately.
+- **Emails:** fixed notices about your own account and tasks, to your own
+  address only: sign-in codes; a member's decision on your proposal (chosen or
+  not chosen); replies to your posts and on your tasks (at most one email per
+  task an hour); a reminder when a task you hold has had no activity for 7
+  days; a task you hold being released or closed; what happened to a
+  suggestion of yours (accepted, declined, a duplicate, or more info needed);
+  Werk you earn; and a goodbye when you delete your account. You can turn off
+  replies and reminders in Settings, or with the one-click link in each of
+  those emails; the others come with the account. The newsletter comes only if
+  you sign up for it separately.
 - **Why:** to run your account and the task board, and to credit your work.
 - **Legal basis:** Art. 6(1)(b) GDPR — you asked for an account and to take
   part in the board. Showing your profile publicly is your choice, and you can
@@ -184,13 +193,20 @@ you. That makes a contributor account. It isn't Novawerk membership.
 - **How long:** until you delete your account in Settings. Deleting removes
   your profile, proposals, +1s and tokens, and gives back a task you hold. Your
   posts and the tasks you finished stay on the board as "a former contributor",
-  without your handle. Merged code stays in the public git history under your
-  GitHub name, as GitHub keeps it.
+  without your handle, and so do your suggestions. Merged code stays in the
+  public git history under your GitHub name, as GitHub keeps it. We keep your
+  address only until the goodbye email has gone out, at most 7 days.
 
 Signing in sets one cookie, `nw_contributor`, on api.novawerk.io. It keeps you
-signed in for 30 days and is strictly necessary for the account to work
-(§ 25(2) no. 2 TDDDG). Sign-in codes are stored only as a hash and stop working
-after 10 minutes. In Settings you can download your data as a file.
+signed in for 30 days. Signing in with GitHub also sets `nw_github_state` for
+10 minutes, which checks that the answer from GitHub belongs to your sign-in.
+Both are strictly necessary for the account to work (§ 25(2) no. 2 TDDDG).
+Sign-in codes are stored only as a hash and stop working after 10 minutes.
+
+In Settings you can download your data as a file: your account and profile,
+your notification settings, your proposals (with the private notes on them),
+your +1s, and your tokens (names, scopes and dates, never the token itself).
+What you post, suggest and work on is public on the board already.
 
 ### When you sign up for the newsletter
 
@@ -259,7 +275,9 @@ requires us to.
 | Applications we accept | While you are a Member; deleted within 3 months after you leave |
 | Newsletter address | Until you unsubscribe; after that only the "unsubscribed" marker |
 | Newsletter address you never confirmed | Deleted once the confirmation link has expired and the address is at least 30 days old |
-| Contributor account | Until you delete it in Settings; your posts and finished tasks then stay as "a former contributor" |
+| Contributor account | Until you delete it in Settings; your posts, suggestions and finished tasks then stay as "a former contributor" |
+| A deleted account's email address | Until the goodbye email has gone out, at most 7 days |
+| Notices we emailed you (a record of each one) | Deleted after 30 days |
 | Sign-in codes | Stop working after 10 minutes; stored only as a hash |
 | Emails with you | Deleted together with the pitch or application they belong to; other emails after 2 years |
 | Server logs | Up to 30 days |

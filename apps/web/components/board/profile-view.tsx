@@ -130,7 +130,7 @@ export function ProfileView({ profile, actions, compact = false }: { profile: Pr
                 {p.links.map((l) => {
                   const href = safeHref(l);
                   return href ? (
-                    <a key={l} href={href} target="_blank" rel="nofollow noopener noreferrer me" className="truncate text-sm underline decoration-line-strong underline-offset-4 hover:decoration-ink">
+                    <a key={l} href={href} target="_blank" rel="me noopener noreferrer nofollow ugc" className="truncate text-sm underline decoration-line-strong underline-offset-4 hover:decoration-ink">
                       {l.replace(/^https?:\/\//, "").replace(/\/$/, "")} ↗
                     </a>
                   ) : null;

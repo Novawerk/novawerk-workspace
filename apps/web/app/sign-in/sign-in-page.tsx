@@ -5,18 +5,14 @@ import { useEffect } from "react";
 
 import { SignInPanel } from "@/components/board/sign-in";
 import { track } from "@/lib/analytics";
+import { safeReturnPath } from "@/lib/contrib-api";
 import { useSession } from "@/lib/session";
-
-/** A path on this site to go back to after signing in; anything else falls back to the board. */
-function safeReturn(value: string | null): string {
-  return value && value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\") ? value : "/tasks";
-}
 
 export function SignInPage() {
   const params = useSearchParams();
   const router = useRouter();
   const { session } = useSession();
-  const returnTo = safeReturn(params.get("returnTo"));
+  const returnTo = safeReturnPath(params.get("returnTo"));
   const error = params.get("error");
 
   useEffect(() => {

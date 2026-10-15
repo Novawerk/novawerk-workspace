@@ -17,7 +17,7 @@ import {
   type BoardState,
 } from "@/components/board/labels";
 import { SignInDialog } from "@/components/board/sign-in";
-import { buttonAccent, buttonSmallDanger, buttonSmallOutline, container, textLink } from "@/components/ui";
+import { buttonAccent, buttonOutline, buttonSmallDanger, buttonSmallOutline, container, textLink } from "@/components/ui";
 import { track } from "@/lib/analytics";
 import { api } from "@/lib/contrib-api";
 import { useMe, useSession, useToast } from "@/lib/session";
@@ -65,6 +65,8 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
   const [confirmPromptClosed, setConfirmPromptClosed] = useState(false);
   const [held, setHeld] = useState<PublicTask[]>([]);
   const [proposing, setProposing] = useState(false);
+  /** "Edit first" on an agent's draft: the Propose dialog edits that draft instead. */
+  const [editingDraft, setEditingDraft] = useState<MyProposal | null>(null);
   const [signingIn, setSigningIn] = useState<string | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
@@ -107,7 +109,22 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
   const openPropose = () => {
     track("propose_open", { edit: !!myPending, signedIn: !!me });
     if (!me) return askSignIn("Sign in to propose");
+    setEditingDraft(null);
     setProposing(true);
+  };
+  const editDraft = (draft: MyProposal) => {
+    track("propose_open", { edit: true, signedIn: true });
+    setEditingDraft(draft);
+    setProposing(true);
+  };
+  const reviewDraft = () => {
+    const card = document.getElementById("agent-draft");
+    card?.scrollIntoView({ block: "center" });
+    card?.focus();
+  };
+  const showCriteria = () => {
+    const done = document.getElementById("done-when");
+    done?.scrollIntoView({ block: "start" });
   };
   const focusThread = () => {
     setProposing(false);
@@ -133,8 +150,10 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
       signedIn={!!me}
       myHandle={myHandle}
       myPending={!!myPending}
+      draftWaiting={drafts.length > 0 && task.status === "open"}
       amAssignee={amAssignee}
       onPropose={openPropose}
+      onReviewDraft={reviewDraft}
       onWithdraw={withdraw}
       onAskSignIn={askSignIn}
       onVoted={reload}
@@ -174,8 +193,17 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
             </Note>
           ) : null}
 
-          {drafts.map((d) => (
-            <DraftCard key={d.id} draft={d} highlight={d.id === confirmId} task={task} onChanged={refreshAll} />
+          {drafts.map((d, i) => (
+            <DraftCard
+              key={d.id}
+              id={i === 0 ? "agent-draft" : undefined}
+              draft={d}
+              highlight={d.id === confirmId}
+              task={task}
+              onEdit={() => editDraft(d)}
+              onShowCriteria={showCriteria}
+              onChanged={refreshAll}
+            />
           ))}
 
           {amAssignee ? <AssigneePanel task={task} onChanged={refreshAll} onPostUpdate={focusThread} /> : null}
@@ -259,12 +287,14 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
           onClose={() => setProposing(false)}
           task={task}
           me={me}
-          mine={myPending}
+          mine={editingDraft ?? myPending}
+          isDraft={!!editingDraft}
           held={held.filter((h) => h.id !== task.id)}
           onAskInThread={focusThread}
           onSaved={async (edit) => {
             setProposing(false);
-            toast(edit ? "Changes saved." : "Proposal sent. A member replies within about a week.");
+            toast(editingDraft ? "Draft saved. Confirm it to send it." : edit ? "Changes saved." : "Proposal sent. A member replies within about a week.");
+            setEditingDraft(null);
             await refreshAll();
           }}
         />
@@ -295,9 +325,27 @@ export function AgentTag({ name }: { name: string }) {
  * A proposal an agent drafted with a token. It counts once its person confirms it here; they can
  * also edit it first (the same fields) or discard it.
  */
-function DraftCard({ draft, highlight, task, onChanged }: { draft: MyProposal; highlight: boolean; task: PublicTaskDetail; onChanged: () => Promise<void> }) {
+function DraftCard({
+  id,
+  draft,
+  highlight,
+  task,
+  onEdit,
+  onShowCriteria,
+  onChanged,
+}: {
+  id?: string;
+  draft: MyProposal;
+  highlight: boolean;
+  task: PublicTaskDetail;
+  onEdit: () => void;
+  onShowCriteria: () => void;
+  onChanged: () => Promise<void>;
+}) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  // Confirming makes it count, so it asks the same question as the Propose dialog.
+  const [ack, setAck] = useState(false);
   const open = task.status === "open";
 
   const confirm = async () => {
@@ -320,6 +368,8 @@ function DraftCard({ draft, highlight, task, onChanged }: { draft: MyProposal; h
 
   return (
     <section
+      id={id}
+      tabIndex={-1}
       aria-label="A draft from your agent"
       className={`mt-6 grid gap-3 border bg-paper p-5 ${highlight ? "border-ink shadow-[inset_0_0_0_1px_var(--color-ink)]" : "border-line-strong"}`}
     >
@@ -338,14 +388,34 @@ function DraftCard({ draft, highlight, task, onChanged }: { draft: MyProposal; h
         </div>
       ) : null}
       {open ? (
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className={buttonAccent} disabled={busy} onClick={confirm}>
-            Confirm and send
-          </button>
-          <button type="button" className={buttonSmallDanger + " h-11 px-4"} disabled={busy} onClick={discard}>
-            Discard
-          </button>
-        </div>
+        <>
+          <label className="flex items-start gap-2.5 text-sm">
+            <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-accent" />
+            <span>
+              I read{" "}
+              <button type="button" className={textLink} onClick={onShowCriteria}>
+                what done means
+              </button>{" "}
+              for this task, and I&apos;ll release it if I can&apos;t finish.
+            </span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={`${buttonAccent} disabled:border-line-strong disabled:bg-subtle disabled:text-muted disabled:opacity-100`}
+              disabled={busy || !ack}
+              onClick={confirm}
+            >
+              Confirm and send
+            </button>
+            <button type="button" className={buttonOutline} disabled={busy} onClick={onEdit}>
+              Edit first
+            </button>
+            <button type="button" className={buttonSmallDanger + " h-11 px-4"} disabled={busy} onClick={discard}>
+              Discard
+            </button>
+          </div>
+        </>
       ) : (
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-[13px] text-muted">This task isn&apos;t open for proposals any more.</p>
@@ -381,8 +451,10 @@ function ActionCard({
   signedIn,
   myHandle,
   myPending,
+  draftWaiting,
   amAssignee,
   onPropose,
+  onReviewDraft,
   onWithdraw,
   onAskSignIn,
   onVoted,
@@ -392,8 +464,10 @@ function ActionCard({
   signedIn: boolean;
   myHandle: string | undefined;
   myPending: boolean;
+  draftWaiting: boolean;
   amAssignee: boolean;
   onPropose: () => void;
+  onReviewDraft: () => void;
   onWithdraw: () => void;
   onAskSignIn: (title: string) => void;
   onVoted: () => Promise<void>;
@@ -462,6 +536,21 @@ function ActionCard({
   }
   if (state === "assigned" || state === "in_review") {
     return <p className="text-[13px] text-muted">Someone is on this. You can still follow the thread and help in the discussion.</p>;
+  }
+  if (draftWaiting && !myPending) {
+    return (
+      <>
+        <Note tone="info">
+          <b>Your agent drafted a proposal.</b> Nobody sees it until you confirm it.
+        </Note>
+        <button type="button" className={`${buttonAccent} h-12 w-full`} onClick={onReviewDraft}>
+          Review your agent&apos;s draft
+        </button>
+        <button type="button" className={`${textLink} justify-self-start text-[13px] text-muted`} onClick={onPropose}>
+          Write a different proposal instead
+        </button>
+      </>
+    );
   }
   if (myPending) {
     return (
@@ -661,7 +750,7 @@ function Facts({ task }: { task: PublicTaskDetail }) {
 }
 
 const EVENT_TEXT: Record<PublicTaskEvent["kind"], string> = {
-  created: "Created",
+  created: "Opened",
   published: "Opened",
   suggested: "Suggested",
   info_requested: "More info asked",
@@ -706,12 +795,30 @@ const FUTURE: Record<BoardState, string[]> = {
   closed: [],
 };
 
+/** The task's events, starting with when it opened (from `createdAt` when no event says so). */
+function withStart(task: PublicTaskDetail): PublicTaskEvent[] {
+  const opened = task.events.some((e) => e.kind === "created" || e.kind === "published" || e.kind === "suggested");
+  if (opened) return task.events;
+  const start: PublicTaskEvent = {
+    kind: task.kind === "task" ? "published" : "suggested",
+    from: null,
+    to: null,
+    actor: task.kind === "task" ? null : task.suggestedBy,
+    note: null,
+    prUrl: null,
+    viaAgent: null,
+    createdAt: task.createdAt,
+  };
+  return [start, ...task.events];
+}
+
 function Timeline({ task, state }: { task: PublicTaskDetail; state: BoardState }) {
+  const events = withStart(task);
   return (
     <div className="grid gap-3 border border-line bg-paper p-5">
       <h2 className="text-sm font-semibold">Status</h2>
       <ol className="grid">
-        {task.events.map((e, i) => (
+        {events.map((e, i) => (
           <li key={i} className="relative grid grid-cols-[14px_minmax(0,1fr)] gap-2.5 pb-3 text-[13px]">
             <span aria-hidden="true" className={`mt-1.5 size-[9px] ${EVENT_DOT[e.kind]}`} />
             <span>
@@ -722,7 +829,7 @@ function Timeline({ task, state }: { task: PublicTaskDetail; state: BoardState }
               <br />
               <span className="text-muted">{formatDate(e.createdAt)}</span>
             </span>
-            {i < task.events.length - 1 || FUTURE[state].length ? <span aria-hidden="true" className="absolute top-[18px] bottom-0 left-1 w-px bg-line" /> : null}
+            {i < events.length - 1 || FUTURE[state].length ? <span aria-hidden="true" className="absolute top-[18px] bottom-0 left-1 w-px bg-line" /> : null}
           </li>
         ))}
         {FUTURE[state].map((step, i) => (

@@ -16,10 +16,12 @@ import { Pills } from "@/components/board/dialog";
 import { formatDate } from "@/components/board/labels";
 import { Check, SignInPanel } from "@/components/board/sign-in";
 import { buttonInk, buttonSmallDanger, buttonSmallOutline, field, fieldLabel } from "@/components/ui";
-import { api } from "@/lib/contrib-api";
+import { api, apiBase } from "@/lib/contrib-api";
 import { useSession, useToast } from "@/lib/session";
 
-const MCP_URL = "https://api.novawerk.io/mcp";
+/** The API this site talks to (NEXT_PUBLIC_API_URL), so local and production show their own address. */
+const API_URL = apiBase() ?? "https://api.novawerk.io";
+const MCP_URL = `${API_URL}/mcp`;
 
 const SCOPE_TEXT: Record<TokenScope, { what: string; note?: string }> = {
   "tasks:read": { what: "Read your tasks and guides", note: "Always on. Public reads need no token at all." },
@@ -223,7 +225,18 @@ function NewToken({ full, onCreated }: { full: boolean; onCreated: (t: CreatedTo
           <label htmlFor={nameId} className={fieldLabel}>
             Name <span className="text-[13px] font-normal text-muted">where it lives, e.g. claude-laptop</span>
           </label>
-          <input id={nameId} value={name} maxLength={60} onChange={(e) => setName(e.target.value)} className={`${field} h-10`} aria-invalid={error ? true : undefined} />
+          <input
+            id={nameId}
+            value={name}
+            maxLength={60}
+            onChange={(e) => setName(e.target.value)}
+            className={`${field} h-10`}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={`${nameId}-public`}
+          />
+          <p id={`${nameId}-public`} className="text-[13px] text-muted">
+            Shown publicly next to what your agent posts. Don&apos;t put anything private in it.
+          </p>
         </div>
         <Pills
           name="expires"
@@ -313,7 +326,7 @@ function Connect() {
   --header "Authorization: Bearer $NOVAWERK_TOKEN"`}</Code>
       <p className="text-[13px] text-muted">Plain HTTP works too:</p>
       <Code>{`curl -H "Authorization: Bearer $NOVAWERK_TOKEN" \\
-  https://api.novawerk.io/contrib/me`}</Code>
+  ${API_URL}/contrib/me`}</Code>
       <div className="overflow-x-auto border border-line">
         <table className="w-full border-collapse text-sm">
           <thead>

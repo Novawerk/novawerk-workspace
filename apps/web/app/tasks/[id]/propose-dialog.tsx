@@ -15,14 +15,15 @@ import { useId, useRef, useState } from "react";
 
 import { Markdown } from "@/components/board/bits";
 import { Dialog, dialogButton, dialogButtonAccent, dialogField, Pills } from "@/components/board/dialog";
-import { ETA_LABELS, plural } from "@/components/board/labels";
+import { ETA_LABELS, plural, TASK_LIMIT_LINE } from "@/components/board/labels";
 import { textLink } from "@/components/ui";
 import { track } from "@/lib/analytics";
 import { api, githubStartUrl } from "@/lib/contrib-api";
 
 /**
  * "Propose a plan": what you'll change, how you'll test it, a rough timeline, the task's done-when
- * lines, what happens next, and one required tick. Also edits a pending proposal (prefilled).
+ * lines, what happens next, and one required tick. Also edits a pending proposal or an agent's
+ * draft (prefilled). Closing with unsent changes asks first, so typed text never vanishes silently.
  */
 export function ProposeDialog({
   open,
@@ -30,6 +31,7 @@ export function ProposeDialog({
   task,
   me,
   mine,
+  isDraft = false,
   held,
   onAskInThread,
   onSaved,
@@ -38,15 +40,19 @@ export function ProposeDialog({
   onClose: () => void;
   task: PublicTaskDetail;
   me: ContributorMe;
-  /** My pending proposal on this task: the dialog edits it. */
-  mine: PublicProposal | null;
+  /** My pending proposal on this task, or an agent's draft: the dialog edits it. */
+  mine: Pick<PublicProposal, "id" | "approach" | "testing" | "eta"> | null;
+  /** `mine` is an agent's draft: saving keeps it a draft until it is confirmed. */
+  isDraft?: boolean;
   /** Tasks I hold now (other than this one). */
   held: PublicTask[];
   onAskInThread: () => void;
   onSaved: (edit: boolean) => void | Promise<void>;
 }) {
   // Mounted only while open, so each opening starts from the proposal as it is now.
-  return open ? <ProposeForm task={task} me={me} mine={mine} held={held} onClose={onClose} onAskInThread={onAskInThread} onSaved={onSaved} /> : null;
+  return open ? (
+    <ProposeForm task={task} me={me} mine={mine} isDraft={isDraft} held={held} onClose={onClose} onAskInThread={onAskInThread} onSaved={onSaved} />
+  ) : null;
 }
 
 function Meta({ task }: { task: PublicTaskDetail }) {
@@ -63,6 +69,7 @@ function ProposeForm({
   task,
   me,
   mine,
+  isDraft,
   held,
   onClose,
   onAskInThread,
@@ -70,7 +77,8 @@ function ProposeForm({
 }: {
   task: PublicTaskDetail;
   me: ContributorMe;
-  mine: PublicProposal | null;
+  mine: Pick<PublicProposal, "id" | "approach" | "testing" | "eta"> | null;
+  isDraft: boolean;
   held: PublicTask[];
   onClose: () => void;
   onAskInThread: () => void;
@@ -84,6 +92,7 @@ function ProposeForm({
   const [issues, setIssues] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [askDiscard, setAskDiscard] = useState(false);
   const criteriaRef = useRef<HTMLDetailsElement>(null);
   const approachId = useId();
   const testingId = useId();
@@ -91,6 +100,12 @@ function ProposeForm({
 
   const others = task.proposals.filter((p) => p.status === "pending" && p.id !== mine?.id).length;
   const canSend = approach.trim().length > 0 && ack && !busy;
+  const dirty = approach !== (mine?.approach ?? "") || testing !== (mine?.testing ?? "") || eta !== (mine?.eta ?? "week");
+  /** Escape, the backdrop, × and Cancel all come here: with unsent changes, ask first. */
+  const requestClose = () => {
+    if (dirty && !busy) setAskDiscard(true);
+    else onClose();
+  };
 
   // Proposing needs a linked GitHub account (we match the pull request to the task).
   if (!me.canWork) {
@@ -164,24 +179,42 @@ function ProposeForm({
   return (
     <Dialog
       open
-      onClose={onClose}
+      onClose={requestClose}
       title={task.title}
       meta={<Meta task={task} />}
       as="form"
       onSubmit={send}
       footer={
+        askDiscard ? (
+          <>
+            <span role="alert" className="text-sm sm:mr-auto">
+              Discard what you wrote?
+            </span>
+            <button type="button" className={dialogButton} onClick={() => setAskDiscard(false)} autoFocus>
+              Keep editing
+            </button>
+            <button type="button" className={`${dialogButton} text-danger hover:border-danger`} onClick={onClose}>
+              Discard
+            </button>
+          </>
+        ) : (
         <>
-          <button type="button" className={dialogButton} onClick={onClose}>
+          <button type="button" className={dialogButton} onClick={requestClose}>
             Cancel
           </button>
           <button type="submit" disabled={!canSend} className={dialogButtonAccent}>
-            {busy ? "Sending…" : edit ? "Save changes" : "Send proposal"}
+            {busy ? "Sending…" : isDraft ? "Save draft" : edit ? "Save changes" : "Send proposal"}
           </button>
         </>
+        )
       }
     >
       <p className="text-[13px] text-muted">
-        {edit ? "Edit your plan. It stays pending until a member replies." : "Tell us how you'd do it. A few sentences each is enough. Markdown works."}
+        {isDraft
+          ? "Edit your agent's draft. It stays a draft until you confirm it on the task."
+          : edit
+            ? "Edit your plan. It stays pending until a member replies."
+            : "Tell us how you'd do it. A few sentences each is enough. Markdown works."}
       </p>
 
       <div className="grid gap-1.5">
@@ -248,7 +281,7 @@ function ProposeForm({
       <ul aria-label="Before you send" className="grid gap-2 rounded-xl bg-subtle px-4 py-3.5 text-sm">
         <Fact>{others ? `${plural(others, "other")} proposed. A member picks one plan.` : "You're the first to propose."}</Fact>
         <Fact>
-          You can hold {TASK_LIMITS.tasksInProgress} task at a time ({TASK_LIMITS.tasksInProgressAfterFirstMerge} after your first merge).
+          {TASK_LIMIT_LINE}
           {held.length ? (
             <>
               {" "}

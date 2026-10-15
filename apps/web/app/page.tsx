@@ -51,8 +51,7 @@ export default function HomePage() {
           </li>
           <li>
             <EntryCard
-              target="contribute"
-              href="/tasks"
+              target="tasks"
               title="Contribute to our tools"
               body="Pick an open task on the software we run on: this site, the admin panel, the agents. Your name goes on what you ship."
               cta="See open tasks"

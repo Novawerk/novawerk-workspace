@@ -6,6 +6,9 @@ import type { Block, Person } from "../builders/types";
 
 export type ProjectRef = { slug: string; title: string };
 
+/** Below this many merged tasks the builders scene looks empty: pages show it smaller or not at all. */
+export const SCENE_MIN_BLOCKS = 10;
+
 /**
  * A card on the wall. Initiators (Members who started a project and opted in) come with
  * `kind: "initiator"` and their project; older API answers have neither field.

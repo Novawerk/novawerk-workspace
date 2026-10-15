@@ -2,7 +2,9 @@ import type { PublicContributor, PublicTask } from "@nw/contracts";
 import { describe, expect, it } from "vitest";
 
 import type { Block } from "../builders/types";
-import { boardState, formatDate, maskEmail, personLabel, prLabel, safeHref } from "./labels";
+import { safeReturnPath } from "../../lib/contrib-api";
+
+import { boardState, formatDate, maskEmail, personLabel, prLabel, safeHref, safeMarkdownHref } from "./labels";
 import { firstContributions, scenePeople } from "./wall";
 
 const task = (patch: Partial<PublicTask>): Pick<PublicTask, "status" | "proposalCount"> => ({ status: "open", proposalCount: 0, ...patch });
@@ -67,5 +69,23 @@ describe("the wall", () => {
   });
   it("turns contributors into the scene's people", () => {
     expect(scenePeople([contributor("lena-k")])).toEqual([{ handle: "lena-k", name: "lena-k", avatar: null, kind: "contributor" }]);
+  });
+});
+
+describe("links people control", () => {
+  it("sends people back only to a path on this site after signing in", () => {
+    expect(safeReturnPath("/tasks/NW-5")).toBe("/tasks/NW-5");
+    expect(safeReturnPath("/tasks?mine=1")).toBe("/tasks?mine=1");
+    for (const bad of ["//example.com", "/\\example.com", "/\t/example.com", "/\n/x", "https://example.com", "javascript:alert(1)", "", null]) {
+      expect(safeReturnPath(bad)).toBe("/tasks");
+    }
+  });
+  it("keeps Markdown links to http(s), mailto and same-site paths", () => {
+    expect(safeMarkdownHref("https://example.com")).toEqual({ href: "https://example.com", external: true });
+    expect(safeMarkdownHref("MAILTO:a@example.com")?.external).toBe(true);
+    expect(safeMarkdownHref("/tasks/NW-1")).toEqual({ href: "/tasks/NW-1", external: false });
+    for (const bad of ["//evil.example", "/\\evil.example", "javascript:alert(1)", "data:text/html,x", "tasks"]) {
+      expect(safeMarkdownHref(bad)).toBeNull();
+    }
   });
 });

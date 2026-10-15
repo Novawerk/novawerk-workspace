@@ -17,6 +17,7 @@ export function Dialog({
   width = "sm:max-w-[620px]",
   as = "div",
   onSubmit,
+  dismissible = true,
   children,
 }: {
   open: boolean;
@@ -29,6 +30,8 @@ export function Dialog({
   /** "form": the body and footer are one form (Enter in a field submits it). */
   as?: "div" | "form";
   onSubmit?: (event: React.FormEvent<HTMLFormElement>) => void;
+  /** false: no ×, and Escape or the backdrop do nothing (the footer has the only ways out). */
+  dismissible?: boolean;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -41,7 +44,12 @@ export function Dialog({
     if (open && !dialog.open) {
       dialog.showModal();
       // showModal() moves focus itself; a field marked data-autofocus takes it back.
-      dialog.querySelector<HTMLElement>("[data-autofocus]")?.focus();
+      const first = dialog.querySelector<HTMLElement>("[data-autofocus]");
+      first?.focus();
+      // Prefilled text (editing a proposal): the caret goes to the end, not before the first word.
+      if (first instanceof HTMLTextAreaElement || first instanceof HTMLInputElement) {
+        first.setSelectionRange(first.value.length, first.value.length);
+      }
       const { overflow } = document.documentElement.style;
       document.documentElement.style.overflow = "hidden";
       return () => {
@@ -66,11 +74,13 @@ export function Dialog({
             </p>
           ) : null}
         </div>
-        <button type="button" onClick={onClose} aria-label="Close" className="-mt-1 -mr-2 grid size-9 shrink-0 place-items-center rounded-full hover:bg-ink/8">
-          <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
+        {dismissible ? (
+          <button type="button" onClick={onClose} aria-label="Close" className="-mt-1 -mr-2 grid size-9 shrink-0 place-items-center rounded-full hover:bg-ink/8">
+            <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        ) : null}
       </header>
       <div className="grid content-start gap-5 overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
       {footer ? (
@@ -88,11 +98,11 @@ export function Dialog({
       aria-describedby={meta ? metaId : undefined}
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        if (dismissible) onClose();
       }}
       onClick={(event) => {
         // A click on the backdrop (the dialog element itself, outside the panel) closes it.
-        if (event.target === ref.current) onClose();
+        if (dismissible && event.target === ref.current) onClose();
       }}
       className={`m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 text-ink backdrop:bg-ink/45 sm:m-auto sm:mt-14 sm:h-auto sm:max-h-[calc(100dvh-7rem)] sm:w-[calc(100%-2rem)] ${width}`}
     >

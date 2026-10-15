@@ -41,15 +41,23 @@ async function read<T>(path: string): Promise<Read<T>> {
 }
 
 /**
- * Refreshed every 5 minutes (the API marks `tasks` / `contributors` stale after a merge or a
- * profile change, and signed-in viewers fetch a task fresh in the browser), which keeps the
- * server's reads well under the API's anonymous limit (600 an hour per IP). A failed read is
- * tried again after 30 seconds. Both stay long enough (stale ≥ 30 s, expire ≥ 5 min) to be part
- * of the prerendered page, not a dynamic hole.
+ * Task reads refresh every minute; signed-in viewers also fetch a task fresh in the browser, and
+ * the API marks `tasks` stale after a merge. The website's servers send WEB_READ_KEY, so this
+ * doesn't run into the API's anonymous limit. A failed read is tried again after 30 seconds.
+ * Every lifetime stays long enough (stale ≥ 30 s, expire ≥ 5 min) to be part of the prerendered
+ * page, not a dynamic hole.
  */
 function lifetime(ok: boolean) {
-  if (ok) cacheLife({ stale: 300, revalidate: 300, expire: 3600 });
+  if (ok) cacheLife("minutes");
   else cacheLife({ stale: 30, revalidate: 30, expire: 300 });
+}
+
+/**
+ * Profiles and the wall change when someone edits their profile. Until the API revalidates
+ * `contributors` after every profile change (#14), they refresh every 30 seconds.
+ */
+function contributorLifetime(ok: boolean) {
+  cacheLife({ stale: 30, revalidate: 30, expire: ok ? 3600 : 300 });
 }
 
 /** One page of GET /public/tasks; `query` is a query string without "?". null: the API can't answer. */
@@ -90,7 +98,7 @@ export async function getContributorPage(query = ""): Promise<PublicContributorP
   "use cache";
   cacheTag(TASKS_TAG, CONTRIBUTORS_TAG);
   const res = await read<PublicContributorPage>(`/public/contributors${query ? `?${query}` : ""}`);
-  lifetime(res.ok);
+  contributorLifetime(res.ok);
   return res.ok ? res.data : null;
 }
 
@@ -99,7 +107,7 @@ export async function getProfile(handle: string): Promise<PublicContributorProfi
   "use cache";
   cacheTag(TASKS_TAG, CONTRIBUTORS_TAG);
   const res = await read<PublicContributorProfile>(`/public/contributors/${encodeURIComponent(handle)}`);
-  lifetime(res.ok || res.notFound);
+  contributorLifetime(res.ok || res.notFound);
   return res.ok ? res.data : res.notFound ? "missing" : null;
 }
 

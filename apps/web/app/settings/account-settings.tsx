@@ -1,6 +1,6 @@
 "use client";
 
-import { accountDeleteInput, type ContributorMe, type MyProposal } from "@nw/contracts";
+import { accountDeleteInput, type ContributorMe, type ContributorTokenInfo, type MyProposal } from "@nw/contracts";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useId, useState } from "react";
@@ -86,15 +86,25 @@ function Account({ me }: { me: ContributorMe }) {
         <p className="text-[13px] text-muted">Only you see your email. We use it for sign-in codes and task notices.</p>
       </section>
 
-      <Newsletter me={me} />
+      <Notifications me={me} />
       <Privacy me={me} />
       <DeleteAccount me={me} />
     </>
   );
 }
 
-function Newsletter({ me }: { me: ContributorMe }) {
+function Notifications({ me }: { me: ContributorMe }) {
+  const { setMe } = useSession();
   const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const save = async (patch: { notifyReplies?: boolean; notifyReminders?: boolean }) => {
+    setBusy(true);
+    const res = await api<ContributorMe>("/contrib/me/profile", { method: "PATCH", body: patch });
+    setBusy(false);
+    if (!res.ok) return toast(res.error);
+    setMe(res.data);
+    toast("Saved.");
+  };
   const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
   const subscribe = async () => {
     if (!me.email) return;
@@ -109,9 +119,21 @@ function Newsletter({ me }: { me: ContributorMe }) {
         Notifications
       </h2>
       <p className="text-sm">
-        We email you when a member decides on your proposal, when your task needs a nudge, and for sign-in codes. Pull request reviews come from
-        GitHub, as usual.
+        We email {me.email ? maskEmail(me.email) : "your address"} about your own account and tasks: sign-in codes, a member&apos;s decision on your
+        proposal, a task you hold being released or closed, what happened to a suggestion of yours, Werk you earn, and a goodbye when you delete the
+        account. Pull request reviews come from GitHub, as usual.
       </p>
+      <div className="grid gap-3 border-t border-line pt-4">
+        <h3 className="text-sm font-semibold">You can turn these off</h3>
+        <Check checked={me.notifyReplies} disabled={busy} onChange={(v) => void save({ notifyReplies: v })}>
+          Replies to your posts and on your tasks <span className="block text-[13px] text-muted">At most one email per task an hour.</span>
+        </Check>
+        <Check checked={me.notifyReminders} disabled={busy} onChange={(v) => void save({ notifyReminders: v })}>
+          Reminders when a task you hold has had no activity for 7 days
+          <span className="block text-[13px] text-muted">We still release it after 14 days without activity.</span>
+        </Check>
+        <p className="text-[13px] text-muted">Every reply and reminder email also has a one-click link to turn it off.</p>
+      </div>
       <div className="grid gap-2 border-t border-line pt-4">
         <h3 className="text-sm font-semibold">Monthly newsletter</h3>
         <p className="text-[13px] text-muted">Posts, open tasks and who shipped what. We ask you to confirm by email first; every issue has a one-click unsubscribe.</p>
@@ -146,9 +168,22 @@ function Privacy({ me }: { me: ContributorMe }) {
   };
 
   const download = async () => {
-    const [mine, proposals] = await Promise.all([api<ContributorMe>("/auth/contributor/me"), api<MyProposal[]>("/contrib/me/proposals")]);
+    // Everything kept about the account that only its owner can read. Posts, suggestions and the
+    // tasks you worked on are public on the board already.
+    const [mine, proposals, votes, tokens] = await Promise.all([
+      api<ContributorMe>("/auth/contributor/me"),
+      api<MyProposal[]>("/contrib/me/proposals"),
+      api<{ taskIds: string[] }>("/contrib/me/votes"),
+      api<ContributorTokenInfo[]>("/contrib/tokens"),
+    ]);
     if (!mine.ok) return toast(mine.error);
-    const data = { exportedFrom: "novawerk.io", account: mine.data, proposals: proposals.ok ? proposals.data : [] };
+    const data = {
+      exportedFrom: "novawerk.io",
+      account: mine.data,
+      proposals: proposals.ok ? proposals.data : [],
+      votes: votes.ok ? votes.data.taskIds : [],
+      tokens: tokens.ok ? tokens.data : [],
+    };
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
     const a = document.createElement("a");
     a.href = url;

@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "Suggest a task",
   description: "Suggest an improvement or report a bug in Novawerk's own tools: the site, the admin panel, the API or the agents.",
   alternates: { canonical: "/tasks/suggest" },
+  robots: { index: false },
 };
 
 export default function SuggestPage() {
