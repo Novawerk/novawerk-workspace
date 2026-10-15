@@ -1,15 +1,29 @@
 import { random, useCurrentFrame } from "remotion";
 
-import { Lockup, Rich } from "../../../kit/brand";
+import { Lockup } from "../../../kit/brand";
 import { monoFamily } from "../../../kit/fonts";
 import { Stage, progress } from "../../../kit/motion";
 import { copy } from "../copy";
+import { Banner, BoxCaption, Bricks, Builder, C, Mosaic, OUT, PrCard, pop, type PanelSpec } from "../collage";
 import { CUES, TOWER, color, ease, sec } from "../theme";
 
 // 0:29–0:40 · The tower: the pixel star blinks high in the dark, the camera drops through the
 // dashed outlines of blocks nobody has built yet and lands on the one real block, NW-3, with a
 // thud; pixel people walk around the base. Then: the next one can be yours.
 export const SHOT4_FRAMES = sec(CUES.end - CUES.tower);
+
+// The collage around the website's pixel tower: patterned panels down both sides, stickers and boxed
+// captions; the tower keeps its own pixel look in the middle.
+const SIDES: readonly PanelSpec[] = [
+  { x: 0, y: 0, w: 190, h: 360, fill: { kind: "checker", a: C.pink, b: C.paper, size: 34 } },
+  { x: 0, y: 360, w: 190, h: 420, fill: { kind: "waves", a: C.lime, b: C.purple, size: 38 } },
+  { x: 0, y: 780, w: 190, h: 360, fill: { kind: "dots", a: C.ink, b: C.yellow, size: 30 } },
+  { x: 0, y: 1140, w: 190, h: 300, fill: { kind: "stripes", a: C.cyan, b: C.paper, size: 36 } },
+  { x: 890, y: 0, w: 190, h: 300, fill: { kind: "halftone", a: C.orange, b: C.yellow, size: 30 } },
+  { x: 890, y: 300, w: 190, h: 460, fill: { kind: "grid", a: C.ink, b: C.cyan, size: 32 } },
+  { x: 890, y: 760, w: 190, h: 380, fill: { kind: "checker", a: C.purple, b: C.paper, size: 30 } },
+  { x: 890, y: 1140, w: 190, h: 300, fill: { kind: "dots", a: C.paper, b: C.pink, size: 34 } },
+];
 
 const S = 84;
 const H = 72;
@@ -40,22 +54,6 @@ const PEOPLE = [
   { gx: 0.6, gy: 4.1, body: color.paper, axis: 1 },
   { gx: 2.8, gy: -1.6, body: color.signal, axis: 0 },
 ] as const;
-
-function Caption({ lines, f, at, until }: { lines: readonly string[]; f: number; at: number; until?: number }) {
-  if (f < sec(at) || (until !== undefined && f >= sec(until))) return null;
-  return (
-    <div style={{ position: "absolute", left: 72, right: 40, top: 90 }}>
-      {lines.map((line, k) => {
-        const p = progress(f, sec(at) + k * 3, 7, ease.spring);
-        return (
-          <div key={line} style={{ fontSize: 112, fontWeight: 900, lineHeight: 1.14, letterSpacing: -3, whiteSpace: "nowrap", opacity: p, transform: `translateY(${(1 - p) * 24}px)` }}>
-            <Rich text={line} accent={color.signal} />
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 export function Shot4Tower() {
   const f = useCurrentFrame();
@@ -104,9 +102,9 @@ export function Shot4Tower() {
         const walk = Math.sin((f - land) * 0.05 + i * 1.7) * 0.7;
         const [fx, fy] = iso(p.gx + (p.axis ? walk : 0), p.gy + (p.axis ? 0 : walk), 0);
         const step = Math.floor(f / 5 + i) % 2;
-        const pop = progress(f, land + 4 + i * 3, 6, ease.spring);
+        const rise = progress(f, land + 4 + i * 3, 6, ease.spring);
         return (
-          <g key={i} transform={`translate(${fx - 3 * px} ${fy - 7 * px + (1 - pop) * 40})`} opacity={pop}>
+          <g key={i} transform={`translate(${fx - 3 * px} ${fy - 7 * px + (1 - rise) * 40})`} opacity={rise}>
             <rect x={0} y={7 * px} width={6 * px} height={px} fill="#000" opacity={0.45} />
             {PERSON.flatMap((row, r) =>
               [...row].map((ch, c) => (ch === "." ? null : <rect key={`${r}${c}`} x={c * px} y={r * px + (ch === "l" && step && c === 2 ? -px : 0)} width={px} height={px} fill={ch === "h" ? "#e8d9c4" : ch === "b" ? p.body : "#9a9a9a"} />)),
@@ -116,7 +114,7 @@ export function Shot4Tower() {
       })
     : null;
   const label = progress(f, land + 3, 6, ease.spring);
-  const end = progress(f, sec(TOWER.end), 10);
+  const end = f >= sec(TOWER.end) ? 1 : 0;
 
   return (
     <Stage bg={color.ink} fg={color.paper}>
@@ -135,16 +133,25 @@ export function Shot4Tower() {
           <div style={{ position: "absolute", left: brick.tx - 90, top: brick.ty - 120, width: 180, textAlign: "center", fontFamily: monoFamily, fontSize: 44, fontWeight: 700, color: color.ink, background: color.signal, padding: "6px 0", transform: `scale(${label})` }}>{t.brick}</div>
         ) : null}
       </div>
-      <Caption lines={t.first} f={f} at={TOWER.first} until={TOWER.nw3} />
-      <Caption lines={t.nw3} f={f} at={TOWER.nw3} until={TOWER.next} />
-      {f >= sec(TOWER.nw3) && f < sec(TOWER.next) ? (
-        <div style={{ position: "absolute", left: 72, top: 370, fontFamily: monoFamily, fontSize: 32, color: "#cfcfcf", opacity: progress(f, sec(TOWER.nw3) + 6, 7) }}>{t.nw3Title}</div>
-      ) : null}
-      <Caption lines={t.next} f={f} at={TOWER.next} />
+      <Mosaic panels={SIDES} f={f + 20} seed="tw" />
+      <div style={{ ...pop(f, land + 8, -6), position: "absolute", left: 20, top: 1050 }}>
+        <Builder h={240} body={C.orange} hat={C.lime} brick={C.cyan} />
+      </div>
+      <div style={{ ...pop(f, land + 12, 4), position: "absolute", left: 900, top: 1000 }}>
+        <Bricks w={170} />
+      </div>
+      <BoxCaption lines={t.first} f={f} at={TOWER.first} until={TOWER.nw3} size={100} bg={C.ink} fg={C.paper} accent={C.signal} shadow={C.pink} style={{ left: 40, top: 60, border: `${OUT}px solid ${C.paper}` }} />
+      <BoxCaption lines={t.nw3} f={f} at={TOWER.nw3} until={TOWER.next} size={110} bg={C.ink} fg={C.paper} accent={C.signal} shadow={C.yellow} style={{ left: 40, top: 60, border: `${OUT}px solid ${C.paper}` }} />
+      {f >= sec(TOWER.nw3) + 6 && f < sec(TOWER.next) ? <PrCard w={520} title={t.nw3Title} style={{ left: 40, top: 400, ...pop(f, sec(TOWER.nw3) + 6, -2) }} /> : null}
+      <BoxCaption lines={t.next} f={f} at={TOWER.next} size={110} bg={C.yellow} fg={C.ink} accent={C.green} shadow={C.pink} style={{ left: 40, top: 60 }} />
       {end > 0 ? (
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 70, display: "grid", justifyItems: "center", gap: 22, opacity: end, transform: `translateY(${(1 - end) * 20}px)` }}>
-          <Lockup height={54} tone="dark" />
-          <div style={{ fontSize: 44, fontWeight: 700, color: "#cfcfcf" }}>{t.end}</div>
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 60, display: "grid", justifyItems: "center", gap: 26, ...pop(f, sec(TOWER.end), 0) }}>
+          <div style={{ background: C.paper, border: `${OUT}px solid ${C.ink}`, boxShadow: `10px 10px 0 ${C.pink}`, padding: "16px 28px" }}>
+            <Lockup height={56} />
+          </div>
+          <Banner bg={C.cyan} size={42} shadow={C.ink} pad={[8, 22]}>
+            {t.end}
+          </Banner>
         </div>
       ) : null}
     </Stage>

@@ -15,7 +15,7 @@ const shots = [
   { id: "Shot5Tower", component: Shot4Tower, frames: SHOT4_FRAMES },
 ];
 
-// 小红书 uses the first frame as the thumbnail: frame 0 shows the cover (成员申请 + 已关闭).
+// 小红书 uses the first frame as the thumbnail: frame 0 shows the cover (成员申请 + 已关闭 + the banner).
 export function Root() {
-  return <VideoRoot shots={shots} cover={Cover} formats={["3x4"]} poster={{ shot: "Shot1Hook", frame: 28 }} />;
+  return <VideoRoot shots={shots} cover={Cover} formats={["3x4"]} poster={{ shot: "Shot1Hook", frame: 60 }} />;
 }

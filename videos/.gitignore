@@ -3,3 +3,4 @@ node_modules/
 projects/*/public/*.wav
 projects/*/out/stills/
 projects/*/out/shots/
+projects/*/out/sketches/
