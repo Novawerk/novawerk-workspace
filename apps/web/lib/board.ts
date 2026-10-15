@@ -39,11 +39,14 @@ async function read<T>(path: string): Promise<Read<T>> {
 }
 
 /**
- * Refreshed every minute; a failed read is tried again after 30 seconds. Both stay long enough
- * (stale ≥ 30 s, expire ≥ 5 min) to be part of the prerendered page, not a dynamic hole.
+ * Refreshed every 5 minutes (the API marks `tasks` / `contributors` stale after a merge or a
+ * profile change, and signed-in viewers fetch a task fresh in the browser), which keeps the
+ * server's reads well under the API's anonymous limit (600 an hour per IP). A failed read is
+ * tried again after 30 seconds. Both stay long enough (stale ≥ 30 s, expire ≥ 5 min) to be part
+ * of the prerendered page, not a dynamic hole.
  */
 function lifetime(ok: boolean) {
-  if (ok) cacheLife("minutes");
+  if (ok) cacheLife({ stale: 300, revalidate: 300, expire: 3600 });
   else cacheLife({ stale: 30, revalidate: 30, expire: 300 });
 }
 
