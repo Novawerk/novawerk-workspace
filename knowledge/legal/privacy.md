@@ -63,8 +63,10 @@ ourselves, without cookies and without an analytics company.
   country and region come from your IP address, which our hosting provider
   reads anyway to deliver the page; we keep only the result.
 - **How we tell visits apart:** your browser makes up a random number when you
-  open the site and forgets it when you close the tab. Nothing is stored on
-  your device, so we can't recognise you when you come back.
+  open the site and forgets it when you close the tab. Counting stores nothing
+  on your device, so we can't recognise you when you come back. (A contributor
+  account keeps one small flag in your browser; see "When you make a
+  contributor account". Counting never reads it.)
 - **Why:** to see which pages people read, how they find us, and where the
   pitch chat and the task board get stuck.
 - **Legal basis:** Art. 6(1)(f) GDPR — our legitimate interest in knowing how
@@ -158,10 +160,8 @@ you. That makes a contributor account. It isn't Novawerk membership.
 
 - **What we keep about you:** your handle and display name; your email address
   if you sign in with a code; your GitHub account's number, login name and
-  picture link if you sign in with GitHub, plus the primary email address
-  GitHub has verified for you, so the notices below reach you (we read only
-  your public GitHub profile and that address, and never keep your GitHub
-  token); what you write on your profile
+  picture link if you sign in with GitHub (we read only your public GitHub
+  profile and never keep your GitHub token); what you write on your profile
   (bio, about, links, colours); whether your profile is public and on the
   contributors wall; when you accepted the community pledge.
 - **What you do on the board:** your proposals, posts and replies, suggestions,
@@ -202,6 +202,13 @@ signed in for 30 days. Signing in with GitHub also sets `nw_github_state` for
 10 minutes, which checks that the answer from GitHub belongs to your sign-in.
 Both are strictly necessary for the account to work (§ 25(2) no. 2 TDDDG).
 Sign-in codes are stored only as a hash and stop working after 10 minutes.
+
+The website also keeps one flag in your browser's local storage,
+`nw:contributor`. It holds just "1": it is set when you sign in and removed
+when you sign out, and it lets the site show your account in the header on
+every page. Without it, pages outside the task board don't ask whether you are
+signed in. It contains nothing about you and is never sent anywhere. This too
+is strictly necessary for the account to work (§ 25(2) no. 2 TDDDG).
 
 In Settings you can download your data as a file: your account and profile,
 your notification settings, your proposals (with the private notes on them),

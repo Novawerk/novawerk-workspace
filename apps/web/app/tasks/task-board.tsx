@@ -90,10 +90,13 @@ function BoardShell({
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState(filters.q);
   const [syncedQ, setSyncedQ] = useState(filters.q);
-  // The URL changed from outside the box (Back, a cleared filter): show its search.
+  /** The last search the box itself put in the URL. */
+  const [sentQ, setSentQ] = useState(filters.q);
+  // The URL changed from outside the box (Back, a cleared filter): show its search. When the
+  // change is the box's own debounced update, keep what was typed since.
   if (syncedQ !== filters.q) {
     setSyncedQ(filters.q);
-    setQuery(filters.q);
+    if (filters.q !== sentQ) setQuery(filters.q);
   }
   const searchId = useId();
   const skillsId = useId();
@@ -102,7 +105,10 @@ function BoardShell({
   // Typing in the search box updates the URL after a short pause.
   useEffect(() => {
     if (!setFilters || query === filters.q) return;
-    const t = setTimeout(() => setFilters({ ...filters, q: query }, "search"), 350);
+    const t = setTimeout(() => {
+      setSentQ(query);
+      setFilters({ ...filters, q: query }, "search");
+    }, 350);
     return () => clearTimeout(t);
   }, [query, filters, setFilters]);
 
