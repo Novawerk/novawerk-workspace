@@ -5,12 +5,18 @@
 
 import {
   MAX_RESUME_BYTES,
+  MAX_SUGGESTION_SCREENSHOT_BYTES,
   RESUME_CONTENT_TYPES,
+  SUGGESTION_SCREENSHOT_TYPES,
   type ApiError,
   type ResumeContentType,
   type ResumeRef,
   type ResumeUploadTicket,
+  type SuggestionScreenshotTicket,
+  type SuggestionScreenshotType,
 } from "@nw/contracts";
+
+import { api } from "./contrib-api";
 
 /** What the file picker offers. Some systems leave the type of Word files empty, so extensions too. */
 export const RESUME_ACCEPT = [...RESUME_CONTENT_TYPES, ".pdf", ".doc", ".docx"].join(",");
@@ -90,4 +96,64 @@ export async function uploadResume(file: File, onProgress?: (percent: number) =>
     throw new UploadError(TRY_AGAIN);
   }
   return { pathname: ticket.pathname, name: file.name.trim().slice(0, 200) || "CV" };
+}
+
+// ─── Suggestion screenshots ──────────────────────────────────────────────────
+// A contributor may attach one screenshot to a suggestion (POST /contrib/uploads/suggestion-
+// screenshot gives the ticket, with their session). It goes to the private store and shows on
+// the task only once a member accepts the suggestion, copied without its metadata.
+
+/** What the file picker offers: the types, and the extensions for systems that leave the type empty. */
+export const SCREENSHOT_ACCEPT = [...SUGGESTION_SCREENSHOT_TYPES, ".png", ".jpg", ".jpeg"].join(",");
+
+export const SCREENSHOTS_OFF = "Screenshots are off right now. Send it without one.";
+
+/** The screenshot's type if we take it (PNG or JPEG), else null. */
+export function screenshotContentType(file: Pick<File, "name" | "type">): SuggestionScreenshotType | null {
+  if ((SUGGESTION_SCREENSHOT_TYPES as readonly string[]).includes(file.type)) return file.type as SuggestionScreenshotType;
+  if (file.type && file.type !== "application/octet-stream") return null;
+  const ext = /\.([a-z0-9]+)$/i.exec(file.name)?.[1]?.toLowerCase();
+  return ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : null;
+}
+
+/** Why this file can't be a screenshot, or null when it can. */
+export function screenshotProblem(file: Pick<File, "name" | "type" | "size">): string | null {
+  if (!screenshotContentType(file)) return "Use a PNG or a JPEG.";
+  if (file.size === 0) return "That file is empty.";
+  if (file.size > MAX_SUGGESTION_SCREENSHOT_BYTES) {
+    return `That picture is ${(file.size / 1_048_576).toFixed(1)} MB. A screenshot can be up to 2 MB.`;
+  }
+  return null;
+}
+
+/**
+ * Upload a suggestion screenshot. Resolves to what the suggestion sends along; rejects with an
+ * UploadError whose message can be shown as it is.
+ */
+export async function uploadSuggestionScreenshot(file: File, onProgress?: (percent: number) => void): Promise<{ pathname: string }> {
+  const problem = screenshotProblem(file);
+  const contentType = screenshotContentType(file);
+  if (problem || !contentType) throw new UploadError(problem ?? "Use a PNG or a JPEG.");
+
+  const ticket = await api<SuggestionScreenshotTicket>("/contrib/uploads/suggestion-screenshot", {
+    method: "POST",
+    body: { filename: file.name.trim().slice(0, 200) || "screenshot", contentType },
+  });
+  if (!ticket.ok) {
+    if (ticket.status === 503) throw new UploadError(SCREENSHOTS_OFF);
+    throw new UploadError(Object.values(ticket.issues).flat()[0] ?? ticket.error);
+  }
+
+  const { put } = await import("@vercel/blob/client");
+  try {
+    await put(ticket.data.pathname, file, {
+      access: "private",
+      token: ticket.data.token,
+      contentType,
+      onUploadProgress: onProgress ? ({ percentage }) => onProgress(percentage) : undefined,
+    });
+  } catch {
+    throw new UploadError(TRY_AGAIN);
+  }
+  return { pathname: ticket.data.pathname };
 }

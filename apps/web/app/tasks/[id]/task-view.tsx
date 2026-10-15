@@ -227,6 +227,7 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
               What and why
             </h2>
             <Markdown className="mt-3 max-w-[68ch]">{task.body || task.summary}</Markdown>
+            <Screenshot url={task.screenshotUrl} title={task.title} />
           </section>
 
           {task.criteria.length > 0 ? (
@@ -881,5 +882,37 @@ function Timeline({ task, state }: { task: PublicTaskDetail; state: BoardState }
         ))}
       </ol>
     </div>
+  );
+}
+
+/** Only an https picture: the public copy a member's accept made. */
+function httpsUrl(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/** An accepted suggestion's screenshot (public, copied without metadata). Hidden if it won't load. */
+function Screenshot({ url, title }: { url: string | null; title: string }) {
+  const [broken, setBroken] = useState<string | null>(null);
+  const href = httpsUrl(url);
+  if (!href || broken === href) return null;
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="mt-5 block max-w-[68ch] border border-line bg-paper">
+      {/* A public Blob picture; its size isn't known, so the frame keeps the space while it loads. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={href}
+        alt={`Screenshot from the suggestion "${title}"`}
+        loading="lazy"
+        onError={() => setBroken(href)}
+        className="aspect-[16/10] max-h-[480px] w-full object-contain"
+      />
+      <span className="sr-only"> (opens in a new tab)</span>
+    </a>
   );
 }
