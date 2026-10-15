@@ -47,6 +47,17 @@ text, account ids or addresses into this repo, an issue or a pull request.
   or older than 5 minutes, and posts to Slack only mail with the info@ group's `List-ID`. The
   sender's text is escaped, so it can't ping the channel or hide a link. Tested in
   `apps/api/test/inbound-mail.test.ts`.
+- **GitHub moves tasks only when it should.** `POST /webhooks/github` checks
+  `X-Hub-Signature-256` (HMAC-SHA256 of the raw body, constant time) and handles each
+  `X-GitHub-Delivery` once. A PR counts only when its author's numeric GitHub id is the one the
+  assignee linked; anyone else's PR moves nothing and earns no Werk. Werk is awarded once per
+  task and PR (a unique key). The App's private key and the webhook secret live only in Vercel
+  env; the App has no Contents permission. Tested in `packages/github`, `packages/tasks`
+  (github.test.ts) and `apps/api/test/github.test.ts`.
+- **The README workflow runs no outside code.** `contributors.yml` runs on a schedule, a manual
+  run or a repository_dispatch, checks out `main`, reads our public API and commits only
+  `README.md`. It is the only workflow with `contents: write`; nothing here uses
+  `pull_request_target`.
 - **Pinned tools.** The `jira` CLI download in CI is checked against a pinned SHA-256.
 
 ## Periodic access review (quarterly)

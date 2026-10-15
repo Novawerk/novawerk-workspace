@@ -17,6 +17,10 @@ const FULL_ENV: Record<string, string> = {
   BLOB_PRIVATE_READ_WRITE_TOKEN: "priv",
   GITHUB_APP_CLIENT_ID: "Iv23-test",
   GITHUB_APP_CLIENT_SECRET: "gh-secret",
+  GITHUB_APP_ID: "5317582",
+  GITHUB_APP_PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----",
+  GITHUB_APP_INSTALLATION_ID: "171409213",
+  GITHUB_WEBHOOK_SECRET: "whs",
 };
 
 function errorOf(fn: () => unknown): ConfigError {

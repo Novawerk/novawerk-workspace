@@ -187,6 +187,15 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
   Werk rows show "a former contributor".
 - **Werk ledger** (`werk_ledger`) is append-only: a merge adds one row per task and PR (unique
   `(task_id, pr)`), and a member's change is a new row with a reason. Nothing updates a row.
+- **GitHub.** A PR counts only when it names an assigned task (`Task: NW-42`, or NW-42 in its
+  title, body or branch) and its author's GitHub id is the assignee's. Opened → `in_review`, a
+  comment with the task link and a `size:` label; merged → `done` and the task's Werk once, a
+  thank-you, the website's `tasks` and `contributors` caches refreshed; closed unmerged → back
+  to `assigned`. `@nw/github` checks signatures and talks to GitHub as the App; `@nw/tasks`
+  (github.ts) decides; `POST /webhooks/github` and the nightly `/cron/github-sync` (the same
+  rules over the last week's PRs, plus inactivity) wire them. Inactivity writes task events
+  only (`inactivity_reminder` after 7 quiet days, then `released` after 14, 21 with "a week
+  more"); emails go out from the events.
 - **Tokens** (`contributor_tokens`: hashed secret, scopes, expiry, last use) exist as a table only.
 - **Next**: a database-level guard that makes `werk_ledger` append-only (a trigger, or no
   UPDATE/DELETE grant), and a database-backed per-IP limit or a challenge on
@@ -201,4 +210,8 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
 | `GET /public/contributors` (sort, area, cursor), `GET /public/contributors/:handle` | anyone | the wall and public profiles |
 | `POST /contrib/tasks/:id/proposals`, `PATCH`/`DELETE /contrib/proposals/:id`, `GET /contrib/me/proposals` | contributor | propose, edit, withdraw |
 | `POST /contrib/tasks/:id/posts`, `POST /contrib/suggestions`, `PUT`/`DELETE /contrib/tasks/:id/vote` | contributor | thread, suggestions, +1 |
+| `GET /contrib/me/tasks`, `GET /contrib/tasks/:id/guide`, `POST /contrib/tasks/:id/pr` / `release` / `extend` | contributor (the assignee) | my tasks, the guide, link a PR, give it back, a week more |
+| `POST /contrib/posts/:id/report` | contributor | report a post (`post_reports`) |
+| `GET /public/blocks` | anyone | merged tasks for the builders scene; private people as `anon-<hash>` |
+| `POST /webhooks/github`, `GET /cron/github-sync` | GitHub, Vercel Cron | pull requests move tasks; reconcile and inactivity |
 | `PATCH /contrib/me/profile`, `DELETE /contrib/me` | contributor | profile, delete account |

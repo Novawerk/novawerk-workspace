@@ -11,6 +11,12 @@
 //   POST   /contrib/suggestions           suggest a task          → 201 { id, number }
 //   PUT    /contrib/tasks/:id/vote        +1 a suggestion         → { ok }
 //   DELETE /contrib/tasks/:id/vote        take it back            → { ok }
+//   GET    /contrib/me/tasks              what I hold, and my pending proposals → MyTasks
+//   GET    /contrib/tasks/:id/guide       the contribution guide (assignee) → TaskGuide
+//   POST   /contrib/tasks/:id/pr          link a PR by hand { url } → { ok, status }
+//   POST   /contrib/tasks/:id/release     give it back { reason? } → { ok }
+//   POST   /contrib/tasks/:id/extend      "I need a week more", once → { ok, extendedAt }
+//   POST   /contrib/posts/:id/report      report a post { reason? } → { ok }
 //   PATCH  /contrib/me/profile            → ContributorMe
 //   DELETE /contrib/me { confirmHandle }  delete the account, sign out
 
@@ -24,17 +30,26 @@ import {
   accountDeleteInput,
   formatTaskId,
   postInput,
+  prLinkInput,
   profileUpdateInput,
   proposalInput,
   proposalUpdateInput,
+  releaseInput,
+  reportInput,
   suggestionInput,
   taskIdParam,
 } from "@nw/contracts";
 import {
   addPost,
   deleteContributor,
+  extendTask,
+  guideFor,
+  linkPrByHand,
   myProposals,
+  myTasks,
   propose,
+  releaseHeldTask,
+  reportPost,
   suggestTask,
   toContributorMe,
   toPublicProposal,
@@ -51,6 +66,7 @@ import { notFoundIfInvalid, rejectInvalid } from "../http.js";
 import type { ApiEnv, AppDeps } from "../types.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
+/** Proposals and posts are uuids. */
 const proposalIdParam = z.object({ id: z.uuid() });
 
 export function contribRoutes({ db, env }: AppDeps) {
@@ -86,6 +102,42 @@ export function contribRoutes({ db, env }: AppDeps) {
     })
 
     .get("/me/proposals", async (c) => c.json(await myProposals(db, c.get("contributor").id), 200))
+    .get("/me/tasks", async (c) => c.json(await myTasks(db, c.get("contributor").id), 200))
+
+    .get("/tasks/:id/guide", zValidator("param", taskIdParam, notFoundIfInvalid), async (c) =>
+      c.json(await guideFor(db, c.get("contributor"), c.req.valid("param").id), 200),
+    )
+    .post(
+      "/tasks/:id/pr",
+      zValidator("param", taskIdParam, notFoundIfInvalid),
+      zValidator("json", prLinkInput, rejectInvalid),
+      async (c) => {
+        const task = await linkPrByHand(db, c.get("contributor"), c.req.valid("param").id, c.req.valid("json").url);
+        return c.json({ ok: true as const, status: task.status, prUrl: task.prUrl }, 200);
+      },
+    )
+    .post(
+      "/tasks/:id/release",
+      zValidator("param", taskIdParam, notFoundIfInvalid),
+      zValidator("json", releaseInput, rejectInvalid),
+      async (c) => {
+        await releaseHeldTask(db, c.get("contributor"), c.req.valid("param").id, c.req.valid("json").reason);
+        return c.json({ ok: true as const }, 200);
+      },
+    )
+    .post("/tasks/:id/extend", zValidator("param", taskIdParam, notFoundIfInvalid), async (c) => {
+      const task = await extendTask(db, c.get("contributor"), c.req.valid("param").id);
+      return c.json({ ok: true as const, extendedAt: task.extendedAt!.toISOString() }, 200);
+    })
+    .post(
+      "/posts/:id/report",
+      zValidator("param", proposalIdParam, notFoundIfInvalid),
+      zValidator("json", reportInput, rejectInvalid),
+      async (c) => {
+        await reportPost(db, c.get("contributor"), c.req.valid("param").id, c.req.valid("json").reason);
+        return c.json({ ok: true as const }, 200);
+      },
+    )
 
     .post(
       "/tasks/:id/posts",

@@ -73,6 +73,26 @@ Secrets the agents use: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `JIRA_BASE_URL`, `J
 `JIRA_API_TOKEN`. `RESEND_API_KEY` and `EMAIL_FROM` belong to the API only — never add them to an
 agent workflow.
 
+## The task board and GitHub
+
+- **A PR didn't move its task.** Check that it names the task (`Task: NW-42` in the body, or
+  NW-42 in the title or branch), that the task is assigned, and that the PR's author is the
+  GitHub account the assignee linked. App settings → Advanced → Recent deliveries shows what
+  GitHub sent and what we answered (`{"result": …}`). Redeliver from there: a delivery id is
+  handled once, a failed one is retried. The nightly `/cron/github-sync` also catches up on
+  the last week; run it by hand with
+  `curl -H "Authorization: Bearer $CRON_SECRET" https://api.novawerk.io/cron/github-sync`.
+- **The assignee links a PR by hand** on the task page when the webhook missed it. The merge
+  still has to come from their account to count.
+- **Werk was wrong** (a revert, a PR that shouldn't have counted): add a member adjustment with a
+  reason. Never edit or delete a `werk_ledger` row.
+- **Idle tasks**: a reminder event after 7 quiet days, back on the board after 14 (21 with
+  "a week more", once). Both run in `/cron/github-sync`.
+- **Rotate the App's private key**: generate a new one in the App settings, set
+  `GITHUB_APP_PRIVATE_KEY` in Vercel, redeploy, then delete the old key in the App settings.
+  The webhook secret: set the new one in the App and in Vercel at the same time (deliveries in
+  between fail with 401; redeliver them).
+
 ## Backups
 
 One Postgres holds everything that changes, including pending outbox approvals. Neon keeps

@@ -110,7 +110,7 @@ async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
           throw new TaskRuleError("invalid", "Only the person who suggested it, and asked to do it, can get it directly");
         }
         await checkCanTake(tx, assigneeId, task.id);
-        Object.assign(patch, { assigneeId, assignedAt: now, lastActivityAt: now });
+        Object.assign(patch, { assigneeId, assignedAt: now, lastActivityAt: now, extendedAt: null });
       }
       break;
     }
@@ -128,11 +128,11 @@ async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
     case "choose":
       if (!input.assigneeId) throw new TaskRuleError("invalid", "Who gets it?");
       await checkCanTake(tx, input.assigneeId, task.id);
-      Object.assign(patch, { assigneeId: input.assigneeId, assignedAt: now, lastActivityAt: now });
+      Object.assign(patch, { assigneeId: input.assigneeId, assignedAt: now, lastActivityAt: now, extendedAt: null });
       break;
     case "release":
       // Pending proposals from before the assignment are not revived; people propose again.
-      Object.assign(patch, { assigneeId: null, assignedAt: null, lastActivityAt: null, prUrl: null });
+      Object.assign(patch, { assigneeId: null, assignedAt: null, lastActivityAt: null, prUrl: null, extendedAt: null });
       break;
     case "link_pr":
       if (!input.prUrl) throw new TaskRuleError("invalid", "Which pull request?", "prUrl");

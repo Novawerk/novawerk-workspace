@@ -1,0 +1,48 @@
+# The Contributors block in README.md: avatars of everyone on novawerk.io/contributors, newest
+# first. Runs nightly, on demand, and on a `contributors` repository_dispatch. It reads only our
+# public API and its own checkout of main: no pull request code ever runs here.
+name: Contributors
+
+on:
+  schedule:
+    - cron: "30 4 * * *"
+  repository_dispatch:
+    types: [contributors]
+  workflow_dispatch:
+
+# Only this workflow may write: it commits README.md to main.
+permissions:
+  contents: write
+
+concurrency:
+  group: contributors-readme
+  cancel-in-progress: false
+
+jobs:
+  readme:
+    if: github.repository == 'Novawerk/novawerk-workspace'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Rewrite the block
+        id: block
+        run: echo "result=$(node scripts/readme-contributors.mjs)" >> "$GITHUB_OUTPUT"
+
+      - name: Commit when it changed
+        if: steps.block.outputs.result == 'changed'
+        env:
+          BOT_EMAIL: ${{ vars.NOVAWERK_BOT_EMAIL || '41898282+github-actions[bot]@users.noreply.github.com' }}
+        run: |
+          git config user.name "novawerk-bot"
+          git config user.email "$BOT_EMAIL"
+          git add README.md
+          git commit -s -m "README: contributors"
+          git push origin HEAD:main

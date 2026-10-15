@@ -3,6 +3,8 @@
 //   ./state.ts        the task state machine: which action moves which status, and who may
 //   ./transitions.ts  applies it to a task (member and GitHub actions), awards Werk on a merge
 //   ./actions.ts      what a contributor does: propose, post, suggest, +1, with every limit
+//   ./assignee.ts     the person on a task: guide, link a PR by hand, a week more, release; reports
+//   ./github.ts       what a pull request does to a task; inactivity reminders and releases
 //   ./contributors.ts accounts: GitHub / email sign-in, profile, delete
 //   ./reads.ts        the public reads; nothing private leaves through them
 //
@@ -10,6 +12,8 @@
 // deletes a ledger row.
 
 export * from "./actions.js";
+export * from "./assignee.js";
+export * from "./github.js";
 export * from "./contributors.js";
 export * from "./errors.js";
 export * from "./people.js";

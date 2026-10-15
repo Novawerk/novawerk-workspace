@@ -43,9 +43,13 @@ function mayWork(c: Contributor) {
   if (!canWork(c)) throw new TaskRuleError("github_required", "Link your GitHub account first: we match pull requests by it");
 }
 
-/** A task anyone may see. Drafts don't exist for the public. */
-async function publicTask(db: Database, taskId: number): Promise<Task> {
-  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId)).limit(1);
+/**
+ * A task anyone may see. Drafts don't exist for the public. Inside a transaction, `lock` holds
+ * the row (shared) until it ends, so its status can't change under a check.
+ */
+async function publicTask(db: Database, taskId: number, lock = false): Promise<Task> {
+  const query = db.select().from(tasks).where(eq(tasks.id, taskId)).limit(1);
+  const [task] = lock ? await query.for("share") : await query;
   if (!task || task.status === "draft") throw new TaskRuleError("not_found", `${formatTaskId(taskId)} doesn't exist`);
   return task;
 }
@@ -88,8 +92,8 @@ export async function propose(
   at?: Date,
 ): Promise<TaskProposal> {
   const now = at ?? new Date();
-  const task = await publicTask(db, taskId);
   return asContributor(db, c, async (tx, me) => {
+    const task = await publicTask(tx, taskId, true);
     mayWork(me);
     if (task.status !== "open") throw new TaskRuleError("invalid_state", "This task isn't open for proposals");
     const [today] = await tx
@@ -159,8 +163,8 @@ export async function addPost(
   at?: Date,
 ): Promise<TaskPost> {
   const now = at ?? new Date();
-  const task = await publicTask(db, taskId);
   return asContributor(db, c, async (tx, me) => {
+    const task = await publicTask(tx, taskId, true);
     notSuspended(me);
     if (task.threadLockedAt) throw new TaskRuleError("invalid_state", "This thread is locked");
     if (input.replyTo) {

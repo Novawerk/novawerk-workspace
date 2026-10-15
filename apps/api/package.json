@@ -24,6 +24,7 @@
     "@nw/contracts": "workspace:*",
     "@nw/db": "workspace:*",
     "@nw/email": "workspace:*",
+    "@nw/github": "workspace:*",
     "@nw/intake": "workspace:*",
     "@nw/kb": "workspace:*",
     "@nw/object-store": "workspace:*",

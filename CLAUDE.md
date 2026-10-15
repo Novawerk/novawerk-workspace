@@ -23,7 +23,7 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
 | `packages/db` | **All** Postgres tables (Drizzle schema + migrations) and the agents' query surface | Drizzle, node-postgres |
 | `packages/contracts` | Zod schemas + DTOs shared by web, admin and api (form inputs, `PublicProject`) | zod 4 |
 | `packages/ui` | Shared shadcn components: `core/`, `compound/`, `ai-elements/` | shadcn base-vega, Tailwind v4 |
-| `packages/*` (others) | `config`, `email`, `agent-core`, `agent-harness` (chat agent loop), `intake`, `promo` (project lifecycle, posts and their pictures), `tasks` (the contributor task board: state machine, rules, public reads), `ceremonies`, `partners`, `kb`, `jira`, `records`, `object-store`, `types` | TypeScript |
+| `packages/*` (others) | `config`, `email`, `agent-core`, `agent-harness` (chat agent loop), `intake`, `promo` (project lifecycle, posts and their pictures), `tasks` (the contributor task board: state machine, rules, public reads), `github` (webhook signatures and the GitHub App client for the board), `ceremonies`, `partners`, `kb`, `jira`, `records`, `object-store`, `types` | TypeScript |
 | `knowledge/` | Canonical facts: who we are, how we work (Markdown + frontmatter). The website reads it. | — |
 | `posts/` | Posts written in the repo, one folder each (`posts/README.md`); synced to Postgres on merge | `pnpm post` |
 | `records/` | Not in this repo. Minutes, ADRs, finance notes, partner history live in the private repo; link them locally (see Commands). Gitignored here. | — |

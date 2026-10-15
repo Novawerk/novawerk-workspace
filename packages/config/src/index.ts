@@ -22,6 +22,10 @@ export interface AppConfig {
    * API uses it; it asks for no repository permissions.
    */
   githubApp: { clientId: string; clientSecret: string };
+  /** The same GitHub App acting on our repository (comments, labels): App JWT → installation token. */
+  githubAppAuth: { appId: string; privateKey: string; installationId: string };
+  /** The secret GitHub signs webhook deliveries with (X-Hub-Signature-256). */
+  githubWebhook: { secret: string };
 }
 
 export type ConfigSection = keyof AppConfig;
@@ -59,6 +63,18 @@ const SECTIONS: { [K in ConfigSection]: { vars: readonly string[]; build: (v: Re
   githubApp: {
     vars: ["GITHUB_APP_CLIENT_ID", "GITHUB_APP_CLIENT_SECRET"],
     build: (v) => ({ clientId: v["GITHUB_APP_CLIENT_ID"]!, clientSecret: v["GITHUB_APP_CLIENT_SECRET"]! }),
+  },
+  githubAppAuth: {
+    vars: ["GITHUB_APP_ID", "GITHUB_APP_PRIVATE_KEY", "GITHUB_APP_INSTALLATION_ID"],
+    build: (v) => ({
+      appId: v["GITHUB_APP_ID"]!,
+      privateKey: v["GITHUB_APP_PRIVATE_KEY"]!,
+      installationId: v["GITHUB_APP_INSTALLATION_ID"]!,
+    }),
+  },
+  githubWebhook: {
+    vars: ["GITHUB_WEBHOOK_SECRET"],
+    build: (v) => ({ secret: v["GITHUB_WEBHOOK_SECRET"]! }),
   },
 };
 

@@ -4,6 +4,7 @@
 import { vi } from "vitest";
 
 import type { Database } from "@nw/db";
+import type { GitHubApi } from "@nw/github";
 import type { TeamNotification } from "@nw/email";
 import type { FileAccess, Files, ListedFile, OpenedFile, StoredFile, TicketRequest, UploadTicket } from "@nw/object-store";
 
@@ -61,6 +62,7 @@ export function makeApp(
     inboundMail?: InboundMailOptions;
     githubOAuth?: GitHubOAuth;
     sendContributorSignInCode?: SignInCodeSender;
+    githubApi?: GitHubApi;
   } = {},
 ) {
   const sent: TeamNotification[] = [];
@@ -91,6 +93,7 @@ export function makeApp(
     ...(opts.inboundMail ? { inboundMail: opts.inboundMail } : {}),
     ...(opts.githubOAuth ? { githubOAuth: opts.githubOAuth } : {}),
     ...(opts.sendContributorSignInCode ? { sendContributorSignInCode: opts.sendContributorSignInCode } : {}),
+    ...(opts.githubApi ? { githubApi: opts.githubApi } : {}),
   });
   return { app, notify, sent, logger };
 }
