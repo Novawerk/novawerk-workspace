@@ -63,7 +63,7 @@ export function BuildersPreview() {
 
   return (
     <div className={styles.stage}>
-      <div className="mx-auto grid max-w-4xl gap-8 px-4 py-10 sm:px-6">
+      <div className={`mx-auto grid ${size === "hero" ? "max-w-6xl" : "max-w-4xl"} gap-8 px-4 py-10 sm:px-6`}>
         <div className="grid gap-2">
           <p className="font-mono text-xs">/dev/builders · not in production builds</p>
           <h1 className="text-2xl font-semibold tracking-tight">One block at a time</h1>
@@ -71,7 +71,7 @@ export function BuildersPreview() {
         </div>
         <div className="grid gap-3 text-sm">
           <Seg label="Data" value={dataset} options={Object.keys(DATASETS) as Dataset[]} onChange={setDataset} />
-          <Seg label="Size" value={size} options={["full", "compact"] as const} onChange={setSize} />
+          <Seg label="Size" value={size} options={["full", "compact", "hero"] as const} onChange={setSize} />
           <Seg label="Theme" value={theme} options={["system", "light", "dark"] as const} onChange={setTheme} />
           <Seg label="Motion" value={motion} options={["animated", "still"] as const} onChange={setMotion} />
           <div className="flex flex-wrap items-center gap-2">

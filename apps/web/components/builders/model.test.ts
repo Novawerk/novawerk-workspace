@@ -135,10 +135,18 @@ describe("sceneGeometry", () => {
     expect(sceneGeometry(m, 360, "full").P).toBe(2);
   });
 
+  it("scales a hero's pixels with the width", () => {
+    const m = buildModel(fixtureBlocks(1), FIXTURE_PEOPLE);
+    expect(sceneGeometry(m, 360, "hero").P).toBe(2);
+    expect(sceneGeometry(m, 760, "hero").P).toBe(3);
+    expect(sceneGeometry(m, 1120, "hero").P).toBe(4);
+    expect(sceneGeometry(m, 1600, "hero").P).toBe(6);
+  });
+
   it("keeps the star and the ground inside the scene", () => {
     for (const n of [0, 12, 142, 299, 640, 1300])
-      for (const w of [320, 390, 760])
-        for (const size of ["full", "compact"] as const) {
+      for (const w of [320, 390, 760, 1120, 1400])
+        for (const size of ["full", "compact", "hero"] as const) {
           const m = buildModel(fixtureBlocks(n, "2024-01-01"), FIXTURE_PEOPLE);
           const g = sceneGeometry(m, w, size);
           const cur = m.seasons[m.seasons.length - 1];

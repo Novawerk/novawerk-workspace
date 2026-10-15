@@ -33,4 +33,5 @@ export type Person = {
   project?: string;
 };
 
-export type BuildersSize = "full" | "compact";
+/** compact: a small scene (/contribute); full: a section of a page; hero: the page itself (/contributors). */
+export type BuildersSize = "full" | "compact" | "hero";
