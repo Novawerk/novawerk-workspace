@@ -74,6 +74,7 @@ import {
 } from "@nw/tasks";
 
 import { notFoundIfInvalid, rejectInvalid } from "../../http.js";
+import { revalidateWeb } from "../../revalidate.js";
 import type { ApiEnv } from "../../types.js";
 import type { AdminDeps } from "./shared.js";
 
@@ -96,7 +97,7 @@ async function proposalTask(db: Database, proposalId: string): Promise<number> {
   return row.taskId;
 }
 
-export function boardAdminRoutes({ db }: AdminDeps) {
+export function boardAdminRoutes({ db, env, logger }: AdminDeps) {
   const tasksApp = new Hono<ApiEnv>()
     .get("/", zValidator("query", taskFilterQuery, rejectInvalid), async (c) =>
       c.json(await listAdminTasks(db, c.req.valid("query").filter), 200),
@@ -328,6 +329,8 @@ export function boardAdminRoutes({ db }: AdminDeps) {
       async (c) => {
         const { id } = c.req.valid("param");
         await setContributorSuspended(db, c.get("member").id, id, true, c.req.valid("json").reason);
+        // A suspended person leaves the wall and their profile; back again when lifted.
+        void revalidateWeb(env.webRevalidate, logger, ["contributors"]);
         return c.json(await contributor(id), 200);
       },
     )
@@ -339,6 +342,8 @@ export function boardAdminRoutes({ db }: AdminDeps) {
       async (c) => {
         const { id } = c.req.valid("param");
         await setContributorSuspended(db, c.get("member").id, id, false, c.req.valid("json").reason);
+        // A suspended person leaves the wall and their profile; back again when lifted.
+        void revalidateWeb(env.webRevalidate, logger, ["contributors"]);
         return c.json(await contributor(id), 200);
       },
     );

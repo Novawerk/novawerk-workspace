@@ -133,7 +133,11 @@ async function primaryVerifiedEmail(fetchImpl: typeof fetch, accessToken: string
       },
       signal: AbortSignal.timeout(10_000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // The status only: nothing about the person.
+      console.warn(`[github] GET /user/emails answered ${res.status}: signing in without an email for notices`);
+      return null;
+    }
     const emails = (await res.json()) as { email?: unknown; primary?: unknown; verified?: unknown }[];
     const primary = Array.isArray(emails) ? emails.find((e) => e.primary === true && e.verified === true) : undefined;
     return typeof primary?.email === "string" && primary.email.includes("@") ? primary.email.trim().toLowerCase() : null;

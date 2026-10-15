@@ -62,8 +62,17 @@ export async function claimHandle(
  * `field`; otherwise count up ("ada-2"…). Call inside a transaction: the id stays locked.
  */
 export async function claimMemberId(tx: Database, wanted: string, opts: { exact: boolean; field: string }): Promise<string> {
+  // A typed reserved id ("admin", "anon-…") is refused. A generated one (from a name like "Admin"
+  // or "Anon") gets "member-" in front, as GitHub logins get "gh-": counting alone would never
+  // leave a reserved prefix.
+  if (isReservedHandle(wanted)) {
+    if (opts.exact) throw new TaskRuleError("invalid", "That handle is reserved. Pick another one.", opts.field);
+    wanted = `member-${wanted}`.slice(0, 39).replace(/-+$/, "");
+  }
+  const stem = wanted.slice(0, 35).replace(/-+$/, "");
   for (let n = 1; n <= 1000; n++) {
-    const id = n === 1 ? wanted : `${wanted.slice(0, 35).replace(/-+$/, "")}-${n}`;
+    const id = n === 1 ? wanted : `${stem}-${n}`;
+    if (isReservedHandle(id)) continue;
     await lockHandle(tx, id);
     if (await handleIsFree(tx, id)) return id;
     if (opts.exact) throw new TaskRuleError("conflict", "That handle is taken", opts.field);

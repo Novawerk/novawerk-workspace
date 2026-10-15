@@ -1,1 +1,0 @@
-ALTER TABLE "task_events" ADD COLUMN "data" jsonb;

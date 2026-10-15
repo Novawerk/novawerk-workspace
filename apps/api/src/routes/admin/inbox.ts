@@ -136,7 +136,9 @@ export function inboxRoutes({ db, adminChat, files }: AdminDeps) {
             return c.json({ ...result, emailQueued }, 200);
           } catch (err) {
             if (!(err instanceof AcceptError)) throw err;
-            return err.status === 404 ? c.json(notFound, 404) : c.json(conflict(err.field ?? "_form", err.message), 409);
+            if (err.status === 404) return c.json(notFound, 404);
+            if (err.status === 400) return c.json(validationFailed({ [err.field ?? "_form"]: [err.message] }), 400);
+            return c.json(conflict(err.field ?? "_form", err.message), 409);
           }
         },
       )
@@ -248,7 +250,9 @@ export function inboxRoutes({ db, adminChat, files }: AdminDeps) {
             return c.json(await acceptApplication(db, c.req.valid("param").id, c.req.valid("json")), 200);
           } catch (err) {
             if (!(err instanceof AcceptError)) throw err;
-            return err.status === 404 ? c.json(notFound, 404) : c.json(conflict(err.field ?? "_form", err.message), 409);
+            if (err.status === 404) return c.json(notFound, 404);
+            if (err.status === 400) return c.json(validationFailed({ [err.field ?? "_form"]: [err.message] }), 400);
+            return c.json(conflict(err.field ?? "_form", err.message), 409);
           }
         },
       )

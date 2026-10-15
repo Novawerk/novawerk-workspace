@@ -214,7 +214,7 @@ export const DELIVERY_STALE_MS = 10 * 60_000;
 
 /**
  * Claim an X-GitHub-Delivery id: true the first time, and for a redelivery of one whose handling
- * died (claimed, never marked handled, older than 5 minutes); false for one handled or in progress.
+ * died (claimed, never marked handled, older than DELIVERY_STALE_MS); false for one handled or in progress.
  */
 export async function claimDelivery(db: Database, id: string, event: string, now = new Date()): Promise<boolean> {
   const fresh = await db

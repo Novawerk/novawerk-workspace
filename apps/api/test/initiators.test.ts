@@ -79,3 +79,20 @@ describe("member ids share the handle namespace", () => {
     expect((await adminFetch(app, "POST", "/admin/members", { id: "lena-m", displayName: "Lena Member", email: "lena@novawerk.io" })).status).toBe(201);
   });
 });
+
+describe("suspending someone", () => {
+  it("refreshes the wall, where they no longer show", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const [lena] = await db.insert(contributors).values({ handle: "lena-k", displayName: "Lena" }).returning();
+      const { app } = makeApp(db, { env: { webRevalidate: { url: "https://novawerk.io/api/revalidate", secret: "r" } } });
+      const res = await adminFetch(app, "POST", `/admin/contributors/${lena!.id}/suspend`, { reason: "Spam" });
+      expect(res.status).toBe(200);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(fetchMock.mock.calls.map((call) => ((call as unknown[])[1] as RequestInit).body)).toContain(JSON.stringify({ tags: ["contributors"] }));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

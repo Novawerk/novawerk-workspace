@@ -16,8 +16,8 @@
 //   3. tidy(): rows stuck `sending` for 15 minutes become `failed` (unknown outcome); finished
 //      rows go after 30 days; a deleted account's address after 7 days at the latest.
 //
-// The address is always the contributor's own `contributors.email`: set only when they sign in
-// with an emailed code, so it is verified. `account_deleted` keeps the address on its row until
+// The address is the contributor's own `contributors.email` (set when they sign in with an emailed
+// code, so verified), else `notify_email` (GitHub's verified primary email; never a sign-in). `account_deleted` keeps the address on its row until
 // that last mail is sent.
 
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
@@ -345,7 +345,7 @@ const select = (db: Database) =>
   db
     .select({
       notice: contributorNotices,
-      email: contributors.email,
+      email: sql<string | null>`coalesce(${contributors.email}, ${contributors.notifyEmail})`,
       suspendedAt: contributors.suspendedAt,
       notifyReplies: contributors.notifyReplies,
       notifyReminders: contributors.notifyReminders,

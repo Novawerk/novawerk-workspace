@@ -2112,6 +2112,11 @@ export interface ContributorMe {
   displayName: string;
   /** Their own address; the settings page masks it. Never in a public response. */
   email: string | null;
+  /**
+   * GitHub's verified email, masked ("l***@example.com"): used for notices only, never to sign
+   * in. Null when there is none (or they sign in by email: then that address is used).
+   */
+  notifyEmail: string | null;
   github: { id: number; login: string | null } | null;
   avatarUrl: string | null;
   bio: string | null;

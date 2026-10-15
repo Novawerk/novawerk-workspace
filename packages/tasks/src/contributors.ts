@@ -157,24 +157,24 @@ async function insertWithFreeHandle(
 }
 
 /**
- * Keep GitHub's verified primary email for notices when the contributor has none yet. Never over
- * an address they verified with a code, and never one another contributor already uses (that
- * stays their own account; nothing is merged).
+ * Keep GitHub's verified primary email for notices (contributors.notify_email). It is never a way
+ * to sign in: signInWithEmail reads `email` only, so whoever controls an old GitHub address
+ * (a former employer's mailbox, say) can't get into a GitHub-only account with it.
  */
 async function keepGitHubEmail(db: Database, c: Contributor, email: string | null | undefined): Promise<Contributor> {
-  if (c.email || !email) return c;
-  const [other] = await db.select({ id: contributors.id }).from(contributors).where(eq(contributors.email, email)).limit(1);
-  if (other) return c;
+  if (c.notifyEmail || !email) return c;
   const [updated] = await db
     .update(contributors)
-    .set({ email })
-    .where(and(eq(contributors.id, c.id), isNull(contributors.email)))
-    .returning()
-    .catch((err: unknown) => {
-      if (isUniqueViolation(err)) return [c];
-      throw err;
-    });
+    .set({ notifyEmail: email })
+    .where(and(eq(contributors.id, c.id), isNull(contributors.notifyEmail)))
+    .returning();
   return updated ?? c;
+}
+
+/** "lena@example.com" → "l***@example.com": enough for its owner to recognise, in settings. */
+export function maskEmail(email: string): string {
+  const [local = "", domain = ""] = email.split("@");
+  return `${local.slice(0, 1)}***@${domain}`;
 }
 
 /**
@@ -219,6 +219,7 @@ export function toContributorMe(c: Contributor): ContributorMe {
     handle: c.handle,
     displayName: c.displayName,
     email: c.email,
+    notifyEmail: c.notifyEmail ? maskEmail(c.notifyEmail) : null,
     github: c.githubId !== null ? { id: c.githubId, login: c.githubLogin } : null,
     avatarUrl: c.avatarUrl,
     bio: c.bio,
@@ -308,12 +309,14 @@ export async function deleteContributor(db: Database, contributorId: string, con
       );
     }
     await tx.delete(contributors).where(eq(contributors.id, contributorId));
-    // One last email, to the address the account had (NB-ADR-0013). The notices cron sends it,
-    // then clears the address; it is cleared after 7 days at the latest.
-    if (me.email) {
+    // One last email, to the address the account had (NB-ADR-0013): the one they sign in with,
+    // else GitHub's for notices. The notices cron sends it, then clears the address; it is
+    // cleared after 7 days at the latest.
+    const lastAddress = me.email ?? me.notifyEmail;
+    if (lastAddress) {
       await tx
         .insert(contributorNotices)
-        .values({ key: `deleted:${contributorId}`, kind: "account_deleted", toEmail: me.email, data: { handle: me.handle } })
+        .values({ key: `deleted:${contributorId}`, kind: "account_deleted", toEmail: lastAddress, data: { handle: me.handle } })
         .onConflictDoNothing({ target: contributorNotices.key });
     }
   });
