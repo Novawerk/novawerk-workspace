@@ -10,6 +10,7 @@ import { syncWithGitHub } from "../github.js";
 import { runContributorNotices } from "../contributor-notices.js";
 import { notFound } from "../http.js";
 import { deleteExpiredIntakeSessions } from "../intake-chat/cleanup.js";
+import { deleteUnconfirmed } from "../newsletter.js";
 import { deleteUnsentResumes } from "../resume-cleanup.js";
 import { deleteOldCodes } from "../sign-in-codes.js";
 import type { ApiEnv, AppDeps, Logger } from "../types.js";
@@ -45,5 +46,15 @@ export function cronRoutes(deps: AppDeps & { logger: Logger }) {
         }),
         200,
       ),
-    );
+    )
+    // Daily: unconfirmed newsletter addresses go (privacy notice). Logs what it deleted.
+    .get("/newsletter-cleanup", async (c) => {
+      const deleted = await deleteUnconfirmed(db);
+      if (deleted.expired || deleted.beforeDoubleOptIn) {
+        logger.warn(
+          `[newsletter-cleanup] deleted ${deleted.beforeDoubleOptIn} unconfirmed from before double opt-in, ${deleted.expired} expired signups`,
+        );
+      }
+      return c.json(deleted, 200);
+    });
 }

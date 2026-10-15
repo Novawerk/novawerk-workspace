@@ -134,9 +134,16 @@ export type SubscriberStatus = (typeof SUBSCRIBER_STATUSES)[number];
 /** How long the link in a confirmation email works. */
 export const NEWSLETTER_CONFIRM_TTL_HOURS = 72;
 
+/** Unconfirmed signups are deleted once their link expired and they are this old (no marker kept). */
+export const NEWSLETTER_PENDING_RETENTION_DAYS = 30;
+
 /** Where the newsletter links point: the API's endpoints and the website's pages. */
 export const NEWSLETTER_PATHS = {
-  /** API, GET: confirms, then redirects to `subscribed` or `linkExpired`. */
+  /**
+   * API, GET shows a small page with a Confirm button (served by the API, so it never waits on a
+   * web deploy); POST confirms, then redirects to `subscribed` or `linkExpired`. A GET never
+   * confirms: mail scanners open links.
+   */
   confirm: "/public/newsletter/confirm",
   /** API, GET redirects to the `unsubscribe` page; POST unsubscribes (RFC 8058 one-click). */
   unsubscribeApi: "/public/newsletter/unsubscribe",

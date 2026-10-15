@@ -7,14 +7,15 @@ source:
   - apps/web, apps/api, packages/db/src/schema.ts
   - apps/api/src/intake-chat/cleanup.ts (chat retention)
   - apps/api/src/resume-cleanup.ts (CVs that were never sent)
+  - apps/api/src/newsletter.ts (double opt-in, unconfirmed addresses deleted)
   - apps/web/lib/analytics.ts, apps/api/src/analytics/ (visit counts, docs/analytics.md)
   - novawerk.io DNS and email setup (2026-10-03)
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # Privacy notice
 
-Last updated: 14 October 2026
+Last updated: 15 October 2026
 
 We keep this short and concrete. If anything here is unclear, write to
 info@novawerk.io and a person will answer.
@@ -150,7 +151,12 @@ in the chat or in the form. It is optional.
 - **What:** your email address, where you signed up, and when you confirmed.
 - **Why:** to send you our newsletter. First we email you a link to confirm
   that the address is yours (double opt-in). Until you click it you get
-  nothing else from us, and the link stops working after 72 hours.
+  nothing else from us, and the link stops working after 72 hours. If you
+  don't confirm, we delete your address, with no marker, once the link has
+  expired and at least 30 days have passed since you signed up.
+- **If you signed up before we asked people to confirm (14 October 2026)**
+  and never confirmed, we deleted your address. We don't email you to ask.
+  Sign up again if you want the newsletter.
 - **Legal basis:** your consent, Art. 6(1)(a) GDPR. You can unsubscribe at any
   time with the link in every newsletter or by writing to us. After you
   unsubscribe we keep your address marked as unsubscribed, so we don't email
@@ -206,6 +212,7 @@ requires us to.
 | Pitches we take on | As long as the project exists |
 | Applications we accept | While you are a Member; deleted within 3 months after you leave |
 | Newsletter address | Until you unsubscribe; after that only the "unsubscribed" marker |
+| Newsletter address you never confirmed | Deleted once the confirmation link has expired and the address is at least 30 days old |
 | Emails with you | Deleted together with the pitch or application they belong to; other emails after 2 years |
 | Server logs | Up to 30 days |
 | Visit counts (no IP, no cookies) | 13 months |

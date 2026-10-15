@@ -137,8 +137,22 @@ export function publicRoutes({
       return c.json({ ok: true as const }, 200);
     })
 
-    // The link in the confirmation email. A browser opens it, so the answer is a page.
-    .get("/newsletter/confirm", async (c) => {
+    // The link in the confirmation email. GET only shows a page with a Confirm button: mail
+    // scanners open links, and they mustn't confirm for anyone. The API serves that page itself,
+    // so links work whatever the website's deploy state. The button POSTs here and lands on the
+    // website's "you're subscribed" or "link expired" page.
+    .get("/newsletter/confirm", (c) => {
+      const query = newsletterConfirmQuery.safeParse(c.req.query());
+      if (!query.success) return c.redirect(webPage(NEWSLETTER_PATHS.linkExpired), 303);
+      return c.html(confirmPage(query.data.token), 200, {
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+        "X-Robots-Tag": "noindex",
+        // form-action also covers where the POST's redirect lands: the website.
+        "Content-Security-Policy": `default-src 'none'; style-src 'unsafe-inline'; form-action 'self' ${env.publicUrls.webUrl}; base-uri 'none'; frame-ancestors 'none'`,
+      });
+    })
+    .post("/newsletter/confirm", async (c) => {
       const query = newsletterConfirmQuery.safeParse(c.req.query());
       const confirmed = query.success && (await confirmSubscription(db, query.data.token));
       return c.redirect(webPage(confirmed ? NEWSLETTER_PATHS.subscribed : NEWSLETTER_PATHS.linkExpired), 303);
@@ -164,6 +178,29 @@ export function publicRoutes({
       const ok = await turnNoticesOff(db, c.req.query(), env.sessionSecret);
       return ok ? c.json({ ok: true as const }, 200) : c.json({ error: "This link doesn't work" }, 400);
     });
+}
+
+/** The page a confirmation link opens: one sentence and a button. Plain HTML, no scripts. */
+export function confirmPage(token: string): string {
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Confirm your subscription · Novawerk</title>
+</head>
+<body style="margin:0;background:#fff;color:#18181b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">
+<main style="max-width:36rem;margin:0 auto;padding:6rem 1rem">
+<p style="font-size:14px;font-weight:600;margin:0 0 2rem">✦ Novawerk</p>
+<h1 style="font-size:2rem;line-height:1.2;margin:0 0 1rem">Confirm your subscription.</h1>
+<p style="color:#52525b;line-height:1.5;margin:0 0 2rem">One click, and you get the Novawerk newsletter. We write when there's something to show.</p>
+<form method="post" action="?token=${token}">
+<button type="submit" style="font:inherit;font-size:16px;padding:.75rem 1.25rem;border:1px solid #18181b;background:#18181b;color:#fff;cursor:pointer">Confirm</button>
+</form>
+</main>
+</body>
+</html>`;
 }
 
 /** Projects in a public status: featured first, then sort order, then title. */

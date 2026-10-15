@@ -29,6 +29,9 @@ text, account ids or addresses into this repo, an issue or a pull request.
   accounts without an address and kinds turned off in settings get nothing (NB-ADR-0013).
   Tested in `apps/api/test/contributor-notices.test.ts` and
   `packages/email/src/contributor-notices.test.ts`.
+- **Confirm and unsubscribe links don't act on GET.** They open a page; only its button (a POST)
+  changes anything, so mail scanners that open links can't subscribe or unsubscribe anyone.
+  Tested in `apps/api/test/public.test.ts`.
 - **Sign-in codes are short-lived.** An emailed code lives 10 minutes, allows 5 tries, works
   once, and only its keyed hash is stored; at most 3 per address per 15 minutes. Asking for one
   doesn't reveal who is a member. Tested in `apps/api/test/member-portal.test.ts`.
