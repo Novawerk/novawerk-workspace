@@ -55,7 +55,13 @@ const STEPS_ZH = [
   "4. 真正做出来：我们不做 demo，做的是能交出去、真能用的东西。",
 ].join("\n");
 
-export function acceptedEmail(p: Pitch, opts: { isMember: boolean }): DraftedEmail {
+/**
+ * `addedAsMember`: accepting just made them a Member (created, or back after leaving). Accepting
+ * always makes them one now, so the note never sends them to /join; the launch copy (#16) uses
+ * the flag to pick its welcome text.
+ */
+export function acceptedEmail(p: Pitch, opts: { addedAsMember: boolean }): DraftedEmail {
+  void opts;
   const name = first(p);
   const what = project(p);
   if (pitchLanguage(p) === "zh") {
@@ -67,7 +73,6 @@ export function acceptedEmail(p: Pitch, opts: { isMember: boolean }): DraftedEma
         `接下来：\n` +
         `· 我们会约你聊一次（30 分钟左右，线上），一起把第一步定下来。时间我们很快另发给你。\n` +
         `· 第一步会切得很小：一个产物、一个负责人、一个日期，几周内能交付。\n` +
-        (opts.isMember ? "" : `· 如果你还不是成员，可以先在这里加入：${JOIN}\n`) +
         `\n我们做每个项目都走这四步：\n${STEPS_ZH}\n\n` +
         `项目会一直公开进行，每走一步我们都会分享出来。\n\n` +
         `回头聊，\nNovawerk\n${SITE}\n`,
@@ -84,7 +89,6 @@ export function acceptedEmail(p: Pitch, opts: { isMember: boolean }): DraftedEma
       `few times shortly.\n` +
       `- The first step is small on purpose: one thing to make, one owner, one date, shipped within a ` +
       `few weeks.\n` +
-      (opts.isMember ? "" : `- If you are not a Member yet, join here first: ${JOIN}\n`) +
       `\nEvery project here goes through four steps:\n${STEPS_EN}\n\n` +
       `We work in the open and share each step as we go.\n\n` +
       `Talk soon,\nNovawerk\n${SITE}\n`,

@@ -1,15 +1,16 @@
 // Accepting a pitch or an application. Each one is a single transaction: the status change and
 // the record it creates land together or not at all.
 //
-// The Initiator rule. Whoever pitched a project becomes its Initiator, but a pitch comes from
-// someone outside Novawerk: there is no `members` row to point `project_members` at yet. So:
-//   - accepting a pitch links the Initiator right away when a member with the pitch's email
-//     already exists;
-//   - otherwise the project starts without one, and the link is made the moment that person
-//     becomes a member, whether through an accepted application or "Add member" (matched on
-//     email, case-insensitive, for every accepted pitch of theirs that has a project);
-//   - a member can always add them by hand on the project page.
-// We never create a Member just because someone pitched: joining is its own decision.
+// The Initiator rule. Whoever pitched a project becomes its Initiator, and accepting the pitch
+// makes them a Member in the same transaction:
+//   - a member with the pitch's email (case-insensitive) is linked, and reactivated if they had
+//     left;
+//   - otherwise a Member is created: id from the shared handle namespace (claimMemberId in
+//     @nw/tasks handles.ts, locked until we commit; a reserved-looking name gets "member-" in
+//     front), name and email from the pitch, no admin rights. They sign in with that email and
+//     see their own projects;
+//   - a contributor account with the same email stays separate: two identities, never merged.
+// Accepting twice changes nothing more; declining creates nothing.
 
 import { and, eq, like, or, sql } from "drizzle-orm";
 
@@ -178,13 +179,21 @@ export interface AcceptedSubmission {
   project: Project;
   /** False when the pitch already had a project (accepted before); we reuse it. */
   projectCreated: boolean;
-  /** The member linked as Initiator, or null until the submitter becomes a member. */
-  initiator: Pick<Member, "id" | "displayName"> | null;
+  /** The member linked as Initiator: the pitcher, who is a Member from now on. */
+  initiator: Pick<Member, "id" | "displayName">;
+  /** True when accepting created that Member (first acceptance, no member had the email). */
+  memberCreated: boolean;
+  /**
+   * True when accepting made them a Member: created, or reactivated after they had left. False
+   * when they already were an active Member. The acceptance email says which.
+   */
+  addedAsMember: boolean;
 }
 
 /**
- * Accept a pitch: start a `draft` project linked to it (or reuse the one it already has), link
- * the Initiator if they are a member, and set the pitch to accepted.
+ * Accept a pitch: start a `draft` project linked to it (or reuse the one it already has), make
+ * the pitcher a Member (or find the one with their email) and the project's Initiator, and set
+ * the pitch to accepted. One transaction.
  */
 export async function acceptSubmission(
   db: Database,
@@ -234,18 +243,40 @@ export async function acceptSubmission(
       .where(eq(projectSubmissions.id, submissionId))
       .returning();
 
-    const member = await memberByEmail(tx, submission.email);
-    if (member) {
-      await tx
-        .insert(projectMembers)
-        .values({ projectId: project!.id, memberId: member.id, role: INITIATOR_ROLE })
-        .onConflictDoNothing();
+    let member = await memberByEmail(tx, submission.email);
+    let memberCreated = false;
+    let reactivated = false;
+    if (member && !member.active) {
+      [member] = await tx.update(members).set({ active: true }).where(eq(members.id, member.id)).returning();
+      reactivated = true;
     }
+    if (!member) {
+      // One handle namespace with contributors, locked until we commit.
+      const id = await claimMemberId(tx, toHandle(submission.name, 39) || "member", { exact: false, field: "_form" });
+      [member] = await tx
+        .insert(members)
+        .values({
+          id,
+          displayName: submission.name.trim(),
+          email: submission.email.trim().toLowerCase(),
+          canAdmin: false,
+          active: true,
+          joinedOn: today(),
+        })
+        .returning();
+      memberCreated = true;
+    }
+    await tx
+      .insert(projectMembers)
+      .values({ projectId: project!.id, memberId: member!.id, role: INITIATOR_ROLE })
+      .onConflictDoNothing();
     return {
       submission: updated!,
       project: project!,
       projectCreated,
-      initiator: member ? { id: member.id, displayName: member.displayName } : null,
+      initiator: { id: member!.id, displayName: member!.displayName },
+      memberCreated,
+      addedAsMember: memberCreated || reactivated,
     };
   });
 }

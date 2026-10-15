@@ -165,8 +165,14 @@ created together with the status change. Accepting a pitch also queues our accep
 happens next and how we work) and **Decline** queues a short no; both are fixed templates and wait
 in the outbox for a member's approval (switch them off in the dialog). **Invite to a call** has the
 API's language model draft an invite from the pitch and the times you offer; you edit it and send it
-to the outbox. The person who pitched becomes the project's Initiator as soon as
-they are a Member (NB-ADR-0005).
+to the outbox.
+
+Accepting a pitch also makes the person who pitched a Member and the project's Initiator, in the
+same step: the member with the pitch's email (any case) if there is one, reactivated if they had
+left, otherwise a new Member (handle from their name, free across members and contributors; no
+admin access; joined today). They sign in with that email (an emailed code, or Google) and see
+their own projects only. A contributor account with the same email stays a separate account.
+Accepting again changes nothing; declining creates nothing.
 
 ## Add a member
 

@@ -42,18 +42,19 @@ describe("templates", () => {
     expect(pitchLanguage(PITCH)).toBe("en");
     const zh = { ...PITCH, name: "Lin Chen", projectName: "血压记录", product: "一个记录血压的小工具" };
     expect(pitchLanguage(zh)).toBe("zh");
-    expect(acceptedEmail(zh, { isMember: true }).subject).toBe("我们想和你一起做 血压记录");
+    expect(acceptedEmail(zh, { addedAsMember: false }).subject).toBe("我们想和你一起做 血压记录");
     expect(declinedEmail(zh).body).toContain("这次我们先不接这个项目");
   });
 
   it("say what happens next and how we work when we accept", () => {
-    const { subject, body } = acceptedEmail(PITCH, { isMember: false });
+    const { subject, body } = acceptedEmail(PITCH, { addedAsMember: true });
     expect(subject).toBe("We'd like to build Repair café calendar with you");
     expect(body).toContain("We set up a call with you");
     expect(body).toContain("1. Validate");
     expect(body).toContain("4. Build for real");
-    expect(body).toContain("https://novawerk.io/join");
-    expect(acceptedEmail(PITCH, { isMember: true }).body).not.toContain("/join");
+    // Accepting makes them a Member, so no version of the note sends them to /join.
+    expect(body).not.toContain("/join");
+    expect(acceptedEmail(PITCH, { addedAsMember: false }).body).not.toContain("/join");
   });
 
   it("only take the first name and a flattened project name from the pitch", () => {

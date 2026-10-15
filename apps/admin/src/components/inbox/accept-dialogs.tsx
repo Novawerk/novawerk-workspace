@@ -54,9 +54,9 @@ export function AcceptSubmissionDialog({ submission }: { submission: ProjectSubm
           setOpen(false)
           toast.success(result.projectCreated ? "Pitch accepted. We started the project." : "Pitch accepted again.", {
             description: [
-              result.initiator
-                ? `${result.initiator.displayName} is its Initiator.`
-                : `${firstName(submission.name)} becomes its Initiator once they join as a Member.`,
+              result.memberCreated
+                ? `${result.initiator.displayName} is a Member now (handle ${result.initiator.id}) and its Initiator.`
+                : `${result.initiator.displayName} is its Initiator.`,
               result.emailQueued ? `The email to ${firstName(submission.name)} waits in the Outbox for approval.` : "",
             ]
               .filter(Boolean)
@@ -107,8 +107,9 @@ export function AcceptSubmissionDialog({ submission }: { submission: ProjectSubm
               />
             </FormField>
             <p className="text-xs text-muted-foreground">
-              {firstName(submission.name)} pitched it, so they become its Initiator. If they aren't a Member yet, we
-              add that as soon as they join.
+              {firstName(submission.name)} pitched it, so they become a Member and the project's Initiator, and can
+              sign in with this email ({submission.email}). They see their own projects, not the rest of the admin
+              panel.
             </p>
             <SwitchRow
               label={`Email ${firstName(submission.name)}`}

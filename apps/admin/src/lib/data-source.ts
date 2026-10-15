@@ -519,8 +519,29 @@ const sampleSource: AdminDataSource = {
       }
       store.projects.set(project.id, project)
     }
-    const initiator = [...store.members.values()].find((m) => m.email.toLowerCase() === current.email.toLowerCase())
-    if (initiator && !project.team.some((t) => t.memberId === initiator.id)) {
+    // Like the API: the pitcher becomes a Member (or is found by email) and the Initiator.
+    let initiator = [...store.members.values()].find((m) => m.email.toLowerCase() === current.email.toLowerCase())
+    const memberCreated = !initiator
+    const addedAsMember = memberCreated || !initiator?.active
+    if (!initiator) {
+      const id = freeHandle(toHandle(current.name, 39) || "member", (h) => store.members.has(h))
+      initiator = {
+        ...[...store.members.values()][1]!,
+        id,
+        displayName: current.name,
+        email: current.email.toLowerCase(),
+        canAdmin: false,
+        active: true,
+        joinedOn: nowIso().slice(0, 10),
+        publicProfile: false,
+        profileHandle: null,
+        profileBio: null,
+      }
+      store.members.set(id, initiator)
+    } else if (!initiator.active) {
+      initiator.active = true
+    }
+    if (!project.team.some((t) => t.memberId === initiator.id)) {
       project.team.push({ memberId: initiator.id, displayName: initiator.displayName, role: "Initiator" })
     }
     const submission = { ...current, status: "accepted" as const, projectId: project.id, updatedAt: nowIso() }
@@ -530,7 +551,9 @@ const sampleSource: AdminDataSource = {
       submission,
       project: projectRow,
       projectCreated,
-      initiator: initiator ? { id: initiator.id, displayName: initiator.displayName } : null,
+      initiator: { id: initiator.id, displayName: initiator.displayName },
+      memberCreated,
+      addedAsMember,
       // Sample mode has no outbox to write to.
       emailQueued: false,
     }

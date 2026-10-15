@@ -130,8 +130,14 @@ export function inboxRoutes({ db, adminChat, files }: AdminDeps) {
             // Only the first acceptance writes to them.
             const emailQueued = email && before?.status !== "accepted";
             if (emailQueued) {
-              const isMember = result.initiator !== null;
-              await queuePitchEmail(db, result.submission.email, id, member, acceptedEmail(result.submission, { isMember }));
+              // Whether accepting just made them a Member picks the text.
+              await queuePitchEmail(
+                db,
+                result.submission.email,
+                id,
+                member,
+                acceptedEmail(result.submission, { addedAsMember: result.addedAsMember }),
+              );
             }
             return c.json({ ...result, emailQueued }, 200);
           } catch (err) {
