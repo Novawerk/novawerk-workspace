@@ -14,10 +14,11 @@ runs on (the site, the admin panel, the API, the agents) through an open task bo
 
 1. Anyone browses open tasks. No account needed.
 2. A visitor makes a **contributor** account: GitHub sign-in (to match pull requests), or an
-   emailed code as a fallback.
+   emailed code as a fallback. An email-only account can browse, discuss and suggest tasks;
+   proposing needs a linked GitHub account.
 3. They propose a plan on a task. Several people may propose. A member picks one.
-4. The chosen person gets the contribution guide, opens a PR that says `Closes NW-42`, and we
-   review on GitHub.
+4. The chosen person gets the contribution guide, opens a PR with a `Task: NW-42` line in its
+   description, and we review on GitHub.
 5. When the PR merges, the task is done and they earn the task's points.
 
 **Contributors are not Members.** Members are the core team (`members`, "everyone is a Member,
@@ -120,7 +121,7 @@ add others.
 
 Then the pledge line, **How it works** (4 real
 steps), **What Werk is**, **What to expect** (not membership; we don't mentor whole projects;
-one task at a time), three featured open tasks, **Work with your coding agent**
+one task at a time while you're new, two after your first merge), three featured open tasks, **Work with your coding agent**
 (→ tokens), newsletter signup.
 States: visitor · signed in · arrived from `/join` (info note).
 
@@ -174,7 +175,8 @@ A dialog on desktop; a full-screen sheet with a sticky footer on a phone.
   under them: "Tasks go back on the board after 14 days without activity."
 - **Done when**: a collapsed list of the task's criteria inside the dialog.
 - **Before you send** box: "2 others proposed. A member picks one plan." (or "You're the first
-  to propose."), "You can hold 1 task at a time" (plus "You hold NW-48 now…" when true), and
+  to propose."), "You can hold 1 task at a time (2 after your first merge)" (plus "You hold NW-48 now…" when
+  true), and
   "What happens next: a member replies within about a week. Proposals are public on the task."
 - Required tick: "I read **what done means** for this task, and I'll release it if I can't
   finish." The link opens and scrolls to the criteria.
@@ -185,15 +187,19 @@ A dialog on desktop; a full-screen sheet with a sticky footer on a phone.
 - Afterwards the proposer sees **Chosen** (the guide appears) or **Not chosen** (a note only
   they see).
 
-Limits: 5 proposals a day; one task in progress at a time.
+Limits: 5 proposals a day; one task in progress until the first merged task, then two.
+Proposing needs a linked GitHub account: for an email-only account the dialog says "Link
+GitHub to propose" and links it in place.
 
 ### Assignee view
 - **Inactivity reminder** after 7 days without a commit on the linked PR or a post from the
-  assignee: "No activity for 9 days… we release it on Oct 19". Buttons: Post an update, I need a
-  week more (once). Auto-release at 14 days.
+  assignee: "No activity for 9 days… we release it on Oct 19". Button: Post an update. The first time a
+  task goes quiet the board adds one week by itself and says so; there is no button and no
+  member decision, and it happens once per task. After that, auto-release at 14 days.
 - **Contribution guide** (from the admin template plus task notes): get the code, branch,
   our rules (schema → `pnpm db:generate`, `@nw/contracts`, `packages/config` only reads env),
-  open the PR with `Closes NW-48` and DCO sign-off, where to ask. "Copy as Markdown" for agents.
+  open the PR with a `Task: NW-48` line in its description and DCO sign-off (`Task:` rather
+  than `Closes`, so GitHub doesn't try to close an issue), where to ask. "Copy as Markdown" for agents.
 - **Link a PR by hand** when the webhook misses it.
 - **Release task** with an inline confirm. The task goes back to Open; the timeline records it
   ("Released by @jonas: no time this month"); nothing counts against the person.
@@ -288,7 +294,8 @@ is now `Novawerk/novawerk-workspace`.
 
 ### Sign-in and account
 - `/sign-in` and the sign-in dialog: Continue with GitHub (primary), or email a code. Copy:
-  "Signing in creates a contributor account. It isn't Novawerk membership."
+  "Signing in creates a contributor account. It isn't Novawerk membership." and "With email
+  you can browse, discuss and suggest. Link GitHub before you propose or open a pull request."
 - First run: handle (from GitHub), display name, **Show my profile publicly** (off by default),
   **monthly newsletter** (off by default, double opt-in), pledge + DCO tick.
 - `/settings`: sign-in methods (GitHub linked; email masked, visible only to the owner),
@@ -382,7 +389,7 @@ stateDiagram-v2
     suggested --> duplicate: duplicate of NW-n
     open --> open: proposal sent / withdrawn<br/>(shown as "N proposals")
     open --> assigned: member chooses a proposal
-    assigned --> in_review: PR with "Closes NW-n" opened<br/>or linked by hand
+    assigned --> in_review: PR with "Task: NW-n" opened<br/>or linked by hand
     in_review --> assigned: PR closed without merge
     in_review --> done: PR merged → Werk awarded
     assigned --> open: released by assignee<br/>or auto after 14 days idle
@@ -448,7 +455,8 @@ merged contributions with thanks. Today there is only a signup box on `/about` a
 - **Double opt-in.** After submit: "Check your inbox. Nothing arrives until you click it."
   The link lands on `/newsletter/confirmed`. Every issue has a one-click unsubscribe that lands
   on `/newsletter/unsubscribed` (with Subscribe again). `newsletter_subscribers` needs a
-  confirmed-at and a token; today a row is subscribed on insert.
+  confirmed-at and a token; today a row is subscribed on insert. People already on the list
+  stay subscribed: no re-consent mail (decided). Double opt-in applies to new signups only.
 - **Archive** `/newsletter` lists sent issues; `/newsletter/<yyyy-mm>` is the web version.
 - **Email template** (light only, 600 px, table layout and inline styles in `@nw/email`):
   header with the star and month · title + note signed by a member · New posts · Open tasks
@@ -501,8 +509,8 @@ hidden_at), `task_events`, `werk_ledger` (contributor, delta, reason, task_id, b
    private. The alternative is proposer + members only.
 5. **Agent-made proposals:** count at once, or need a browser confirm? The design asks for a
    confirm.
-6. **Inactivity timings:** reminder at 7 days, auto-release at 14. One extension per task?
-   (The propose dialog already tells people about the 14 days.)
+6. ~~Inactivity timings~~ **Decided:** reminder at 7 days, auto-release at 14; one extension
+   per task, added automatically.
 7. **Werk name.** Recommendation: Werk. Second choice: Rivets.
 8. **README avatars**: GitHub avatars (designed) or the novawerk.io avatar, which may be initials?
 9. **XL tasks:** allow them, or require splitting into L tasks?
