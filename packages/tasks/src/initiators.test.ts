@@ -153,7 +153,11 @@ describe("review fixes", () => {
     expect(await code(() => updateProfile(db, lena.id, { handle: "mara" }))).toBe("conflict"); // a member's id
     expect(await code(() => updateMemberProfile(db, "jonas", { profileHandle: "mara" }))).toBe("conflict");
     expect(await code(() => updateMemberProfile(db, "jonas", { profileHandle: "jonas" }))).toBe("ok"); // their own id
-    expect((await signInWithGitHub(db, { id: 2, login: "admin", name: null, avatarUrl: null })).handle).toBe("admin-2");
+    expect((await signInWithGitHub(db, { id: 2, login: "admin", name: null, avatarUrl: null })).handle).toBe("gh-admin");
+    // Reserved words that are also prefixes once numbered ("anon-2" starts with "anon-") never hang.
+    expect((await signInWithGitHub(db, { id: 5, login: "anon", name: null, avatarUrl: null })).handle).toBe("gh-anon");
+    expect((await signInWithGitHub(db, { id: 6, login: "Anon", name: null, avatarUrl: null })).handle).toBe("gh-anon-2");
+    expect((await signInWithGitHub(db, { id: 7, login: "contributor", name: null, avatarUrl: null })).handle).toBe("gh-contributor");
     expect((await signInWithGitHub(db, { id: 3, login: "anon-bob", name: null, avatarUrl: null })).handle).toBe("gh-anon-bob");
     expect((await signInWithGitHub(db, { id: 4, login: "mara", name: null, avatarUrl: null })).handle).toBe("mara-2");
   });

@@ -6,7 +6,6 @@ import { randomBytes } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import {
-  RESERVED_HANDLE_PREFIXES,
   isReservedHandle,
   toHandle,
   type ContributorMe,
@@ -39,7 +38,9 @@ const MAX_HANDLE = 39;
 export async function freeHandle(db: Database, base: string, opts: { neutral?: boolean } = {}): Promise<string> {
   let stem = toHandle(base, MAX_HANDLE - 4);
   if (stem.length < 2) stem = "gh-user";
-  if (!opts.neutral && RESERVED_HANDLE_PREFIXES.some((p) => stem.startsWith(p))) stem = `gh-${stem}`.slice(0, MAX_HANDLE - 4);
+  // A GitHub login that is reserved ("admin", "anon", "contributor") or starts with a reserved
+  // prefix ("anon-bob") gets "gh-" in front: numbering alone would never leave the reserved set.
+  if (!opts.neutral && isReservedHandle(stem)) stem = `gh-${stem}`.slice(0, MAX_HANDLE - 4);
   const like = `${stem}-%`;
   const taken = new Set([
     ...(await db.select({ h: contributors.handle }).from(contributors).where(sql`${contributors.handle} = ${stem} or ${contributors.handle} like ${like}`)).map((r) => r.h),
@@ -48,8 +49,12 @@ export async function freeHandle(db: Database, base: string, opts: { neutral?: b
   ]);
   const free = (h: string) => !taken.has(h) && (opts.neutral || !isReservedHandle(h));
   if (free(stem)) return stem;
-  for (let n = 2; ; n++) if (free(`${stem}-${n}`)) return `${stem}-${n}`;
+  for (let n = 2; n <= MAX_HANDLE_TRIES; n++) if (free(`${stem}-${n}`)) return `${stem}-${n}`;
+  throw new TaskRuleError("conflict", "Couldn't find a free handle. Pick one in your profile.");
 }
+
+/** How far freeHandle counts ("lena-k-2" … "lena-k-1000") before it gives up. */
+const MAX_HANDLE_TRIES = 1000;
 
 export async function getContributor(db: Database, id: string): Promise<Contributor | undefined> {
   const [row] = await db.select().from(contributors).where(eq(contributors.id, id)).limit(1);

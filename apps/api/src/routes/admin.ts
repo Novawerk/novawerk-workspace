@@ -79,8 +79,9 @@ export function adminRoutes(deps: AdminDeps) {
     // Only the member themself switches their public profile on or off; never an admin for them.
     .patch("/me", zValidator("json", memberSelfUpdateInput, rejectInvalid), async (c) => {
       await updateMemberProfile(deps.db, c.get("member").id, c.req.valid("json"));
-      // Their card on the wall and /u/<handle> change at once.
-      await revalidateWeb(deps.env.webRevalidate, deps.logger, ["contributors"]);
+      // Their card on the wall and /u/<handle> change at once. Not awaited: the save doesn't wait
+      // on the website (revalidateWeb logs and never throws).
+      void revalidateWeb(deps.env.webRevalidate, deps.logger, ["contributors"]);
       return c.json(await memberSelf(deps.db, c.get("member")), 200);
     })
     .route("/", inboxRoutes(deps))
