@@ -4,7 +4,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { proposalInput, suggestionInput, taskListQuery } from "@nw/contracts";
+import { contributorListQuery, proposalInput, suggestionInput, taskListQuery } from "@nw/contracts";
 import {
   contributors,
   members,
@@ -32,6 +32,7 @@ import {
   signInWithEmail,
   signInWithGitHub,
   suggestTask,
+  toContributorMe,
   transitionTask,
   unvote,
   updateProfile,
@@ -56,6 +57,7 @@ beforeEach(async () => {
 });
 
 const ada = { kind: "member", id: "ada" } as const;
+const wallOf = async (q: Record<string, string>) => (await listPublicContributors(db, contributorListQuery.parse(q))).contributors;
 const plan = (approach = "Add a skeleton to the list") => proposalInput.parse({ approach, eta: "week", readCriteria: true });
 
 async function openTask(fields: Partial<typeof tasks.$inferInsert> = {}) {
@@ -89,11 +91,20 @@ describe("accounts", () => {
 
   it("signs in by email, then links GitHub, but not one that belongs to someone else", async () => {
     const mira = await signInWithEmail(db, "Mira@Example.com");
-    expect(mira).toMatchObject({ handle: "mira", email: "mira@example.com", githubId: null });
+    expect(mira).toMatchObject({ email: "mira@example.com", githubId: null });
+    // Nothing from the private address shows: a neutral handle and name until they pick one.
+    expect(mira.handle).toMatch(/^contributor-[0-9a-f]{4}$/);
+    expect(mira.displayName).toBe(mira.handle);
+    expect(toContributorMe(mira).defaultHandle).toBe(true);
     expect((await signInWithEmail(db, "mira@example.com")).id).toBe(mira.id);
     expect(await code(() => signInWithGitHub(db, { id: 101, login: "x", name: null, avatarUrl: null }, mira.id))).toBe("conflict");
     const linked = await signInWithGitHub(db, { id: 300, login: "mira-gh", name: null, avatarUrl: null }, mira.id);
     expect(linked).toMatchObject({ id: mira.id, githubId: 300, email: "mira@example.com" });
+    expect(linked.sessionsRevokedAt).not.toBeNull();
+    // Linking again with the same account is fine; another one never replaces it.
+    await signInWithGitHub(db, { id: 300, login: "mira-gh", name: null, avatarUrl: null }, mira.id);
+    expect(await code(() => signInWithGitHub(db, { id: 301, login: "other", name: null, avatarUrl: null }, mira.id))).toBe("conflict");
+    expect((await db.select().from(contributors).where(eq(contributors.id, mira.id)))[0]?.githubId).toBe(300);
   });
 
   it("refuses a handle someone else has", async () => {
@@ -138,6 +149,15 @@ describe("transitions", () => {
     expect((await getPublicContributor(db, "lena-k"))).toBeNull(); // private profile
     await updateProfile(db, lena.id, { public: true });
     expect((await getPublicContributor(db, "lena-k"))?.stats).toEqual({ done: 1, inProgress: 0, werk: 0 });
+  });
+
+  it("allows two tasks in progress after the first merge", async () => {
+    await openTask({ status: "done", assigneeId: lena.id, doneAt: new Date() });
+    await openTask({ status: "assigned", assigneeId: lena.id });
+    const second = await propose(db, lena, (await openTask({ title: "Second" })).id, plan());
+    await chooseProposal(db, { proposalId: second.id, memberId: "ada" });
+    const third = await propose(db, lena, (await openTask({ title: "Third" })).id, plan());
+    expect(await code(() => chooseProposal(db, { proposalId: third.id, memberId: "ada" }))).toBe("conflict");
   });
 
   it("keeps one task in progress per person, and GitHub is needed to get one", async () => {
@@ -224,11 +244,32 @@ describe("contributor rules", () => {
     expect((await getPublicTask(db, s.id))?.voteCount).toBe(1);
   });
 
-  it("lets a suspended contributor read but not write", async () => {
+  it("lets a suspended contributor read but not write, and keeps them off the wall", async () => {
     const task = await openTask();
-    const [suspended] = await db.update(contributors).set({ suspendedAt: new Date() }).returning();
+    const pending = await propose(db, lena, task.id, plan());
+    await openTask({ status: "done", assigneeId: lena.id, doneAt: new Date() });
+    await updateProfile(db, lena.id, { public: true });
+    expect(await wallOf({})).toHaveLength(1);
+
+    const [suspended] = await db.update(contributors).set({ suspendedAt: new Date() }).where(eq(contributors.id, lena.id)).returning();
     expect(await code(() => addPost(db, suspended!, task.id, { body: "Hi" }))).toBe("suspended");
-    expect(await code(() => propose(db, suspended!, task.id, plan()))).toBe("suspended");
+    const another = await openTask();
+    expect(await code(() => propose(db, suspended!, another.id, plan()))).toBe("suspended");
+    expect(await code(() => withdrawProposal(db, suspended!, pending.id))).toBe("suspended");
+    expect(await code(() => updateProfile(db, lena.id, { bio: "Changed" }))).toBe("suspended");
+    // The stale row a request started with doesn't help: the fresh one is checked.
+    expect(await code(() => addPost(db, lena, task.id, { body: "Hi" }))).toBe("suspended");
+    expect(await wallOf({})).toEqual([]);
+    expect(await getPublicContributor(db, "lena-k")).toBeNull();
+  });
+
+  it("takes one proposal and stops at the post limit when requests arrive together", async () => {
+    const task = await openTask();
+    const results = await Promise.all([1, 2, 3].map(() => code(() => propose(db, lena, task.id, plan()))));
+    expect(results.sort()).toEqual(["conflict", "conflict", "ok"]);
+    for (let i = 0; i < 28; i++) await addPost(db, lena, task.id, { body: `Post ${i}` });
+    const posts = await Promise.all([1, 2, 3].map(() => code(() => addPost(db, lena, task.id, { body: "Last" }))));
+    expect(posts.sort()).toEqual(["ok", "ok", "rate_limited"]);
   });
 });
 
@@ -250,6 +291,17 @@ describe("public reads", () => {
     expect((await listPublicTasks(db, taskListQuery.parse({ q: "secret", status: "all" }))).tasks).toEqual([]);
     expect(await getPublicTask(db, 6)).toBeNull();
     await expect(listPublicTasks(db, taskListQuery.parse({ cursor: "bm9wZQ" }))).rejects.toThrow(TaskRuleError);
+  });
+
+  it("refuses crafted cursors instead of passing them to Postgres", async () => {
+    const crafted = (value: unknown, sort = "updated") =>
+      code(() => listPublicTasks(db, taskListQuery.parse({ sort, cursor: Buffer.from(JSON.stringify(value)).toString("base64url") })));
+    expect(await crafted(["2026-02-31 10:00:00+00", 1])).toBe("invalid");
+    expect(await crafted(["2026", 1])).toBe("invalid");
+    expect(await crafted(["2026-10-01 10:00:00+00", 99_999_999_999])).toBe("invalid");
+    expect(await crafted(["2026-10-01 10:00:00.123456+00", 3])).toBe("ok");
+    expect(await crafted([1e12, 3], "votes")).toBe("invalid");
+    expect(await code(() => listPublicContributors(db, contributorListQuery.parse({ cursor: Buffer.from('["x","1"]').toString("base64url") })))).toBe("invalid");
   });
 
   it("shows 'has proposals' and sorts suggestions by +1s", async () => {
@@ -301,34 +353,56 @@ describe("public reads", () => {
     await openTask({ kind: "improvement", status: "open", suggestedBy: jonas.id, acceptedAt: new Date("2026-10-05") });
     const mira = await signInWithEmail(db, "mira@example.com");
     await updateProfile(db, mira.id, { public: true }); // nothing merged yet
-    expect(await listPublicContributors(db, { sort: "newest" })).toEqual([]); // both private
+    expect(await wallOf({ sort: "newest" })).toEqual([]); // both private
 
     await updateProfile(db, lena.id, { public: true });
     await updateProfile(db, jonas.id, { public: true });
-    const wall = await listPublicContributors(db, { sort: "newest" });
+    const wall = await wallOf({ sort: "newest" });
     expect(wall.map((c) => [c.handle, c.idea, c.areas])).toEqual([["jonas", true, []], ["lena-k", false, ["api"]]]);
-    expect((await listPublicContributors(db, { sort: "az" })).map((c) => c.handle)).toEqual(["jonas", "lena-k"]);
-    expect((await listPublicContributors(db, { sort: "newest", area: "api" })).map((c) => c.handle)).toEqual(["lena-k"]);
+    expect((await wallOf({ sort: "az" })).map((c) => c.handle)).toEqual(["jonas", "lena-k"]);
+    expect((await wallOf({ sort: "newest", area: "api" })).map((c) => c.handle)).toEqual(["lena-k"]);
     expect(JSON.stringify(wall)).not.toContain("mira@example.com");
 
     await updateProfile(db, jonas.id, { onWall: false });
-    expect((await listPublicContributors(db, { sort: "newest" })).map((c) => c.handle)).toEqual(["lena-k"]);
+    expect((await wallOf({ sort: "newest" })).map((c) => c.handle)).toEqual(["lena-k"]);
+    await updateProfile(db, jonas.id, { onWall: true });
     expect(await getPublicContributor(db, "jonas")).not.toBeNull(); // off the wall, still public
+  });
+
+  it("pages the wall with a cursor, newest first and A–Z", async () => {
+    for (let i = 0; i < 5; i++) {
+      const c = await signInWithGitHub(db, { id: 500 + i, login: `p${i}`, name: null, avatarUrl: null });
+      await updateProfile(db, c.id, { public: true });
+      await openTask({ status: "done", assigneeId: c.id, doneAt: new Date(Date.UTC(2026, 9, 1 + i)) });
+    }
+    for (const [sort, expected] of [["newest", ["p4", "p3", "p2", "p1", "p0"]], ["az", ["p0", "p1", "p2", "p3", "p4"]]] as const) {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await listPublicContributors(db, contributorListQuery.parse({ sort, limit: "2", ...(cursor ? { cursor } : {}) }));
+        seen.push(...page.contributors.map((c) => c.handle));
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      expect(seen).toEqual(expected);
+    }
   });
 });
 
 describe("deleting an account", () => {
   it("removes the profile and proposals, releases the task held, and leaves 'a former contributor'", async () => {
     const held = await openTask({ status: "assigned", assigneeId: lena.id });
+    const merged = await openTask({ title: "Merged before", status: "done", assigneeId: jonas.id, doneAt: new Date() });
     const other = await openTask({ title: "Other" });
     await propose(db, lena, other.id, plan());
     await addPost(db, lena, other.id, { body: "I can take this one" });
     await db.insert(werkLedger).values({ contributorId: lena.id, delta: 1, reason: "Merged NW-0", pr: "https://github.com/x/y/pull/9" });
 
     expect(await code(() => deleteContributor(db, lena.id, "someone-else"))).toBe("invalid");
+    await deleteContributor(db, jonas.id, "jonas");
+    expect((await getPublicTask(db, merged.id))?.assignee).toEqual({ kind: "former" });
     await deleteContributor(db, lena.id, "LENA-K");
 
-    expect(await db.select().from(contributors)).toHaveLength(1);
+    expect(await db.select().from(contributors)).toHaveLength(0);
     expect(await db.select().from(taskProposals)).toEqual([]);
     const [task] = await db.select().from(tasks).where(eq(tasks.id, held.id));
     expect(task).toMatchObject({ status: "open", assigneeId: null });

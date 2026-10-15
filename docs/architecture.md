@@ -156,21 +156,29 @@ Anyone can help build the software Novawerk runs on through an open task board (
 and the API. The pages, the admin side, the GitHub webhook, tokens and emails come next.
 
 - **Contributors are not Members.** Their own table (`contributors`), no admin panel, no tiers.
-  They sign in with GitHub (our GitHub App's user authorization; we keep GitHub's numeric id and
-  login, never the token) or an emailed 6-digit code (`sign_in_codes` with `kind = contributor`:
-  hashed, 10 minutes, 5 tries, 3 per address per 15 minutes, 10 requests per IP per hour, the
-  same answer for every address). Proposing or working on a task needs GitHub linked.
+  They sign in with GitHub (our GitHub App's user authorization with PKCE; we keep GitHub's
+  numeric id and login, never the token) or an emailed 6-digit code (`sign_in_codes` with
+  `kind = contributor`: hashed, 10 minutes, 5 tries each claimed atomically, 3 per address per
+  15 minutes, 10 requests and 30 checks per IP per hour, the same answer for every address, and
+  its own task board wording). An email sign-up gets a neutral handle (`contributor-7f3a`) until
+  they pick one; nothing from the address shows. A GitHub sign-up starts with the GitHub login.
+  Proposing or working on a task needs GitHub linked, and a linked GitHub account is never
+  swapped for another.
 - **Sessions stay apart.** Members: `nw_session` (audience `nw-admin`). Contributors:
   `nw_contributor` (audience `nw-contributor`, 30 days), httpOnly on the API's domain, sent from
   the website's origins only (`CONTRIBUTOR_ORIGINS`, default: the web origins). Neither cookie
-  opens the other's routes. Every request re-reads the row, so a deleted account is out at once.
+  opens the other's routes. Every request re-reads the row, so a deleted account is out at once;
+  sessions issued before `contributors.sessions_revoked_at` (set on sign-out and when GitHub is
+  linked) are refused.
 - **Tasks** are `NW-<n>`. Sizes S/M/L/XL are worth 1/3/8/20 **Werk**: recognition, never money.
   Statuses: `draft` (members only) → `open` → `assigned` → `in_review` → `done`, or `closed`;
   suggestions go `suggested` → `open` / `assigned`, `declined` or `duplicate`. Every transition
   writes a `task_events` row (the public timeline).
 - **Rules live in `@nw/tasks`** (state machine, limits, privacy, the public reads); the API only
   wires them. Limits per contributor: 5 proposals and 30 posts a day, 3 open suggestions, 1 task
-  in progress. No +1 on your own suggestion; votes close at triage.
+  in progress until their first merge, then 2. The limits run with the contributor's row locked,
+  so parallel requests can't pass one twice. No +1 on your own suggestion; votes close at
+  triage. A suspended contributor reads but doesn't write, and leaves the wall and their profile.
 - **Privacy.** Profiles are private until `public` is on (`on_wall` lets a public profile leave
   the wall). A private profile shows as an unlinked handle. Proposals are public; a decline note
   only reaches its proposer (`GET /contrib/me/proposals`). Hidden posts keep their place without
@@ -180,6 +188,9 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
 - **Werk ledger** (`werk_ledger`) is append-only: a merge adds one row per task and PR (unique
   `(task_id, pr)`), and a member's change is a new row with a reason. Nothing updates a row.
 - **Tokens** (`contributor_tokens`: hashed secret, scopes, expiry, last use) exist as a table only.
+- **Next**: a database-level guard that makes `werk_ledger` append-only (a trigger, or no
+  UPDATE/DELETE grant), and a database-backed per-IP limit or a challenge on
+  `/auth/contributor/email/start` against email bombing (today's per-IP limit is per instance).
 
 | Route | Who | What |
 |-------|-----|------|
@@ -187,7 +198,7 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
 | `POST /auth/contributor/email/start`, `…/email/verify` | anyone | emailed code |
 | `GET /auth/contributor/me`, `POST /auth/contributor/logout` | contributor | |
 | `GET /public/tasks` (area, size, status, skills, q, sort, cursor), `GET /public/tasks/:id` | anyone | the board and one task with proposals, thread, timeline |
-| `GET /public/contributors` (sort, area), `GET /public/contributors/:handle` | anyone | the wall and public profiles |
+| `GET /public/contributors` (sort, area, cursor), `GET /public/contributors/:handle` | anyone | the wall and public profiles |
 | `POST /contrib/tasks/:id/proposals`, `PATCH`/`DELETE /contrib/proposals/:id`, `GET /contrib/me/proposals` | contributor | propose, edit, withdraw |
 | `POST /contrib/tasks/:id/posts`, `POST /contrib/suggestions`, `PUT`/`DELETE /contrib/tasks/:id/vote` | contributor | thread, suggestions, +1 |
 | `PATCH /contrib/me/profile`, `DELETE /contrib/me` | contributor | profile, delete account |

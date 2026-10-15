@@ -1743,7 +1743,10 @@ export const TASK_LIMITS = {
   proposalsPerDay: 5,
   postsPerDay: 30,
   openSuggestions: 3,
+  /** One task at a time until the first merge (NB-ADR-0013)… */
   tasksInProgress: 1,
+  /** …then up to two. */
+  tasksInProgressAfterFirstMerge: 2,
   /** Tasks go back on the board after this many days without activity. */
   idleReleaseDays: 14,
 } as const;
@@ -1942,8 +1945,17 @@ export type ContributorSort = (typeof CONTRIBUTOR_SORTS)[number];
 export const contributorListQuery = z.object({
   sort: z.enum(CONTRIBUTOR_SORTS).default("newest"),
   area: z.enum(TASK_AREAS).optional(),
+  /** `nextCursor` from the previous page. */
+  cursor: z.string().max(200).regex(/^[A-Za-z0-9_-]+$/).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(48),
 });
 export type ContributorListQuery = z.infer<typeof contributorListQuery>;
+
+export interface PublicContributorPage {
+  contributors: PublicContributor[];
+  /** Pass as `cursor` for the next page; null on the last one. */
+  nextCursor: string | null;
+}
 
 export interface PublicTaskRef {
   id: string;
@@ -1987,6 +1999,8 @@ export interface ContributorMe {
   public: boolean;
   onWall: boolean;
   pledgeAccepted: boolean;
+  /** Still the neutral handle an email sign-up gets (`contributor-7f3a`): ask them to pick one. */
+  defaultHandle: boolean;
   /** GitHub is linked and the account isn't suspended: they may propose and work on tasks. */
   canWork: boolean;
   suspended: boolean;

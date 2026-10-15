@@ -38,3 +38,11 @@ export class TaskRuleError extends Error {
 }
 
 export const httpStatusOf = (code: TaskRuleCode) => STATUS[code];
+
+/** Postgres unique_violation, from node-postgres or PGlite (Drizzle wraps it in `cause`). */
+export function isUniqueViolation(err: unknown): boolean {
+  for (let e: unknown = err, depth = 0; e && depth < 3; e = (e as { cause?: unknown }).cause, depth++) {
+    if ((e as { code?: unknown }).code === "23505") return true;
+  }
+  return false;
+}

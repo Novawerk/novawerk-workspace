@@ -44,7 +44,7 @@ export interface OutboxSender {
   resendApiKey?: string;
 }
 
-/** Emails a member their 6-digit sign-in code. Wraps `sendSignInCode` from @nw/email. */
+/** Emails a 6-digit sign-in code. Wraps `sendSignInCode` from @nw/email (member or contributor wording). */
 export type SignInCodeSender = (to: string, code: string) => Promise<unknown>;
 
 /** Emails the newsletter's confirmation link. Wraps `sendNewsletterConfirmation` from @nw/email. */
@@ -150,6 +150,8 @@ export interface AppDeps {
   files?: Files;
   /** Signing in by email. Optional: without it /auth/email/* answer 503 (Google still works). */
   sendSignInCode?: SignInCodeSender;
+  /** Contributors' codes: the task board wording. Optional: without it /auth/contributor/email/* answer 503. */
+  sendContributorSignInCode?: SignInCodeSender;
   /** Double opt-in emails. Optional: without it POST /public/subscribe answers 503. */
   sendNewsletterConfirmation?: NewsletterConfirmationSender;
   /** Optional: without it POST /webhooks/resend answers 404. */

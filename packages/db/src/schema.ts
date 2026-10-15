@@ -103,6 +103,8 @@ export const contributors = pgTable("contributors", {
   /** Set by a member (moderation): they can still sign in and read, but not write. */
   suspendedAt: timestamp("suspended_at", { withTimezone: true }),
   lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
+  /** Sessions issued before this are refused: set on sign-out and when sign-in methods change. */
+  sessionsRevokedAt: timestamp("sessions_revoked_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -803,7 +805,7 @@ export const taskVotes = pgTable(
       .references(() => contributors.id, { onDelete: "cascade" }),
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.taskId, t.contributorId] })],
+  (t) => [primaryKey({ columns: [t.taskId, t.contributorId] }), index("task_votes_contributor_idx").on(t.contributorId)],
 );
 
 /** Every transition of a task (who, when, from, to, note): the public timeline. */

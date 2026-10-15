@@ -1,5 +1,5 @@
 {
-  "id": "95ded211-822a-4659-a3c9-83c495c92223",
+  "id": "51035a4a-b43a-43d8-844a-710fbcab04f0",
   "prevId": "56866ddb-85b8-4fab-a04a-9290a935040b",
   "version": "7",
   "dialect": "postgresql",
@@ -662,6 +662,12 @@
         },
         "last_sign_in_at": {
           "name": "last_sign_in_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sessions_revoked_at": {
+          "name": "sessions_revoked_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
@@ -3119,7 +3125,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "task_votes_contributor_idx": {
+          "name": "task_votes_contributor_idx",
+          "columns": [
+            {
+              "expression": "contributor_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "task_votes_task_id_tasks_id_fk": {
           "name": "task_votes_task_id_tasks_id_fk",

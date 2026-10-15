@@ -60,6 +60,7 @@ export function makeApp(
     sendNewsletterConfirmation?: NewsletterConfirmationSender;
     inboundMail?: InboundMailOptions;
     githubOAuth?: GitHubOAuth;
+    sendContributorSignInCode?: SignInCodeSender;
   } = {},
 ) {
   const sent: TeamNotification[] = [];
@@ -89,6 +90,7 @@ export function makeApp(
     ...(opts.sendNewsletterConfirmation ? { sendNewsletterConfirmation: opts.sendNewsletterConfirmation } : {}),
     ...(opts.inboundMail ? { inboundMail: opts.inboundMail } : {}),
     ...(opts.githubOAuth ? { githubOAuth: opts.githubOAuth } : {}),
+    ...(opts.sendContributorSignInCode ? { sendContributorSignInCode: opts.sendContributorSignInCode } : {}),
   });
   return { app, notify, sent, logger };
 }

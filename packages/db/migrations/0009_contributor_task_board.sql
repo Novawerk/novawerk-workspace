@@ -34,6 +34,7 @@ CREATE TABLE "contributors" (
 	"pledge_accepted_at" timestamp with time zone,
 	"suspended_at" timestamp with time zone,
 	"last_sign_in_at" timestamp with time zone,
+	"sessions_revoked_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "contributors_handle_unique" UNIQUE("handle"),
@@ -168,6 +169,7 @@ CREATE INDEX "task_posts_author_idx" ON "task_posts" USING btree ("author_contri
 CREATE INDEX "task_proposals_task_idx" ON "task_proposals" USING btree ("task_id","created_at");--> statement-breakpoint
 CREATE INDEX "task_proposals_contributor_idx" ON "task_proposals" USING btree ("contributor_id","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "task_proposals_one_pending_key" ON "task_proposals" USING btree ("task_id","contributor_id") WHERE "task_proposals"."status" = 'pending';--> statement-breakpoint
+CREATE INDEX "task_votes_contributor_idx" ON "task_votes" USING btree ("contributor_id");--> statement-breakpoint
 CREATE INDEX "tasks_status_updated_idx" ON "tasks" USING btree ("status","updated_at");--> statement-breakpoint
 CREATE INDEX "tasks_assignee_idx" ON "tasks" USING btree ("assignee_id");--> statement-breakpoint
 CREATE INDEX "tasks_suggested_by_idx" ON "tasks" USING btree ("suggested_by");--> statement-breakpoint

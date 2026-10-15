@@ -191,14 +191,14 @@ on conflict do nothing;
 
 -- ─── Contributor task board: open tasks about our own software ──────────────
 -- Real work on this repo, so the board and the API have something to show. Two demo contributors
--- (fictional, example.com): Lena with a public profile and one merged task, Mira who signed in by
--- email and has no GitHub yet. Task numbers are fixed so links like /tasks/NW-3 stay stable.
+-- (fictional, example.com): Lena with a public profile and one merged task, and someone who signed in by
+-- email, has no GitHub yet and still has the neutral handle. Task numbers are fixed so links like /tasks/NW-3 stay stable.
 
 insert into contributors (id, handle, display_name, bio, public, github_id, github_login, email, created_at)
 values
   ('c1000000-0000-4000-8000-000000000001', 'lena-k', 'Lena Krause', 'Frontend, accessibility, small fixes.', true,
    90000001, 'lena-k', null, now() - interval '40 days'),
-  ('c1000000-0000-4000-8000-000000000002', 'mira', 'Mira', null, false,
+  ('c1000000-0000-4000-8000-000000000002', 'contributor-3b9e', 'contributor-3b9e', null, false,
    null, null, 'mira@example.com', now() - interval '3 days')
 on conflict do nothing;
 

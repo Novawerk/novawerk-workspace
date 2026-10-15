@@ -2,6 +2,8 @@
 // (anonymous, contributor, member), the limits, and what public responses never contain.
 // The rules themselves are tested in packages/tasks.
 
+import { createHash } from "node:crypto";
+
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -33,12 +35,20 @@ beforeEach(async () => {
   await db.insert(members).values(TEST_MEMBERS);
 });
 
-/** Fake GitHub: the code `gh:<id>:<login>` belongs to that user. */
+/**
+ * Fake GitHub: the code `gh:<id>:<login>` belongs to that user. Like GitHub, it refuses an
+ * exchange whose PKCE verifier doesn't match the challenge it was given.
+ */
+const challenges: string[] = [];
 const fakeGitHub: GitHubOAuth = {
-  authorizeUrl: (state, redirectUri) => `https://github.test/authorize?state=${state}&redirect_uri=${encodeURIComponent(redirectUri)}`,
-  exchange: async (code) => {
+  authorizeUrl: (state, redirectUri, codeChallenge) => {
+    challenges.push(codeChallenge);
+    return `https://github.test/authorize?state=${state}&redirect_uri=${encodeURIComponent(redirectUri)}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+  },
+  exchange: async (code, _redirectUri, codeVerifier) => {
     const [, id, login] = code.split(":");
     if (!code.startsWith("gh:") || !id || !login) throw new Error("bad code");
+    if (!challenges.includes(createHash("sha256").update(codeVerifier).digest("base64url"))) throw new Error("PKCE mismatch");
     return { id: Number(id), login, name: null, avatarUrl: `https://avatars.example/${id}` };
   },
 };
@@ -96,6 +106,8 @@ describe("signing in with GitHub", () => {
     const start = await app.request("/auth/contributor/github/start?returnTo=/tasks/NW-42");
     const location = new URL(start.headers.get("location")!);
     expect(location.searchParams.get("redirect_uri")).toBe("https://api.novawerk.io/auth/contributor/github/callback");
+    expect(location.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(location.searchParams.get("code_challenge")).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(start.headers.get("set-cookie")).toMatch(/nw_github_state=.*HttpOnly/i);
 
     const { callback, cookie } = await signInWithGitHub(app, "gh:101:Lena-K", { returnTo: "/tasks/NW-42" });
@@ -120,10 +132,31 @@ describe("signing in with GitHub", () => {
   it("links GitHub to an account made by email", async () => {
     const { app } = makeApp(db, { githubOAuth: fakeGitHub });
     const mira = await contributor({ handle: "mira", email: "mira@example.com" });
-    const { callback } = await signInWithGitHub(app, "gh:300:mira-gh", { cookie: mira.cookie });
+    const { callback, cookie } = await signInWithGitHub(app, "gh:300:mira-gh", { cookie: mira.cookie });
     expect(callback.status).toBe(302);
     const [row] = await db.select().from(contributors).where(eq(contributors.id, mira.row.id));
     expect(row).toMatchObject({ githubId: 300, githubLogin: "mira-gh", email: "mira@example.com" });
+    // A new sign-in method ends the old sessions; the callback's new cookie works.
+    expect((await json(app, "GET", "/auth/contributor/me", mira.cookie)).status).toBe(401);
+    expect((await json(app, "GET", "/auth/contributor/me", cookie!)).status).toBe(200);
+
+    // Another GitHub account never replaces the linked one.
+    const other = await signInWithGitHub(app, "gh:301:someone", { cookie: cookie! });
+    expect(other.callback.headers.get("location")).toBe(`${WEB_ORIGIN}/settings?error=github-linked-elsewhere`);
+    const [after] = await db.select().from(contributors).where(eq(contributors.id, mira.row.id));
+    expect(after?.githubId).toBe(300);
+  });
+
+  it("refuses an exchange without the PKCE verifier GitHub was promised", async () => {
+    const { app } = makeApp(db, { githubOAuth: fakeGitHub });
+    challenges.length = 0;
+    const start = await app.request("/auth/contributor/github/start");
+    const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
+    challenges.length = 0; // GitHub forgot the challenge: a verifier from elsewhere can't match
+    const callback = await app.request(`/auth/contributor/github/callback?code=gh:1:x&state=${state}`, {
+      headers: { Cookie: cookieOf(start, "nw_github_state")! },
+    });
+    expect(callback.headers.get("location")).toBe(`${WEB_ORIGIN}/sign-in?error=github`);
   });
 
   it("answers 503 when the GitHub App isn't configured", async () => {
@@ -135,17 +168,24 @@ describe("signing in with GitHub", () => {
 describe("signing in with an emailed code", () => {
   function codeApp() {
     const sent: { to: string; code: string }[] = [];
-    const { app } = makeApp(db, { sendSignInCode: async (to, code) => void sent.push({ to, code }) });
-    return { app, sent };
+    const memberCodes: string[] = [];
+    const { app } = makeApp(db, {
+      sendContributorSignInCode: async (to, code) => void sent.push({ to, code }),
+      sendSignInCode: async (_to, code) => void memberCodes.push(code),
+    });
+    return { app, sent, memberCodes };
   }
 
   it("emails a code to any address and creates the account on first use", async () => {
-    const { app, sent } = codeApp();
+    const { app, sent, memberCodes } = codeApp();
     const start = await app.request("/auth/contributor/email/start", postJson({ email: "New@Example.com" }));
     expect(await start.json()).toEqual({ ok: true });
+    expect(memberCodes).toEqual([]); // the task board wording, not the admin panel's
     const verify = await app.request("/auth/contributor/email/verify", postJson({ email: "new@example.com", code: sent[0]!.code }));
     expect(verify.status).toBe(200);
-    expect(await verify.json()).toMatchObject({ handle: "new", email: "new@example.com", canWork: false });
+    const me = (await verify.json()) as { handle: string };
+    expect(me).toMatchObject({ email: "new@example.com", canWork: false, defaultHandle: true });
+    expect(me.handle).toMatch(/^contributor-[0-9a-f]{4}$/);
     expect(cookieOf(verify, "nw_contributor")).toBeDefined();
     expect(cookieOf(verify, "nw_session")).toBeUndefined();
     // Used up.
@@ -179,6 +219,39 @@ describe("signing in with an emailed code", () => {
     expect((await app.request("/auth/contributor/email/start", postJson({ email: "p10@example.com" }, from))).status).toBe(429);
   });
 
+  it("counts every try, even when guesses arrive together", async () => {
+    for (const [startPath, verifyPath, email] of [
+      ["/auth/contributor/email/start", "/auth/contributor/email/verify", "t@example.com"],
+      ["/auth/email/start", "/auth/email/verify", "grace@novawerk.io"],
+    ] as const) {
+      const { app, sent, memberCodes } = codeApp();
+      await app.request(startPath, postJson({ email }));
+      const real = sent[0]?.code ?? memberCodes[0]!;
+      const wrong = real === "000000" ? "111111" : "000000";
+      const guesses = await Promise.all(
+        Array.from({ length: 40 }, (_, i) =>
+          app.request(verifyPath, postJson({ email, code: wrong }, { "x-forwarded-for": `198.51.100.${i}` })),
+        ),
+      );
+      expect(guesses.every((r) => r.status === 400)).toBe(true);
+      const [row] = await db.select().from(signInCodes).where(eq(signInCodes.email, email));
+      expect(row?.attempts).toBe(5);
+      expect((await app.request(verifyPath, postJson({ email, code: real }))).status).toBe(400);
+      await db.delete(signInCodes);
+    }
+  });
+
+  it("limits code checks per network on both verify routes", async () => {
+    const { app } = codeApp();
+    const from = { "x-forwarded-for": "203.0.113.7" };
+    for (const path of ["/auth/contributor/email/verify", "/auth/email/verify"]) {
+      for (let i = 0; i < 30; i++) {
+        expect((await app.request(path, postJson({ email: `v${i}@example.com`, code: "123456" }, from))).status).toBe(400);
+      }
+      expect((await app.request(path, postJson({ email: "v@example.com", code: "123456" }, from))).status).toBe(429);
+    }
+  });
+
   it("allows five tries per code", async () => {
     const { app, sent } = codeApp();
     await app.request("/auth/contributor/email/start", postJson({ email: "t@example.com" }));
@@ -200,6 +273,26 @@ describe("who may call what", () => {
     expect((await json(app, "GET", "/auth/contributor/me", memberCookie)).status).toBe(401);
     expect((await json(app, "GET", "/admin/me", lena.cookie)).status).toBe(401);
     expect((await json(app, "POST", `/contrib/tasks/NW-${task.id}/proposals`, lena.cookie, plan)).status).toBe(201);
+  });
+
+  it("signing out ends every session, including a copied cookie", async () => {
+    const { app } = makeApp(db);
+    const lena = await contributor({ handle: "lena", githubId: 1 });
+    expect((await json(app, "GET", "/auth/contributor/me", lena.cookie)).status).toBe(200);
+    const out = await json(app, "POST", "/auth/contributor/logout", lena.cookie);
+    expect(out.res.headers.get("set-cookie")).toMatch(/nw_contributor=;/);
+    expect((await json(app, "GET", "/auth/contributor/me", lena.cookie)).status).toBe(401);
+    expect((await json(app, "POST", "/contrib/suggestions", lena.cookie, {})).status).toBe(401);
+    // Signing in again afterwards works.
+    expect((await json(app, "GET", "/auth/contributor/me", await contributorCookie(lena.row.id))).status).toBe(200);
+  });
+
+  it("answers 409, not 500, when the same proposal is sent twice at once", async () => {
+    const { app } = makeApp(db);
+    const lena = await contributor({ handle: "lena", githubId: 1 });
+    const task = await openTask();
+    const both = await Promise.all([1, 2].map(() => json(app, "POST", `/contrib/tasks/${task.id}/proposals`, lena.cookie, plan)));
+    expect(both.map((r) => r.status).sort()).toEqual([201, 409]);
   });
 
   it("signs out a deleted account at once", async () => {
@@ -308,10 +401,12 @@ describe("public reads", () => {
     expect(profile.status).toBe(200);
     expect(JSON.stringify(profile.body)).not.toContain("@example.com");
 
-    expect((await json(app, "GET", "/public/contributors", null)).body).toEqual([]);
+    expect((await json(app, "GET", "/public/contributors", null)).body).toEqual({ contributors: [], nextCursor: null });
     await openTask({ status: "done", assigneeId: lena.row.id, doneAt: new Date() });
     const wall = await json(app, "GET", "/public/contributors?sort=az", null);
-    expect(wall.body.map((c: { handle: string }) => c.handle)).toEqual(["lena"]);
+    expect(wall.body.contributors.map((c: { handle: string }) => c.handle)).toEqual(["lena"]);
+    expect((await json(app, "GET", "/public/contributors?cursor=bm9wZQ", null)).status).toBe(400);
+    expect((await json(app, "GET", `/public/tasks?cursor=${Buffer.from('["2026-02-31 00:00:00+00",1]').toString("base64url")}`, null)).status).toBe(400);
     expect(JSON.stringify(wall.body)).not.toMatch(/@example\.com|werk/i);
   });
 });

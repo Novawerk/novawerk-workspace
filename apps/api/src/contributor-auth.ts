@@ -1,16 +1,21 @@
 // Contributor sessions, kept apart from member sessions (src/auth.ts). Contributors are not
 // Members (NB-ADR-0013): their cookie is `nw_contributor`, an HS256 JWT with its own audience,
 // so it never opens /admin, and a member's `nw_session` never opens /contrib. Every request
-// re-reads the contributor row: a deleted account is signed out at once.
+// re-reads the contributor row: a deleted account is signed out at once, and a session issued
+// before `sessions_revoked_at` (sign-out, a new sign-in method) is refused.
 //
-// GitHub sign-in is the OAuth web flow of our GitHub App (user authorization). We keep GitHub's
-// numeric user id and login, never the access token. The `state` travels in a short-lived signed
-// cookie with where to go back to, and who to link GitHub to when someone signed in by email.
+// GitHub sign-in is the OAuth web flow of our GitHub App (user authorization) with PKCE (S256).
+// We keep GitHub's numeric user id and login, never the access token. The `state` and the PKCE
+// verifier travel in a short-lived signed httpOnly cookie, with where to go back to and who to
+// link GitHub to when someone signed in by email.
+
+import { createHash } from "node:crypto";
 
 import { getCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import { jwtVerify, SignJWT } from "jose";
 
+import type { Contributor, Database } from "@nw/db";
 import { getContributor, type GitHubUser } from "@nw/tasks";
 
 import type { ApiEnv } from "./types.js";
@@ -29,8 +34,9 @@ export const GITHUB_CALLBACK_PATH = "/auth/contributor/github/callback";
 
 const keyFrom = (secret: string) => new TextEncoder().encode(secret);
 
-export async function signContributorSession(contributorId: string, secret: string): Promise<string> {
-  return new SignJWT({})
+export async function signContributorSession(contributorId: string, secret: string, now = Date.now()): Promise<string> {
+  // `ims`: issued at, in milliseconds (`iat` is whole seconds), compared with sessions_revoked_at.
+  return new SignJWT({ ims: now })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(contributorId)
     .setIssuer(ISSUER)
@@ -40,11 +46,12 @@ export async function signContributorSession(contributorId: string, secret: stri
     .sign(keyFrom(secret));
 }
 
-/** The contributor id in a valid contributor session token, or null. */
-export async function verifyContributorSession(token: string, secret: string): Promise<string | null> {
+/** The contributor id and issue time in a valid contributor session token, or null. */
+export async function verifyContributorSession(token: string, secret: string): Promise<{ id: string; issuedMs: number } | null> {
   try {
     const { payload } = await jwtVerify(token, keyFrom(secret), { issuer: ISSUER, audience: AUDIENCE, algorithms: ["HS256"] });
-    return payload.sub ?? null;
+    if (!payload.sub || typeof payload.ims !== "number") return null;
+    return { id: payload.sub, issuedMs: payload.ims };
   } catch {
     return null;
   }
@@ -53,6 +60,8 @@ export async function verifyContributorSession(token: string, secret: string): P
 /** What the state cookie carries through GitHub and back. */
 export interface GitHubState {
   state: string;
+  /** PKCE code verifier; GitHub got its S256 challenge. */
+  verifier: string;
   /** A path on the website. */
   returnTo: string;
   /** Link GitHub to this signed-in contributor instead of signing in. */
@@ -72,9 +81,12 @@ export async function signGitHubState(value: GitHubState, secret: string): Promi
 export async function verifyGitHubState(token: string, secret: string): Promise<GitHubState | null> {
   try {
     const { payload } = await jwtVerify(token, keyFrom(secret), { issuer: ISSUER, audience: STATE_AUDIENCE, algorithms: ["HS256"] });
-    if (typeof payload.state !== "string" || typeof payload.returnTo !== "string") return null;
+    if (typeof payload.state !== "string" || typeof payload.returnTo !== "string" || typeof payload.verifier !== "string") {
+      return null;
+    }
     return {
       state: payload.state,
+      verifier: payload.verifier,
       returnTo: payload.returnTo,
       ...(typeof payload.linkTo === "string" ? { linkTo: payload.linkTo } : {}),
     };
@@ -83,47 +95,65 @@ export async function verifyGitHubState(token: string, secret: string): Promise<
   }
 }
 
-/** The signed-in contributor's id, or null. Doesn't check the row. */
-export async function contributorIdFrom(cookie: string | undefined, secret: string): Promise<string | null> {
-  return cookie ? verifyContributorSession(cookie, secret) : null;
+/**
+ * The signed-in contributor: a valid cookie, a row that still exists, and a session issued after
+ * any revocation. Undefined otherwise.
+ */
+export async function currentContributor(db: Database, cookie: string | undefined, secret: string): Promise<Contributor | undefined> {
+  const session = cookie ? await verifyContributorSession(cookie, secret) : null;
+  if (!session) return undefined;
+  const contributor = await getContributor(db, session.id);
+  if (!contributor) return undefined;
+  if (contributor.sessionsRevokedAt && session.issuedMs < contributor.sessionsRevokedAt.getTime()) return undefined;
+  return contributor;
 }
 
 /** Guards /contrib/*: 401 without a valid contributor session. Suspension is checked per action. */
-export function requireContributor(db: Parameters<typeof getContributor>[0], secret: string) {
+export function requireContributor(db: Database, secret: string) {
   return createMiddleware<ApiEnv>(async (c, next) => {
-    const id = await contributorIdFrom(getCookie(c, CONTRIBUTOR_COOKIE), secret);
-    const contributor = id ? await getContributor(db, id) : undefined;
+    const contributor = await currentContributor(db, getCookie(c, CONTRIBUTOR_COOKIE), secret);
     if (!contributor) return c.json({ error: "Not signed in" }, 401);
     c.set("contributor", contributor);
     await next();
   });
 }
 
+/** PKCE S256: the challenge for a verifier. */
+export const pkceChallenge = (verifier: string) => createHash("sha256").update(verifier).digest("base64url");
+
 // ─── GitHub ──────────────────────────────────────────────────────────────────
 
 /** The GitHub side of the OAuth web flow. Tests pass a fake. */
 export interface GitHubOAuth {
-  /** Where to send the browser to authorize. */
-  authorizeUrl(state: string, redirectUri: string): string;
-  /** Trade the callback's code for the GitHub user. Throws when GitHub says no. */
-  exchange(code: string, redirectUri: string): Promise<GitHubUser>;
+  /** Where to send the browser to authorize. `codeChallenge` is the PKCE S256 challenge. */
+  authorizeUrl(state: string, redirectUri: string, codeChallenge: string): string;
+  /** Trade the callback's code (and the PKCE verifier) for the GitHub user. Throws when GitHub says no. */
+  exchange(code: string, redirectUri: string, codeVerifier: string): Promise<GitHubUser>;
 }
 
 /** The real flow against github.com, with the GitHub App's client id and secret. */
 export function createGitHubOAuth(app: { clientId: string; clientSecret: string }, fetchImpl: typeof fetch = fetch): GitHubOAuth {
   return {
-    authorizeUrl(state, redirectUri) {
+    authorizeUrl(state, redirectUri, codeChallenge) {
       const url = new URL("https://github.com/login/oauth/authorize");
       url.searchParams.set("client_id", app.clientId);
       url.searchParams.set("redirect_uri", redirectUri);
       url.searchParams.set("state", state);
+      url.searchParams.set("code_challenge", codeChallenge);
+      url.searchParams.set("code_challenge_method", "S256");
       return url.toString();
     },
-    async exchange(code, redirectUri) {
+    async exchange(code, redirectUri, codeVerifier) {
       const tokenRes = await fetchImpl("https://github.com/login/oauth/access_token", {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({ client_id: app.clientId, client_secret: app.clientSecret, code, redirect_uri: redirectUri }),
+        body: JSON.stringify({
+          client_id: app.clientId,
+          client_secret: app.clientSecret,
+          code,
+          redirect_uri: redirectUri,
+          code_verifier: codeVerifier,
+        }),
       });
       const token = (await tokenRes.json().catch(() => ({}))) as { access_token?: unknown; error?: unknown };
       if (!tokenRes.ok || typeof token.access_token !== "string") {

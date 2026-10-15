@@ -4,14 +4,15 @@
 // one kind never works for the other.
 //
 // - Only a keyed hash of the code is stored (HMAC with the session secret).
-// - A code lives 10 minutes, allows 5 tries, and works once.
+// - A code lives 10 minutes, allows 5 tries (each claimed atomically before the comparison), and
+//   works once. The verify routes also limit tries per IP.
 // - At most 3 codes per address per 15 minutes.
 // - Asking for a code says the same thing whether or not the address belongs to a member (or a
 //   contributor), so the form can't be used to find out who is one.
 
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 
-import { and, count, desc, eq, gt, isNull, lt } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
 
 import { signInCodes, type Database } from "@nw/db";
 
@@ -19,6 +20,8 @@ export const CODE_TTL_MS = 10 * 60_000;
 export const MAX_ATTEMPTS = 5;
 export const MAX_CODES_PER_WINDOW = 3;
 export const WINDOW_MS = 15 * 60_000;
+/** Code checks per client IP per hour on the verify routes (in-memory, per instance). */
+export const VERIFY_TRIES_PER_IP_PER_HOUR = 30;
 
 /** Who the code signs in. */
 export type SignInCodeKind = "member" | "contributor";
@@ -87,15 +90,19 @@ export async function checkCode(
     )
     .orderBy(desc(signInCodes.createdAt), desc(signInCodes.id))
     .limit(1);
-  if (!latest || latest.attempts >= MAX_ATTEMPTS) return false;
+  if (!latest) return false;
+
+  // Claim a try before comparing, in one statement: parallel guesses can't share a try.
+  const claimed = await db
+    .update(signInCodes)
+    .set({ attempts: sql`${signInCodes.attempts} + 1` })
+    .where(and(eq(signInCodes.id, latest.id), lt(signInCodes.attempts, MAX_ATTEMPTS), isNull(signInCodes.usedAt)))
+    .returning({ id: signInCodes.id });
+  if (claimed.length !== 1) return false;
 
   const given = Buffer.from(hashCode(code.trim(), address, secret));
   const stored = Buffer.from(latest.codeHash);
-  const match = given.length === stored.length && timingSafeEqual(given, stored);
-  if (!match) {
-    await db.update(signInCodes).set({ attempts: latest.attempts + 1 }).where(eq(signInCodes.id, latest.id));
-    return false;
-  }
+  if (given.length !== stored.length || !timingSafeEqual(given, stored)) return false;
   // Use it up; a second request racing with the same code loses here.
   const used = await db
     .update(signInCodes)

@@ -53,7 +53,10 @@ async function lockTask(tx: Tx, taskId: number): Promise<Task> {
   return task;
 }
 
-/** Can this contributor take a task now: GitHub linked, not suspended, nothing else in progress. */
+/**
+ * Can this contributor take a task now: GitHub linked, not suspended, and holding fewer than the
+ * limit (1 until their first merged task, then 2).
+ */
 async function checkCanTake(tx: Tx, contributorId: string, taskId: number): Promise<void> {
   const [person] = await tx.select().from(contributors).where(eq(contributors.id, contributorId)).limit(1);
   if (!person) throw new TaskRuleError("not_found", "No such contributor");
@@ -64,8 +67,17 @@ async function checkCanTake(tx: Tx, contributorId: string, taskId: number): Prom
     .select({ n: count() })
     .from(tasks)
     .where(and(eq(tasks.assigneeId, contributorId), inArray(tasks.status, [...IN_PROGRESS_STATUSES]), ne(tasks.id, taskId)));
-  if ((held?.n ?? 0) >= TASK_LIMITS.tasksInProgress) {
-    throw new TaskRuleError("conflict", `They already hold ${TASK_LIMITS.tasksInProgress} task. One at a time.`);
+  const [merged] = await tx
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.assigneeId, contributorId), eq(tasks.status, "done")))
+    .limit(1);
+  const limit = merged ? TASK_LIMITS.tasksInProgressAfterFirstMerge : TASK_LIMITS.tasksInProgress;
+  if ((held?.n ?? 0) >= limit) {
+    throw new TaskRuleError(
+      "conflict",
+      merged ? `They already hold ${limit} tasks.` : "They already hold a task. One at a time until their first merge.",
+    );
   }
 }
 

@@ -7,7 +7,7 @@
 //   POST /auth/contributor/email/start   { email }             → { ok } always
 //   POST /auth/contributor/email/verify  { email, code }       → the contributor, and the cookie
 //   GET  /auth/contributor/me                                  → the contributor (owner view) or 401
-//   POST /auth/contributor/logout
+//   POST /auth/contributor/logout                             ends every session of this contributor
 //
 // Signed in by email and pressing "Link GitHub" goes through the same GitHub start: the callback
 // then adds GitHub to that account. Proposing or working on a task needs GitHub linked.
@@ -19,7 +19,7 @@ import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 
 import { contributorEmailStartInput, contributorEmailVerifyInput, githubStartQuery } from "@nw/contracts";
-import { getContributor, signInWithEmail, signInWithGitHub, toContributorMe, TaskRuleError } from "@nw/tasks";
+import { revokeSessions, signInWithEmail, signInWithGitHub, toContributorMe, TaskRuleError } from "@nw/tasks";
 
 import { sessionCookieOptions } from "../auth.js";
 import {
@@ -28,14 +28,15 @@ import {
   GITHUB_CALLBACK_PATH,
   GITHUB_STATE_COOKIE,
   GITHUB_STATE_TTL_SECONDS,
-  contributorIdFrom,
+  currentContributor,
+  pkceChallenge,
   signContributorSession,
   signGitHubState,
   verifyGitHubState,
 } from "../contributor-auth.js";
 import { rejectInvalid, validationFailed } from "../http.js";
 import { FixedWindowLimiter, clientIp } from "../intake-chat/rate-limit.js";
-import { checkCode, issueCode } from "../sign-in-codes.js";
+import { VERIFY_TRIES_PER_IP_PER_HOUR, checkCode, issueCode } from "../sign-in-codes.js";
 import type { ApiEnv, AppDeps, Logger } from "../types.js";
 
 /** Code requests per client IP per hour (in-memory, per instance). Per address: src/sign-in-codes.ts. */
@@ -50,8 +51,9 @@ const sameString = (a: string, b: string) => {
   return x.length === y.length && timingSafeEqual(x, y);
 };
 
-export function contributorAuthRoutes({ db, env, logger, githubOAuth, sendSignInCode }: AppDeps & { logger: Logger }) {
+export function contributorAuthRoutes({ db, env, logger, githubOAuth, sendContributorSignInCode }: AppDeps & { logger: Logger }) {
   const codeRequests = new FixedWindowLimiter(CODE_REQUESTS_PER_HOUR, 60 * 60_000);
+  const verifyTries = new FixedWindowLimiter(VERIFY_TRIES_PER_IP_PER_HOUR, 60 * 60_000);
   const webPage = (path: string) => `${env.publicUrls.webUrl}${path}`;
   const redirectUri = `${env.publicUrls.apiUrl}${GITHUB_CALLBACK_PATH}`;
 
@@ -59,16 +61,17 @@ export function contributorAuthRoutes({ db, env, logger, githubOAuth, sendSignIn
     .get("/github/start", zValidator("query", githubStartQuery, rejectInvalid), async (c) => {
       if (!githubOAuth) return c.json({ error: GITHUB_OFF }, 503);
       const state = randomBytes(24).toString("base64url");
-      const linkTo = await contributorIdFrom(getCookie(c, CONTRIBUTOR_COOKIE), env.sessionSecret);
+      const verifier = randomBytes(32).toString("base64url");
+      const linkTo = (await currentContributor(db, getCookie(c, CONTRIBUTOR_COOKIE), env.sessionSecret))?.id;
       const token = await signGitHubState(
-        { state, returnTo: c.req.valid("query").returnTo ?? DEFAULT_RETURN, ...(linkTo ? { linkTo } : {}) },
+        { state, verifier, returnTo: c.req.valid("query").returnTo ?? DEFAULT_RETURN, ...(linkTo ? { linkTo } : {}) },
         env.sessionSecret,
       );
       setCookie(c, GITHUB_STATE_COOKIE, token, {
         ...sessionCookieOptions(c, GITHUB_STATE_TTL_SECONDS),
         path: "/auth/contributor/github",
       });
-      return c.redirect(githubOAuth.authorizeUrl(state, redirectUri), 302);
+      return c.redirect(githubOAuth.authorizeUrl(state, redirectUri, pkceChallenge(verifier)), 302);
     })
 
     .get("/github/callback", async (c) => {
@@ -80,7 +83,7 @@ export function contributorAuthRoutes({ db, env, logger, githubOAuth, sendSignIn
         return c.redirect(webPage("/sign-in?error=github"), 302);
       }
       try {
-        const user = await githubOAuth.exchange(code, redirectUri);
+        const user = await githubOAuth.exchange(code, redirectUri, saved.verifier);
         const contributor = await signInWithGitHub(db, user, saved.linkTo);
         setCookie(
           c,
@@ -101,14 +104,14 @@ export function contributorAuthRoutes({ db, env, logger, githubOAuth, sendSignIn
     // Anyone may ask: the code creates an account on first use. The answer is the same whether
     // or not the address has an account, or asked too often.
     .post("/email/start", zValidator("json", contributorEmailStartInput, rejectInvalid), async (c) => {
-      if (!sendSignInCode) return c.json({ error: "Signing in by email isn't set up here." }, 503);
+      if (!sendContributorSignInCode) return c.json({ error: "Signing in by email isn't set up here." }, 503);
       if (!codeRequests.take(clientIp(c))) {
         return c.json({ error: "Too many codes from your network. Please try again later." }, 429);
       }
       const { email } = c.req.valid("json");
       const code = await issueCode(db, email, env.sessionSecret, new Date(), "contributor");
       if (code) {
-        await sendSignInCode(email, code).catch((err: unknown) =>
+        await sendContributorSignInCode(email, code).catch((err: unknown) =>
           logger.error("[api] could not email a contributor sign-in code:", err),
         );
       }
@@ -116,6 +119,9 @@ export function contributorAuthRoutes({ db, env, logger, githubOAuth, sendSignIn
     })
 
     .post("/email/verify", zValidator("json", contributorEmailVerifyInput, rejectInvalid), async (c) => {
+      if (!verifyTries.take(clientIp(c))) {
+        return c.json({ error: "Too many tries from your network. Please try again later." }, 429);
+      }
       const { email, code } = c.req.valid("json");
       if (!(await checkCode(db, email, code, env.sessionSecret, new Date(), "contributor"))) {
         return c.json(validationFailed({ code: ["That code is wrong or has expired"] }), 400);
@@ -131,13 +137,15 @@ export function contributorAuthRoutes({ db, env, logger, githubOAuth, sendSignIn
     })
 
     .get("/me", async (c) => {
-      const id = await contributorIdFrom(getCookie(c, CONTRIBUTOR_COOKIE), env.sessionSecret);
-      const contributor = id ? await getContributor(db, id) : undefined;
+      const contributor = await currentContributor(db, getCookie(c, CONTRIBUTOR_COOKIE), env.sessionSecret);
       if (!contributor) return c.json({ error: "Not signed in" }, 401);
       return c.json(toContributorMe(contributor), 200);
     })
 
-    .post("/logout", (c) => {
+    // Ends this session and every other one (a copied cookie stops working too).
+    .post("/logout", async (c) => {
+      const contributor = await currentContributor(db, getCookie(c, CONTRIBUTOR_COOKIE), env.sessionSecret);
+      if (contributor) await revokeSessions(db, contributor.id);
       deleteCookie(c, CONTRIBUTOR_COOKIE, sessionCookieOptions(c, 0));
       return c.json({ ok: true as const }, 200);
     });

@@ -2,10 +2,11 @@
 // so nothing here may depend on who asks: drafts, hidden posts' text, decline notes, withdrawn
 // proposals, private profiles and every email stay out.
 
-import { and, asc, desc, eq, ilike, inArray, isNotNull, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import {
+  HANDLE_PATTERN,
   PUBLIC_TASK_STATUSES,
   TASK_SIZE_WERK,
   formatTaskId,
@@ -16,6 +17,7 @@ import {
   type ProfileBanner,
   type ProposalEta,
   type PublicContributor,
+  type PublicContributorPage,
   type PublicContributorProfile,
   type PublicPost,
   type PublicProposal,
@@ -109,7 +111,12 @@ function toPublicTask(row: TaskRow): PublicTask {
     proposalCount: Number(row.proposalCount),
     postCount: Number(row.postCount),
     voteCount: Number(row.voteCount),
-    assignee: row.assignee ? contributorPerson(row.assignee as PersonRow) : t.status === "assigned" || t.status === "in_review" ? { kind: "former" } : null,
+    // Held or merged work always had someone: without a row now, they deleted their account.
+    assignee: row.assignee
+      ? contributorPerson(row.assignee as PersonRow)
+      : t.status === "assigned" || t.status === "in_review" || t.status === "done"
+        ? { kind: "former" }
+        : null,
     suggestedBy: row.suggester ? contributorPerson(row.suggester as PersonRow) : t.kind !== "task" ? { kind: "former" } : null,
     where: t.where as SuggestionWhere | null,
     needsInfo: t.needsInfo,
@@ -123,13 +130,30 @@ function toPublicTask(row: TaskRow): PublicTask {
 
 const encodeCursor = (key: string | number, id: number) => Buffer.from(JSON.stringify([key, id])).toString("base64url");
 
+/** Postgres' text of a timestamptz, e.g. `2026-10-15 07:02:14.123456+00`, with a real date and time. */
+const PG_TIMESTAMP = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(?:\.\d{1,6})?([+-])(\d{2})(?::(\d{2}))?(?::\d{2})?$/;
+function isPgTimestamp(text: string): boolean {
+  const m = PG_TIMESTAMP.exec(text);
+  if (!m) return false;
+  const [y, mo, d, h, mi, sec, , oh, om] = m.slice(1).map((v) => (v === undefined ? 0 : Number(v)));
+  const day = new Date(Date.UTC(y!, mo! - 1, d!));
+  return (
+    y! >= 1 && day.getUTCFullYear() === y && day.getUTCMonth() === mo! - 1 && day.getUTCDate() === d &&
+    h! <= 23 && mi! <= 59 && sec! <= 59 && oh! <= 15 && om! <= 59
+  );
+}
+const MAX_INT = 2_147_483_647;
+const isRowId = (v: unknown): v is number => Number.isInteger(v) && (v as number) > 0 && (v as number) <= MAX_INT;
+
 function decodeCursor(cursor: string, sort: TaskListQuery["sort"]): [string | number, number] {
   try {
     const value: unknown = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
-    if (Array.isArray(value) && value.length === 2 && Number.isInteger(value[1])) {
+    if (Array.isArray(value) && value.length === 2 && isRowId(value[1])) {
       const [key, id] = value as [unknown, number];
-      if (sort === "votes" && Number.isInteger(key)) return [key as number, id];
-      if (sort === "updated" && typeof key === "string" && !Number.isNaN(Date.parse(key))) return [key, id];
+      if (sort === "votes" && Number.isInteger(key) && (key as number) >= 0 && (key as number) <= MAX_INT) return [key as number, id];
+      if (sort === "updated" && typeof key === "string" && isPgTimestamp(key)) {
+        return [key, id];
+      }
     }
   } catch {
     // reported below
@@ -335,31 +359,92 @@ const refOf = (t: { id: number; title: string; area: string | null; size: keyof 
   werk: t.size ? TASK_SIZE_WERK[t.size] : null,
 });
 
-/**
- * GET /public/contributors: public profiles on the wall with at least one merged task or an
- * accepted idea. Newest contribution first, or A–Z. Never ordered by Werk.
- */
-export async function listPublicContributors(db: Database, query: ContributorListQuery): Promise<PublicContributor[]> {
-  const people = await db
-    .select({ id: contributors.id, handle: contributors.handle, name: contributors.displayName, avatarUrl: contributors.avatarUrl, bio: contributors.bio })
-    .from(contributors)
-    .where(and(eq(contributors.public, true), eq(contributors.onWall, true)));
-  const work = await contributionsOf(db, people.map((p) => p.id));
+const lastMerge = sql`(select max(${tasks.doneAt}) from ${tasks} where ${tasks.assigneeId} = ${contributors.id} and ${tasks.status} = 'done')`;
+const lastIdea = sql`(select max(${tasks.acceptedAt}) from ${tasks} where ${tasks.suggestedBy} = ${contributors.id})`;
+/** Their latest merge or accepted idea; null when they have neither. */
+const lastContribution = sql<Date | string | null>`greatest(${lastMerge}, ${lastIdea})`;
 
-  const cards: PublicContributor[] = [];
-  for (const p of people) {
-    const merged = work.filter((t) => t.assigneeId === p.id && t.status === "done" && t.doneAt);
-    const ideas = work.filter((t) => t.suggestedBy === p.id && t.acceptedAt);
-    if (!merged.length && !ideas.length) continue;
-    const areas = [...new Set(merged.map((t) => t.area).filter((a): a is string => a !== null))] as TaskArea[];
-    if (query.area && !areas.includes(query.area)) continue;
-    const dates = [...merged.map((t) => t.doneAt!), ...ideas.map((t) => t.acceptedAt!)];
-    const latest = new Date(Math.max(...dates.map((d) => d.getTime())));
-    cards.push({ handle: p.handle, name: p.name, avatarUrl: p.avatarUrl, bio: p.bio, areas, lastContributionAt: iso(latest), idea: ideas.length > 0 });
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function decodeWallCursor(cursor: string, sort: ContributorListQuery["sort"]): [string, string] {
+  try {
+    const value: unknown = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+    if (Array.isArray(value) && value.length === 2 && typeof value[0] === "string" && typeof value[1] === "string") {
+      const [key, id] = value as [string, string];
+      if (sort === "az" && HANDLE_PATTERN.test(key) && key.length <= 40 && UUID.test(id)) return [key, id];
+      if (sort === "newest" && isPgTimestamp(key) && UUID.test(id)) return [key, id];
+    }
+  } catch {
+    // reported below
   }
-  return query.sort === "az"
-    ? cards.sort((a, b) => a.handle.localeCompare(b.handle))
-    : cards.sort((a, b) => b.lastContributionAt.localeCompare(a.lastContributionAt) || a.handle.localeCompare(b.handle));
+  throw new TaskRuleError("invalid", "That page link has expired. Start from the first page.", "cursor");
+}
+
+/**
+ * GET /public/contributors: public, on-wall, not suspended, with at least one merged task or an
+ * accepted idea. Newest contribution first, or A–Z, a page at a time. Never ordered by Werk.
+ */
+export async function listPublicContributors(db: Database, query: ContributorListQuery): Promise<PublicContributorPage> {
+  const where: SQL[] = [
+    eq(contributors.public, true),
+    eq(contributors.onWall, true),
+    isNull(contributors.suspendedAt),
+    sql`${lastContribution} is not null`,
+  ];
+  if (query.area) {
+    where.push(
+      sql`exists (select 1 from ${tasks} where ${tasks.assigneeId} = ${contributors.id} and ${tasks.status} = 'done' and ${tasks.area} = ${query.area})`,
+    );
+  }
+  if (query.cursor) {
+    const [key, id] = decodeWallCursor(query.cursor, query.sort);
+    where.push(
+      query.sort === "az"
+        ? sql`(${contributors.handle}, ${contributors.id}) > (${key}, ${id}::uuid)`
+        : sql`(${lastContribution}, ${contributors.id}) < (${key}::timestamptz, ${id}::uuid)`,
+    );
+  }
+  const rows = await db
+    .select({
+      id: contributors.id,
+      handle: contributors.handle,
+      name: contributors.displayName,
+      avatarUrl: contributors.avatarUrl,
+      bio: contributors.bio,
+      last: lastContribution,
+      lastKey: sql<string>`${lastContribution}::text`,
+    })
+    .from(contributors)
+    .where(and(...where))
+    .orderBy(
+      ...(query.sort === "az"
+        ? [asc(contributors.handle), asc(contributors.id)]
+        : [desc(lastContribution), desc(contributors.id)]),
+    )
+    .limit(query.limit + 1);
+
+  const page = rows.slice(0, query.limit);
+  const work = await contributionsOf(db, page.map((p) => p.id));
+  const cards = page.map((p): PublicContributor => {
+    const merged = work.filter((t) => t.assigneeId === p.id && t.status === "done");
+    return {
+      handle: p.handle,
+      name: p.name,
+      avatarUrl: p.avatarUrl,
+      bio: p.bio,
+      areas: [...new Set(merged.map((t) => t.area).filter((a): a is string => a !== null))] as TaskArea[],
+      lastContributionAt: iso(p.last!),
+      idea: work.some((t) => t.suggestedBy === p.id && t.acceptedAt),
+    };
+  });
+  const last = page[page.length - 1];
+  return {
+    contributors: cards,
+    nextCursor:
+      rows.length > query.limit && last
+        ? Buffer.from(JSON.stringify(query.sort === "az" ? [last.handle, last.id] : [last.lastKey, last.id])).toString("base64url")
+        : null,
+  };
 }
 
 /** GET /public/contributors/:handle: only a public profile. A private one is "not found". */
@@ -367,7 +452,7 @@ export async function getPublicContributor(db: Database, handle: string): Promis
   const [c] = await db
     .select()
     .from(contributors)
-    .where(and(eq(contributors.handle, handle.toLowerCase()), eq(contributors.public, true)))
+    .where(and(eq(contributors.handle, handle.toLowerCase()), eq(contributors.public, true), isNull(contributors.suspendedAt)))
     .limit(1);
   if (!c) return null;
   const work = await contributionsOf(db, [c.id]);

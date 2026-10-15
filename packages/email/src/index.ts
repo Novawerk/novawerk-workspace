@@ -25,7 +25,7 @@ export {
 
 export { notifyTeam, type NotifyOptions, type TeamNotification } from "./notify.js";
 
-export { SIGN_IN_CODE_PATTERN, sendSignInCode, signInCodeEmail, type SignInCodeOptions } from "./sign-in.js";
+export { SIGN_IN_CODE_PATTERN, sendSignInCode, signInCodeEmail, type SignInAudience, type SignInCodeOptions } from "./sign-in.js";
 
 export {
   newsletterConfirmationEmail,

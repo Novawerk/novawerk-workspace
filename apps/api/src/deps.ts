@@ -278,6 +278,12 @@ export function depsFromEnv(env: EnvSource): AppDeps {
       ? {
           sendSignInCode: (to: string, code: string) =>
             sendSignInCode(to, code, { from: outbox.from, ...(outbox.resendApiKey ? { resendApiKey: outbox.resendApiKey } : {}) }),
+          sendContributorSignInCode: (to: string, code: string) =>
+            sendSignInCode(to, code, {
+              from: outbox.from,
+              audience: "contributor",
+              ...(outbox.resendApiKey ? { resendApiKey: outbox.resendApiKey } : {}),
+            }),
         }
       : {}),
     // Newsletter confirmations: the same rule as sign-in codes.

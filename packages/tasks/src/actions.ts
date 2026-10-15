@@ -13,6 +13,7 @@ import {
   suggestionInput,
 } from "@nw/contracts";
 import {
+  contributors,
   taskEvents,
   taskPosts,
   taskProposals,
@@ -26,7 +27,7 @@ import {
 } from "@nw/db";
 
 import { canWork } from "./contributors.js";
-import { TaskRuleError } from "./errors.js";
+import { TaskRuleError, isUniqueViolation } from "./errors.js";
 
 const DAY_MS = 24 * 3_600_000;
 
@@ -66,6 +67,18 @@ const stamp = (at?: Date) => (at ? { createdAt: at } : {});
 const touch = (db: Database, taskId: number, now: Date) =>
   db.update(tasks).set({ updatedAt: now }).where(eq(tasks.id, taskId));
 
+/**
+ * Run `fn` with the contributor's row locked: two requests from one person run one after the
+ * other, so a count-then-insert limit can't be passed twice at once. `fn` gets the fresh row.
+ */
+async function asContributor<T>(db: Database, c: Contributor, fn: (tx: Database, me: Contributor) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    const [me] = await tx.select().from(contributors).where(eq(contributors.id, c.id)).for("update");
+    if (!me) throw new TaskRuleError("not_found", "Not signed in");
+    return fn(tx, me);
+  });
+}
+
 /** Propose a plan on an open task. 5 a day; one pending proposal per task. */
 export async function propose(
   db: Database,
@@ -76,29 +89,38 @@ export async function propose(
 ): Promise<TaskProposal> {
   const now = at ?? new Date();
   const task = await publicTask(db, taskId);
-  mayWork(c);
-  if (task.status !== "open") throw new TaskRuleError("invalid_state", "This task isn't open for proposals");
-  const [today] = await db
-    .select({ n: count() })
-    .from(taskProposals)
-    .where(and(eq(taskProposals.contributorId, c.id), gt(taskProposals.createdAt, new Date(now.getTime() - DAY_MS))));
-  if ((today?.n ?? 0) >= TASK_LIMITS.proposalsPerDay) {
-    throw new TaskRuleError("rate_limited", `Up to ${TASK_LIMITS.proposalsPerDay} proposals a day. Try again tomorrow.`);
-  }
-  const [mine] = await db
-    .select({ id: taskProposals.id })
-    .from(taskProposals)
-    .where(and(eq(taskProposals.taskId, taskId), eq(taskProposals.contributorId, c.id), eq(taskProposals.status, "pending")))
-    .limit(1);
-  if (mine) throw new TaskRuleError("conflict", "You already proposed on this task. Edit that proposal instead.");
+  return asContributor(db, c, async (tx, me) => {
+    mayWork(me);
+    if (task.status !== "open") throw new TaskRuleError("invalid_state", "This task isn't open for proposals");
+    const [today] = await tx
+      .select({ n: count() })
+      .from(taskProposals)
+      .where(and(eq(taskProposals.contributorId, me.id), gt(taskProposals.createdAt, new Date(now.getTime() - DAY_MS))));
+    if ((today?.n ?? 0) >= TASK_LIMITS.proposalsPerDay) {
+      throw new TaskRuleError("rate_limited", `Up to ${TASK_LIMITS.proposalsPerDay} proposals a day. Try again tomorrow.`);
+    }
+    const [mine] = await tx
+      .select({ id: taskProposals.id })
+      .from(taskProposals)
+      .where(and(eq(taskProposals.taskId, taskId), eq(taskProposals.contributorId, me.id), eq(taskProposals.status, "pending")))
+      .limit(1);
+    if (mine) throw new TaskRuleError("conflict", ALREADY_PROPOSED);
 
-  const [row] = await db
-    .insert(taskProposals)
-    .values({ taskId, contributorId: c.id, approach: input.approach, testing: input.testing, eta: input.eta, ...stamp(at) })
-    .returning();
-  await touch(db, taskId, now);
-  return row!;
+    const [row] = await tx
+      .insert(taskProposals)
+      .values({ taskId, contributorId: me.id, approach: input.approach, testing: input.testing, eta: input.eta, ...stamp(at) })
+      .returning()
+      .catch((err: unknown) => {
+        // The unique index on pending proposals: the backstop for anything the lock misses.
+        if (isUniqueViolation(err)) throw new TaskRuleError("conflict", ALREADY_PROPOSED);
+        throw err;
+      });
+    await touch(tx, taskId, now);
+    return row!;
+  });
 }
+
+const ALREADY_PROPOSED = "You already proposed on this task. Edit that proposal instead.";
 
 /** Edit your own pending proposal while the task is open. */
 export async function updateProposal(
@@ -122,6 +144,7 @@ export async function updateProposal(
 
 /** Withdraw your own pending proposal. The row stays (it counts towards the daily limit). */
 export async function withdrawProposal(db: Database, c: Contributor, proposalId: string, now = new Date()): Promise<void> {
+  notSuspended(c);
   const proposal = await ownPendingProposal(db, c, proposalId);
   await db.update(taskProposals).set({ status: "withdrawn", updatedAt: now }).where(eq(taskProposals.id, proposal.id));
   await touch(db, proposal.taskId, now);
@@ -137,48 +160,50 @@ export async function addPost(
 ): Promise<TaskPost> {
   const now = at ?? new Date();
   const task = await publicTask(db, taskId);
-  notSuspended(c);
-  if (task.threadLockedAt) throw new TaskRuleError("invalid_state", "This thread is locked");
-  if (input.replyTo) {
-    const [parent] = await db.select().from(taskPosts).where(eq(taskPosts.id, input.replyTo)).limit(1);
-    if (!parent || parent.taskId !== taskId || parent.hiddenAt) {
-      throw new TaskRuleError("invalid", "That post isn't on this task", "replyTo");
+  return asContributor(db, c, async (tx, me) => {
+    notSuspended(me);
+    if (task.threadLockedAt) throw new TaskRuleError("invalid_state", "This thread is locked");
+    if (input.replyTo) {
+      const [parent] = await tx.select().from(taskPosts).where(eq(taskPosts.id, input.replyTo)).limit(1);
+      if (!parent || parent.taskId !== taskId || parent.hiddenAt) {
+        throw new TaskRuleError("invalid", "That post isn't on this task", "replyTo");
+      }
+      if (parent.parentId) throw new TaskRuleError("invalid", "Reply to the post itself: replies have no replies", "replyTo");
     }
-    if (parent.parentId) throw new TaskRuleError("invalid", "Reply to the post itself: replies have no replies", "replyTo");
-  }
-  const [today] = await db
-    .select({ n: count() })
-    .from(taskPosts)
-    .where(and(eq(taskPosts.authorContributorId, c.id), gt(taskPosts.createdAt, new Date(now.getTime() - DAY_MS))));
-  if ((today?.n ?? 0) >= TASK_LIMITS.postsPerDay) {
-    throw new TaskRuleError("rate_limited", `Up to ${TASK_LIMITS.postsPerDay} posts a day. Try again tomorrow.`);
-  }
-  const [row] = await db
-    .insert(taskPosts)
-    .values({ taskId, parentId: input.replyTo ?? null, authorContributorId: c.id, body: input.body, ...stamp(at) })
-    .returning();
-  // A post from the person on the task counts as activity (the 14-day release).
-  await db
-    .update(tasks)
-    .set({ updatedAt: now, ...(task.assigneeId === c.id ? { lastActivityAt: now } : {}) })
-    .where(eq(tasks.id, taskId));
-  return row!;
+    const [today] = await tx
+      .select({ n: count() })
+      .from(taskPosts)
+      .where(and(eq(taskPosts.authorContributorId, me.id), gt(taskPosts.createdAt, new Date(now.getTime() - DAY_MS))));
+    if ((today?.n ?? 0) >= TASK_LIMITS.postsPerDay) {
+      throw new TaskRuleError("rate_limited", `Up to ${TASK_LIMITS.postsPerDay} posts a day. Try again tomorrow.`);
+    }
+    const [row] = await tx
+      .insert(taskPosts)
+      .values({ taskId, parentId: input.replyTo ?? null, authorContributorId: me.id, body: input.body, ...stamp(at) })
+      .returning();
+    // A post from the person on the task counts as activity (the 14-day release).
+    await tx
+      .update(tasks)
+      .set({ updatedAt: now, ...(task.assigneeId === me.id ? { lastActivityAt: now } : {}) })
+      .where(eq(tasks.id, taskId));
+    return row!;
+  });
 }
 
 /** Suggest an improvement or a bug. At most 3 waiting for triage per person. No size, no Werk. */
 export async function suggestTask(db: Database, c: Contributor, input: ParsedSuggestion, now = new Date()): Promise<Task> {
-  notSuspended(c);
-  const [open] = await db
-    .select({ n: count() })
-    .from(tasks)
-    .where(and(eq(tasks.suggestedBy, c.id), eq(tasks.status, "suggested")));
-  if ((open?.n ?? 0) >= TASK_LIMITS.openSuggestions) {
-    throw new TaskRuleError(
-      "rate_limited",
-      `You have ${TASK_LIMITS.openSuggestions} open suggestions. Wait for a member to triage one first.`,
-    );
-  }
-  return db.transaction(async (tx) => {
+  return asContributor(db, c, async (tx, me) => {
+    notSuspended(me);
+    const [open] = await tx
+      .select({ n: count() })
+      .from(tasks)
+      .where(and(eq(tasks.suggestedBy, me.id), eq(tasks.status, "suggested")));
+    if ((open?.n ?? 0) >= TASK_LIMITS.openSuggestions) {
+      throw new TaskRuleError(
+        "rate_limited",
+        `You have ${TASK_LIMITS.openSuggestions} open suggestions. Wait for a member to triage one first.`,
+      );
+    }
     const [task] = await tx
       .insert(tasks)
       .values({
@@ -186,7 +211,7 @@ export async function suggestTask(db: Database, c: Contributor, input: ParsedSug
         title: input.title,
         body: input.body,
         status: "suggested",
-        suggestedBy: c.id,
+        suggestedBy: me.id,
         where: input.where,
         wherePath: input.path?.trim() || null,
         wantsIt: input.doItMyself,
@@ -198,7 +223,7 @@ export async function suggestTask(db: Database, c: Contributor, input: ParsedSug
       taskId: task!.id,
       kind: "suggested",
       toStatus: "suggested",
-      actorContributorId: c.id,
+      actorContributorId: me.id,
       createdAt: now,
     });
     return task!;
