@@ -13,31 +13,16 @@ import type {
 } from "@nw/contracts";
 
 import type { PublicInitiator } from "@/components/board/wall";
+import { readApi, type ApiRead } from "@/lib/api-read";
 import type { Block } from "@/components/builders/types";
 
 /** Cache tags. The API marks them stale (POST /api/revalidate) after a merge or a profile change. */
 export const TASKS_TAG = "tasks";
 export const CONTRIBUTORS_TAG = "contributors";
 
-type Read<T> = { ok: true; data: T } | { ok: false; notFound: boolean };
-
-async function read<T>(path: string): Promise<Read<T>> {
-  const apiUrl = process.env.API_URL?.trim();
-  if (!apiUrl) return { ok: false, notFound: false };
-  try {
-    // The website's own key skips the API's anonymous limit (600 an hour per IP): its servers share IPs.
-    const webKey = process.env.WEB_READ_KEY?.trim();
-    const res = await fetch(`${apiUrl.replace(/\/+$/, "")}${path}`, {
-      headers: { accept: "application/json", ...(webKey ? { "x-nw-web-key": webKey } : {}) },
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (res.status === 404) return { ok: false, notFound: true };
-    if (!res.ok) throw new Error(`GET ${path} answered ${res.status}`);
-    return { ok: true, data: (await res.json()) as T };
-  } catch (error) {
-    console.warn("[web] task board read failed:", error instanceof Error ? error.message : error);
-    return { ok: false, notFound: false };
-  }
+/** GET from the API with the website's key; a failure says why in the server log. */
+function read<T>(path: string): Promise<ApiRead<T>> {
+  return readApi<T>(path, { apiUrl: process.env.API_URL, webKey: process.env.WEB_READ_KEY });
 }
 
 /**

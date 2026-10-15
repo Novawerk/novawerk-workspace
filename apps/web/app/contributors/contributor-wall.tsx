@@ -27,7 +27,8 @@ export function ContributorWall({ initial }: { initial: PublicContributorPage | 
   const isDefault = key === "sort=newest";
 
   useEffect(() => {
-    if (isDefault) return;
+    // The default view comes from the server; if that read failed, the browser tries once more.
+    if (isDefault && initial !== null) return;
     let cancelled = false;
     void api<PublicContributorPage>(`/public/contributors?${key}`).then((res) => {
       if (!cancelled) setView({ key, ok: res.ok, people: res.ok ? res.data.contributors : [], cursor: res.ok ? res.data.nextCursor : null });
@@ -35,13 +36,13 @@ export function ContributorWall({ initial }: { initial: PublicContributorPage | 
     return () => {
       cancelled = true;
     };
-  }, [key, isDefault]);
+  }, [key, isDefault, initial]);
 
   const current: Loaded | null =
     view?.key === key
       ? view
-      : isDefault
-        ? { key, ok: initial !== null, people: initial?.contributors ?? [], cursor: initial?.nextCursor ?? null }
+      : isDefault && initial !== null
+        ? { key, ok: true, people: initial?.contributors ?? [], cursor: initial?.nextCursor ?? null }
         : null;
   const loadedPeople = current?.people ?? [];
   const people = filter === "initiators" ? loadedPeople.filter(isInitiator) : loadedPeople;
