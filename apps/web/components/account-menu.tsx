@@ -18,7 +18,7 @@ export function HeaderActions() {
   const { session } = useSession();
   if (session.status !== "signed-in") {
     return (
-      <div className="hidden gap-2 sm:flex">
+      <div className="hidden gap-2 md:flex">
         <Link href="/submit" className={`${buttonOutline} h-10`} {...trackClick("cta_click", { target: "submit", placement: "header" })}>
           Pitch a project
         </Link>
@@ -29,7 +29,7 @@ export function HeaderActions() {
     );
   }
   return (
-    <div className="hidden items-center gap-2 sm:flex">
+    <div className="hidden items-center gap-2 md:flex">
       <Link href="/tasks?mine=1" className="inline-flex h-10 items-center border border-transparent px-3 text-sm font-medium hover:border-line-strong">
         My tasks
       </Link>

@@ -19,17 +19,18 @@ export function Logo() {
   );
 }
 
-/** One row: the logo, the links and the actions. On a phone the links and actions sit behind Menu. */
+/** One row: the logo, the links and the actions. Below md (768px) they sit behind Menu: four links and the actions need about 760px. */
 export function SiteHeader() {
   return (
     <header className="border-b border-line">
-      <div className={`${container} flex flex-wrap items-center justify-between gap-x-8 py-2.5 sm:py-4`}>
-        <div className="flex items-center gap-8">
+      <div className={`${container} flex flex-wrap items-center justify-between gap-x-8 py-2.5 md:py-4`}>
+        <div className="flex items-center gap-6 lg:gap-8">
           <Logo />
-          <nav aria-label="Main" className="hidden items-center gap-6 sm:flex">
+          <nav aria-label="Main" className="hidden items-center gap-5 md:flex lg:gap-6">
             <NavLink href="/">Projects</NavLink>
             <NavLink href="/about">About</NavLink>
             <NavLink href="/tasks">Tasks</NavLink>
+            <NavLink href="/contributors">Contributors</NavLink>
           </nav>
         </div>
         <MobileMenu />

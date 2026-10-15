@@ -30,7 +30,7 @@ function MenuButton({ open, ...props }: { open: boolean } & React.ComponentProps
     <button
       type="button"
       aria-expanded={open}
-      className="-mr-2 inline-flex h-10 items-center gap-2 px-2 text-sm font-medium sm:hidden"
+      className="-mr-2 inline-flex h-10 items-center gap-2 px-2 text-sm font-medium md:hidden"
       {...props}
     >
       Menu
@@ -81,7 +81,7 @@ function Menu() {
         onClick={(event) => {
           if ((event.target as Element).closest("a")) setOpen(false);
         }}
-        className="basis-full border-t border-line pt-1 pb-2 sm:hidden"
+        className="basis-full border-t border-line pt-1 pb-2 md:hidden"
       >
         <nav aria-label="Main">
           <ul className="divide-y divide-line">
@@ -98,6 +98,11 @@ function Menu() {
             <li>
               <NavLink href="/tasks" className="block py-3 text-base">
                 Tasks
+              </NavLink>
+            </li>
+            <li>
+              <NavLink href="/contributors" className="block py-3 text-base">
+                Contributors
               </NavLink>
             </li>
             <MobileAccountLinks linkClass="block py-3 text-base text-muted transition-colors hover:text-ink" />
