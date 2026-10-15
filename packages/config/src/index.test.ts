@@ -15,6 +15,8 @@ const FULL_ENV: Record<string, string> = {
   DATABASE_URL: "postgres://localhost/nw",
   BLOB_PUBLIC_READ_WRITE_TOKEN: "pub",
   BLOB_PRIVATE_READ_WRITE_TOKEN: "priv",
+  GITHUB_APP_CLIENT_ID: "Iv23-test",
+  GITHUB_APP_CLIENT_SECRET: "gh-secret",
 };
 
 function errorOf(fn: () => unknown): ConfigError {

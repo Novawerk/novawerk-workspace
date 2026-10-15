@@ -130,8 +130,8 @@ Every email to someone outside Novawerk goes through the `outbox` table.
 On top of the code, agent workflows never get `RESEND_API_KEY`, so an agent cannot reach Resend
 at all. The intake acknowledgement is a fixed template: nothing an applicant writes can change
 what we email back. Three other doors exist: `notifyTeam()` only reaches `@novawerk.io`,
-`sendSignInCode()` sends one fixed template with a sign-in code to an active member's own address,
-and `sendNewsletterConfirmation()` sends one fixed double opt-in email with a confirmation link to
+`sendSignInCode()` sends one fixed template with a sign-in code to the address that is signing
+in (an active member's own, or a contributor's; NB-ADR-0013), and `sendNewsletterConfirmation()` sends one fixed double opt-in email with a confirmation link to
 the address that just signed up for the newsletter, at most 3 a day per address (NB-ADR-0011).
 
 ## Who sees what in the admin panel
@@ -148,3 +148,46 @@ NB-ADR-0008.
 
 A member only touches keys under their own prefix in the private file store (`<id>/…`), enforced by
 `assertMemberPrefix` in `@nw/object-store`, and `owner`-scoped rows in queries.
+
+## Contributor task board
+
+Anyone can help build the software Novawerk runs on through an open task board (design:
+`docs/contributor-board-design.md`; decision: NB-ADR-0013). This is the foundation: tables, rules
+and the API. The pages, the admin side, the GitHub webhook, tokens and emails come next.
+
+- **Contributors are not Members.** Their own table (`contributors`), no admin panel, no tiers.
+  They sign in with GitHub (our GitHub App's user authorization; we keep GitHub's numeric id and
+  login, never the token) or an emailed 6-digit code (`sign_in_codes` with `kind = contributor`:
+  hashed, 10 minutes, 5 tries, 3 per address per 15 minutes, 10 requests per IP per hour, the
+  same answer for every address). Proposing or working on a task needs GitHub linked.
+- **Sessions stay apart.** Members: `nw_session` (audience `nw-admin`). Contributors:
+  `nw_contributor` (audience `nw-contributor`, 30 days), httpOnly on the API's domain, sent from
+  the website's origins only (`CONTRIBUTOR_ORIGINS`, default: the web origins). Neither cookie
+  opens the other's routes. Every request re-reads the row, so a deleted account is out at once.
+- **Tasks** are `NW-<n>`. Sizes S/M/L/XL are worth 1/3/8/20 **Werk**: recognition, never money.
+  Statuses: `draft` (members only) → `open` → `assigned` → `in_review` → `done`, or `closed`;
+  suggestions go `suggested` → `open` / `assigned`, `declined` or `duplicate`. Every transition
+  writes a `task_events` row (the public timeline).
+- **Rules live in `@nw/tasks`** (state machine, limits, privacy, the public reads); the API only
+  wires them. Limits per contributor: 5 proposals and 30 posts a day, 3 open suggestions, 1 task
+  in progress. No +1 on your own suggestion; votes close at triage.
+- **Privacy.** Profiles are private until `public` is on (`on_wall` lets a public profile leave
+  the wall). A private profile shows as an unlinked handle. Proposals are public; a decline note
+  only reaches its proposer (`GET /contrib/me/proposals`). Hidden posts keep their place without
+  text or author. No email appears in any public response. Deleting the account removes the
+  profile, proposals, votes and tokens and puts a held task back on the board; tasks, posts and
+  Werk rows show "a former contributor".
+- **Werk ledger** (`werk_ledger`) is append-only: a merge adds one row per task and PR (unique
+  `(task_id, pr)`), and a member's change is a new row with a reason. Nothing updates a row.
+- **Tokens** (`contributor_tokens`: hashed secret, scopes, expiry, last use) exist as a table only.
+
+| Route | Who | What |
+|-------|-----|------|
+| `GET /auth/contributor/github/start?returnTo=`, `…/github/callback` | anyone | GitHub sign-in, or linking GitHub to an email account |
+| `POST /auth/contributor/email/start`, `…/email/verify` | anyone | emailed code |
+| `GET /auth/contributor/me`, `POST /auth/contributor/logout` | contributor | |
+| `GET /public/tasks` (area, size, status, skills, q, sort, cursor), `GET /public/tasks/:id` | anyone | the board and one task with proposals, thread, timeline |
+| `GET /public/contributors` (sort, area), `GET /public/contributors/:handle` | anyone | the wall and public profiles |
+| `POST /contrib/tasks/:id/proposals`, `PATCH`/`DELETE /contrib/proposals/:id`, `GET /contrib/me/proposals` | contributor | propose, edit, withdraw |
+| `POST /contrib/tasks/:id/posts`, `POST /contrib/suggestions`, `PUT`/`DELETE /contrib/tasks/:id/vote` | contributor | thread, suggestions, +1 |
+| `PATCH /contrib/me/profile`, `DELETE /contrib/me` | contributor | profile, delete account |

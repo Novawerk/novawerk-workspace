@@ -4,6 +4,7 @@
 
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   date,
@@ -16,6 +17,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -42,13 +44,16 @@ export const members = pgTable("members", {
 });
 
 /**
- * One-time codes for signing in by email (members without a Google account). Only a hash is
- * kept; a code lives 10 minutes, allows 5 tries, and works once.
+ * One-time codes for signing in by email: members without a Google account, and contributors
+ * without GitHub (`kind`). Only a hash is kept; a code lives 10 minutes, allows 5 tries, and
+ * works once. A member's code never signs in a contributor, and the other way round.
  */
 export const signInCodes = pgTable(
   "sign_in_codes",
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    /** `member` or `contributor`. */
+    kind: text("kind").notNull().default("member"),
     /** Lower-cased. */
     email: text("email").notNull(),
     codeHash: text("code_hash").notNull(),
@@ -58,6 +63,75 @@ export const signInCodes = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("sign_in_codes_email_idx").on(t.email, t.createdAt)],
+);
+
+/**
+ * People who help build our own software through the task board. Not Members: no admin panel,
+ * no tiers or ranks (NB-ADR-0013). They sign in with GitHub (`githubId`) or an emailed code
+ * (`email`); proposing or working on a task needs GitHub linked. The profile is private until
+ * they turn `public` on; `onWall` lets a public profile leave the contributors wall.
+ * Deleting the account deletes this row: proposals, votes and tokens go with it, and tasks,
+ * posts and Werk rows keep a null author ("a former contributor").
+ */
+export const contributors = pgTable("contributors", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** kebab-case, unique, shown as @handle. Starts as the GitHub login. */
+  handle: text("handle").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  /** One line, up to 160 characters. */
+  bio: text("bio"),
+  /** Markdown (bold, lists, links), up to 1500 characters. */
+  about: text("about"),
+  /** Up to 4 links. */
+  links: jsonb("links").$type<string[]>().notNull().default([]),
+  /** One of the six profile accent presets (PROFILE_ACCENTS in @nw/contracts). */
+  accent: text("accent").notNull().default("green"),
+  /** One of the banner presets (PROFILE_BANNERS). */
+  banner: text("banner").notNull().default("plain"),
+  avatarUrl: text("avatar_url"),
+  /** Off: the profile page is hidden and the handle shows unlinked on tasks. */
+  public: boolean("public").notNull().default(false),
+  /** Show a public profile on /contributors and in the README. */
+  onWall: boolean("on_wall").notNull().default(true),
+  /** GitHub's numeric user id: logins can change, this can't. */
+  githubId: bigint("github_id", { mode: "number" }).unique(),
+  githubLogin: text("github_login"),
+  /** Lower-cased. Set when they sign in by email. Never in a public response. */
+  email: text("email").unique(),
+  /** When they ticked the pledge and DCO sign-off. */
+  pledgeAcceptedAt: timestamp("pledge_accepted_at", { withTimezone: true }),
+  /** Set by a member (moderation): they can still sign in and read, but not write. */
+  suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+  lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/**
+ * Personal access tokens for agents and scripts (/settings/tokens, the MCP server). Only a hash
+ * of the secret is kept; the secret shows once. Table only for now: the token API comes later.
+ */
+export const contributorTokens = pgTable(
+  "contributor_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contributorId: uuid("contributor_id")
+      .notNull()
+      .references(() => contributors.id, { onDelete: "cascade" }),
+    /** Shown on everything the token does: "via agent · <name>". */
+    name: text("name").notNull(),
+    /** SHA-256 of the secret. */
+    secretHash: text("secret_hash").notNull().unique(),
+    /** The first characters of the secret, so the owner can tell tokens apart. */
+    prefix: text("prefix").notNull(),
+    /** TOKEN_SCOPES in @nw/contracts. */
+    scopes: text("scopes").array().$type<string[]>().notNull().default(sql`'{}'::text[]`),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("contributor_tokens_contributor_idx").on(t.contributorId)],
 );
 
 // ─── Portfolio (shown on the website, edited in the admin panel) ─────────────
@@ -560,6 +634,226 @@ export const outbox = pgTable(
   (t) => [index("outbox_status_idx").on(t.status)],
 );
 
+// ─── Contributor task board ──────────────────────────────────────────────────
+// Open tasks about our own software (site, admin, API, agents). docs/contributor-board-design.md
+// and docs/architecture.md; the rules live in @nw/tasks.
+
+/**
+ * `draft` (members only) → `open` → `assigned` → `in_review` → `done`, or `closed`. Suggestions
+ * start as `suggested` and end `open` / `assigned` (accepted), `declined` or `duplicate`.
+ * "Has proposals" is not a state: it is `open` with pending proposals.
+ */
+export const taskStatus = pgEnum("task_status", [
+  "draft",
+  "suggested",
+  "open",
+  "assigned",
+  "in_review",
+  "done",
+  "closed",
+  "declined",
+  "duplicate",
+]);
+
+/** S = 1, M = 3, L = 8, XL = 20 Werk (TASK_SIZE_WERK in @nw/contracts). */
+export const taskSize = pgEnum("task_size", ["S", "M", "L", "XL"]);
+
+/** A task a member wrote, or a contributor's suggestion: an improvement or a bug. */
+export const taskKind = pgEnum("task_kind", ["task", "improvement", "bug"]);
+
+export const proposalStatus = pgEnum("proposal_status", ["pending", "chosen", "not_chosen", "withdrawn"]);
+
+/** One task, shown as `NW-<id>`. */
+export const tasks = pgTable(
+  "tasks",
+  {
+    /** The number in `NW-42`. */
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    kind: taskKind("kind").notNull().default("task"),
+    title: text("title").notNull(),
+    /** One line under the title. */
+    summary: text("summary").notNull().default(""),
+    /** What and why, Markdown. For a suggestion: what the contributor wrote. */
+    body: text("body").notNull().default(""),
+    /** "Done when" lines: the acceptance criteria. */
+    criteria: jsonb("criteria").$type<string[]>().notNull().default([]),
+    /** TASK_AREAS in @nw/contracts. Null on a suggestion until a member accepts it. */
+    area: text("area"),
+    /** Null on a suggestion until a member accepts it. */
+    size: taskSize("size"),
+    skills: text("skills").array().$type<string[]>().notNull().default(sql`'{}'::text[]`),
+    repo: text("repo").notNull().default("Novawerk/novawerk-workspace"),
+    status: taskStatus("status").notNull().default("draft"),
+    assigneeId: uuid("assignee_id").references(() => contributors.id, { onDelete: "set null" }),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }),
+    /** The assignee's last post, commit or PR event: tasks go back on the board after 14 idle days. */
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true }),
+    prUrl: text("pr_url"),
+    /** The member who reviews the PR. */
+    reviewerId: text("reviewer_id").references(() => members.id, { onDelete: "set null" }),
+    /** The contribution guide shown to the assignee (template + task notes), Markdown. */
+    guideTemplate: text("guide_template"),
+    /** Why a member closed it, or the note on a declined suggestion. Public. */
+    closedReason: text("closed_reason"),
+    /** Suggestions: who suggested it. Credit stays on the task for good. */
+    suggestedBy: uuid("suggested_by").references(() => contributors.id, { onDelete: "set null" }),
+    /** Suggestions: where in the product (SUGGESTION_WHERE), and an optional page or path. */
+    where: text("where"),
+    wherePath: text("where_path"),
+    /** Suggestions: "I'd like to do this myself". */
+    wantsIt: boolean("wants_it").notNull().default(false),
+    /** Suggestions: a member asked a question in the thread. */
+    needsInfo: boolean("needs_info").notNull().default(false),
+    duplicateOf: integer("duplicate_of").references((): AnyPgColumn => tasks.id, { onDelete: "set null" }),
+    /** No new posts while set (moderation). */
+    threadLockedAt: timestamp("thread_locked_at", { withTimezone: true }),
+    createdByMemberId: text("created_by_member_id").references(() => members.id, { onDelete: "set null" }),
+    /** When a suggestion was accepted: the "idea accepted" date on the wall. */
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    /** When the PR merged. */
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("tasks_status_updated_idx").on(t.status, t.updatedAt),
+    index("tasks_assignee_idx").on(t.assigneeId),
+    index("tasks_suggested_by_idx").on(t.suggestedBy),
+  ],
+);
+
+/**
+ * A contributor's plan for a task. Public on the task; `declineNote` is only for the proposer.
+ * One pending proposal per person and task; withdrawn ones stay as rows (they count towards
+ * the daily limit).
+ */
+export const taskProposals = pgTable(
+  "task_proposals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    contributorId: uuid("contributor_id")
+      .notNull()
+      .references(() => contributors.id, { onDelete: "cascade" }),
+    /** What you'll change. */
+    approach: text("approach").notNull(),
+    /** How you'll test it. */
+    testing: text("testing").notNull().default(""),
+    /** PROPOSAL_ETAS: a few days, about a week, two weeks. */
+    eta: text("eta").notNull(),
+    status: proposalStatus("status").notNull().default("pending"),
+    /** Private to the proposer. */
+    declineNote: text("decline_note"),
+    decidedBy: text("decided_by").references(() => members.id, { onDelete: "set null" }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    viaTokenId: uuid("via_token_id").references(() => contributorTokens.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("task_proposals_task_idx").on(t.taskId, t.createdAt),
+    index("task_proposals_contributor_idx").on(t.contributorId, t.createdAt),
+    uniqueIndex("task_proposals_one_pending_key")
+      .on(t.taskId, t.contributorId)
+      .where(sql`${t.status} = 'pending'`),
+  ],
+);
+
+/**
+ * The discussion on a task: posts and one level of replies. A member or a contributor writes
+ * each one; both null is a former contributor. Hidden posts keep their row and lose their text
+ * in every public response.
+ */
+export const taskPosts = pgTable(
+  "task_posts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    /** The post this one replies to. Replies have no replies. */
+    parentId: uuid("parent_id").references((): AnyPgColumn => taskPosts.id, { onDelete: "cascade" }),
+    authorContributorId: uuid("author_contributor_id").references(() => contributors.id, { onDelete: "set null" }),
+    authorMemberId: text("author_member_id").references(() => members.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    /** Written through a personal access token: "via agent · <token name>". */
+    viaTokenId: uuid("via_token_id").references(() => contributorTokens.id, { onDelete: "set null" }),
+    hiddenAt: timestamp("hidden_at", { withTimezone: true }),
+    hiddenBy: text("hidden_by").references(() => members.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("task_posts_task_idx").on(t.taskId, t.createdAt),
+    index("task_posts_author_idx").on(t.authorContributorId, t.createdAt),
+  ],
+);
+
+/** +1 on a suggestion: one per contributor and task. Kept read-only after triage. */
+export const taskVotes = pgTable(
+  "task_votes",
+  {
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    contributorId: uuid("contributor_id")
+      .notNull()
+      .references(() => contributors.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.taskId, t.contributorId] })],
+);
+
+/** Every transition of a task (who, when, from, to, note): the public timeline. */
+export const taskEvents = pgTable(
+  "task_events",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    /** TASK_EVENT_KINDS in @nw/contracts. */
+    kind: text("kind").notNull(),
+    fromStatus: taskStatus("from_status"),
+    toStatus: taskStatus("to_status"),
+    actorContributorId: uuid("actor_contributor_id").references(() => contributors.id, { onDelete: "set null" }),
+    actorMemberId: text("actor_member_id").references(() => members.id, { onDelete: "set null" }),
+    /** Public. */
+    note: text("note"),
+    prUrl: text("pr_url"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("task_events_task_idx").on(t.taskId, t.id)],
+);
+
+/**
+ * Werk: recognition for merged work, never money. Append-only: a merge adds one row per task
+ * and PR (the unique key makes a second award fail), and a member's change is a new row with a
+ * reason the contributor sees. Nothing updates or deletes a row (@nw/tasks has no way to).
+ */
+export const werkLedger = pgTable(
+  "werk_ledger",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    /** Null once the contributor deleted their account. */
+    contributorId: uuid("contributor_id").references(() => contributors.id, { onDelete: "set null" }),
+    delta: integer("delta").notNull(),
+    reason: text("reason").notNull(),
+    taskId: integer("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    /** The merged PR's URL. Null for a member's adjustment. */
+    pr: text("pr"),
+    /** The member who made an adjustment. Null for an award from a merge. */
+    byMemberId: text("by_member_id").references(() => members.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique("werk_ledger_task_pr_key").on(t.taskId, t.pr),
+    index("werk_ledger_contributor_idx").on(t.contributorId, t.createdAt),
+  ],
+);
+
 // ─── Usage analytics ─────────────────────────────────────────────────────────
 
 /**
@@ -623,4 +917,14 @@ export type NewFinanceEntry = typeof financeLedger.$inferInsert;
 export type OutboxEmail = typeof outbox.$inferSelect;
 export type NewOutboxEmail = typeof outbox.$inferInsert;
 export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type Contributor = typeof contributors.$inferSelect;
+export type NewContributor = typeof contributors.$inferInsert;
+export type ContributorToken = typeof contributorTokens.$inferSelect;
+export type Task = typeof tasks.$inferSelect;
+export type NewTask = typeof tasks.$inferInsert;
+export type TaskProposal = typeof taskProposals.$inferSelect;
+export type TaskPost = typeof taskPosts.$inferSelect;
+export type TaskVote = typeof taskVotes.$inferSelect;
+export type TaskEvent = typeof taskEvents.$inferSelect;
+export type WerkEntry = typeof werkLedger.$inferSelect;
 export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert;

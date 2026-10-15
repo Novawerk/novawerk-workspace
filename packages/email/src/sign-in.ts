@@ -1,7 +1,8 @@
-// sendSignInCode — the third door, and the narrowest: a one-time sign-in code to a member's own
-// address. It can't wait in the outbox (the member is signing in right now), so it is fixed:
-// the wording never changes, only a 6-digit code goes in, and the API only calls it for an
-// active member's registered email. Agents never get the Resend key, so they can't reach it.
+// sendSignInCode — the third door, and the narrowest: a one-time sign-in code to the address that
+// is signing in. It can't wait in the outbox (the person is signing in right now), so it is fixed:
+// the wording never changes and only a 6-digit code goes in. The API calls it for an active
+// member's registered email, and for a contributor signing in by email (NB-ADR-0013), rate-limited
+// per address and per network. Agents never get the Resend key, so they can't reach it.
 
 import { Resend } from "resend";
 

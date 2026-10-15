@@ -64,6 +64,13 @@
       "when": 1791955178080,
       "tag": "0008_newsletter_double_opt_in",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792040144057,
+      "tag": "0009_contributor_task_board",
+      "breakpoints": true
     }
   ]
 }

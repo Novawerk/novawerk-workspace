@@ -151,6 +151,9 @@ importers:
       '@nw/agent-harness':
         specifier: workspace:*
         version: link:../../packages/agent-harness
+      '@nw/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@nw/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -172,6 +175,9 @@ importers:
       '@nw/promo':
         specifier: workspace:*
         version: link:../../packages/promo
+      '@nw/tasks':
+        specifier: workspace:*
+        version: link:../../packages/tasks
       '@vercel/blob':
         specifier: ^2.8.0
         version: 2.8.0
@@ -503,6 +509,22 @@ importers:
       '@nw/types':
         specifier: workspace:*
         version: link:../types
+    devDependencies:
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.19)(lightningcss@1.33.0)
+
+  packages/tasks:
+    dependencies:
+      '@nw/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@nw/db':
+        specifier: workspace:*
+        version: link:../db
+      drizzle-orm:
+        specifier: ^0.45.3
+        version: 0.45.3(@electric-sql/pglite@0.5.8)(@types/pg@8.20.0)(pg@8.21.0)
     devDependencies:
       vitest:
         specifier: ^2.1.8

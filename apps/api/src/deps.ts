@@ -9,11 +9,13 @@ import {
   resolveLlmConfig,
   type LlmConfig,
 } from "@nw/agent-harness";
+import { loadConfig, requiredVars } from "@nw/config";
 import { createDb } from "@nw/db";
 import { BlobFiles, type FileStoreConfig } from "@nw/object-store";
 import { notifyTeam, sendNewsletterConfirmation, sendSignInCode, type NotifyOptions } from "@nw/email";
 
 import { adminMockStep } from "./admin-chat/mock.js";
+import { createGitHubOAuth } from "./contributor-auth.js";
 import { inProcessIntakeTrigger, inProcessPromoRunner, inProcessPromoTrigger } from "./agents.js";
 import { intakeMockStep } from "./intake-chat/mock.js";
 import type {
@@ -68,6 +70,8 @@ export interface ResolvedEnv {
   anthropicApiKey?: string;
   intakeChat: IntakeChatEnv;
   inboundMail?: InboundMailOptions;
+  /** The GitHub App contributors sign in with (GITHUB_APP_CLIENT_ID / _SECRET, via @nw/config). */
+  githubApp?: { clientId: string; clientSecret: string };
 }
 
 /**
@@ -194,6 +198,11 @@ export function readEnv(env: EnvSource): ResolvedEnv {
     return "";
   };
   const publicUrls = { apiUrl: origin("PUBLIC_API_URL"), webUrl: origin("PUBLIC_WEB_URL") };
+  // Contributor sign-in with GitHub: both or neither. Without them it answers 503 (email still works).
+  const githubVars = requiredVars(["githubApp"]);
+  const githubSet = githubVars.filter((key) => get(key));
+  if (githubSet.length && githubSet.length < githubVars.length) problems.push(`Set all of ${githubVars.join(", ")}, or none`);
+  const contributorOrigins = get("CONTRIBUTOR_ORIGINS");
   if (problems.length) throw new Error(`@nw/api env: ${problems.join("; ")}`);
 
   const resendApiKey = get("RESEND_API_KEY");
@@ -203,6 +212,7 @@ export function readEnv(env: EnvSource): ResolvedEnv {
     config: {
       allowedOrigins: list(get("ALLOWED_ORIGINS") ?? ENV_DEFAULTS.ALLOWED_ORIGINS),
       adminOrigins: list(get("ADMIN_ORIGINS") ?? ENV_DEFAULTS.ADMIN_ORIGINS),
+      ...(contributorOrigins ? { contributorOrigins: list(contributorOrigins) } : {}),
       googleClientId,
       sessionSecret,
       ...(devLogin ? { devLogin } : {}),
@@ -238,12 +248,13 @@ export function readEnv(env: EnvSource): ResolvedEnv {
           },
         }
       : {}),
+    ...(githubSet.length ? { githubApp: loadConfig(["githubApp"], env).githubApp } : {}),
   };
 }
 
 /** Production deps: a lazy node-postgres pool and `notifyTeam` via Resend (or console). */
 export function depsFromEnv(env: EnvSource): AppDeps {
-  const { databaseUrl, config, notify, outbox, files, anthropicApiKey, intakeChat, inboundMail } = readEnv(env);
+  const { databaseUrl, config, notify, outbox, files, anthropicApiKey, intakeChat, inboundMail, githubApp } = readEnv(env);
   const production = Boolean(env.VERCEL?.trim()) || env.NODE_ENV === "production";
   const db = createDb(databaseUrl);
   const agents = anthropicApiKey ? { db, claude: { apiKey: anthropicApiKey }, logger: console } : undefined;
@@ -261,7 +272,7 @@ export function depsFromEnv(env: EnvSource): AppDeps {
     intakeChat: intakeChatDeps(intakeChat),
     adminChat: adminChatDeps(intakeChat),
     files: new BlobFiles(files),
-    // Sign-in codes go out through Resend. Locally without a key they are printed to the console;
+    // Sign-in codes (members and contributors) go out through Resend. Locally without a key they are printed to the console;
     // in production without a key, signing in by email is off (Google still works).
     ...(outbox.resendApiKey || !production
       ? {
@@ -280,5 +291,6 @@ export function depsFromEnv(env: EnvSource): AppDeps {
         }
       : {}),
     ...(inboundMail ? { inboundMail } : {}),
+    ...(githubApp ? { githubOAuth: createGitHubOAuth(githubApp) } : {}),
   };
 }
