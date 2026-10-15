@@ -23,8 +23,8 @@ export default function HomePage() {
           <Link href="/submit" className={buttonAccent} {...trackClick("cta_click", { target: "submit", placement: "hero" })}>
             Pitch a project
           </Link>
-          <Link href="/join" className={buttonOutline} {...trackClick("cta_click", { target: "join", placement: "hero" })}>
-            Join Novawerk
+          <Link href="/contribute" className={buttonOutline} {...trackClick("cta_click", { target: "contribute", placement: "hero" })}>
+            Contribute
           </Link>
         </div>
       </section>
@@ -51,10 +51,11 @@ export default function HomePage() {
           </li>
           <li>
             <EntryCard
-              target="join"
-              title="Join Novawerk"
-              body="Bring what you're good at and build something real with others. Everyone here is a Member."
-              cta="Apply to join"
+              target="contribute"
+              href="/tasks"
+              title="Contribute to our tools"
+              body="Pick an open task on the software we run on: this site, the admin panel, the agents. Your name goes on what you ship."
+              cta="See open tasks"
             />
           </li>
         </ul>
@@ -63,10 +64,10 @@ export default function HomePage() {
   );
 }
 
-function EntryCard({ target, title, body, cta }: { target: CtaTarget; title: string; body: string; cta: string }) {
+function EntryCard({ target, href = `/${target}`, title, body, cta }: { target: CtaTarget; href?: string; title: string; body: string; cta: string }) {
   return (
     <Link
-      href={`/${target}`}
+      href={href}
       className="group flex h-full flex-col border border-line p-6 transition-colors duration-150 hover:border-ink sm:p-8"
       {...trackClick("cta_click", { target, placement: "get-involved" })}
     >

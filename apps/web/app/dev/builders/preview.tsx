@@ -42,10 +42,12 @@ export function BuildersPreview() {
 
   useEffect(() => {
     const root = document.documentElement;
+    const before = root.dataset.theme;
     if (theme === "system") delete root.dataset.theme;
     else root.dataset.theme = theme;
     return () => {
-      delete root.dataset.theme;
+      if (before === undefined) delete root.dataset.theme;
+      else root.dataset.theme = before;
     };
   }, [theme]);
 

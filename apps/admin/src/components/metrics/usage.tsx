@@ -23,13 +23,20 @@ import type { AdminMetrics } from "@/lib/types"
 
 import { BarList, Panel, Section, StatTile } from "./parts"
 
-const TARGET_LABELS: Record<CtaTarget, string> = { submit: "Submit", join: "Join" }
+const TARGET_LABELS: Record<CtaTarget, string> = {
+  submit: "Submit",
+  join: "Join (old)",
+  contribute: "Contribute",
+  tasks: "Find a task",
+  agent: "Set up your agent",
+}
 
 const PLACEMENT_LABELS: Record<CtaPlacement, string> = {
   header: "Header",
   hero: "Hero",
   "get-involved": "Get involved",
   footer: "Footer",
+  contribute: "/contribute",
 }
 
 const AGENT_LABELS: Record<string, string> = { intake: "Intake Agent", "admin-assistant": "Admin assistant" }

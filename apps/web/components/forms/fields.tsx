@@ -1,6 +1,6 @@
 import type { UseFormRegisterReturn } from "react-hook-form";
 
-// Form building blocks shared by /submit, /join and the newsletter box.
+// Form building blocks shared by /submit and the newsletter box.
 // Each control wires its label, helper text and error message for screen readers.
 
 const control =

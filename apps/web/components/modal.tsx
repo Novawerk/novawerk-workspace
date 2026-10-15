@@ -9,7 +9,7 @@ export const useModalClose = () => useContext(ModalCloseContext);
 
 /**
  * A large route modal. Two ways in:
- * - clicking a link: an intercepted route (app/@modal/(.)submit, (.)join) opens it over the
+ * - clicking a link: an intercepted route (app/@modal/(.)submit) opens it over the
  *   current page, and closing goes back (router.back()), so Back/Forward behave;
  * - opening the URL directly: app/submit/page.tsx renders the home page with the modal on top,
  *   and closing replaces the URL with `closeTo` (there's nothing to go back to).

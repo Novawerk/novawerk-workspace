@@ -5,7 +5,8 @@ status: evolving
 source:
   - nw-web-portal/app/(frontend)/community/page.tsx
   - nw-web-portal/app/(frontend)/page.tsx
-updated: 2026-06-04
+  - docs/contributor-board-design.md (the task board replaces applications, Oct 2026)
+updated: 2026-10-15
 ---
 
 # Ways to join
@@ -22,17 +23,26 @@ encode how Novawerk members agree to show up for each other.
 
 ## How to actually start
 
-- Apply to join at `novawerk.io/join`. Applications land in the admin panel
-  inbox and the team is notified at `info@novawerk.io`.
+- **Contribute to our tools** at `novawerk.io/contribute`. Anyone can pick an
+  open task on the software Novawerk runs on (the site, the admin panel, the
+  API, the agents) at `novawerk.io/tasks`, propose a plan, and ship it. Signing
+  in makes a *contributor* account, not a membership. Merged work earns Werk,
+  which is recognition only: never money, no levels.
 - Have an idea you want to start? Pitch it at `novawerk.io/submit`. When we
   accept the pitch, you become a Member and the project's Initiator, and you
   sign in to the admin panel with the email you pitched from.
-- Subscribe to the newsletter at the bottom of `novawerk.io/about`.
+- Subscribe to the monthly newsletter in the footer of every page.
 - Or just show up at the next [open day](../community/rhythm.md).
 
-## What happens once you're in
+We closed applications to join (`novawerk.io/join`) in October 2026: we don't
+have the people to mentor newcomers through whole projects. Old links lead to
+`/contribute`.
 
-You're a Member. There are no tiers. You take roles on the projects you
+## Contributors and Members
+
+Contributors and Members are different things. Contributors help build our
+tools one task at a time and have no admin panel access. Members are the core
+team; there are no tiers among them. Members take roles on the projects they
 join — see [members and project roles](./titles-and-roles.md).
 
 ## Related

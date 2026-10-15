@@ -16,7 +16,7 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
 
 | Path | What | Stack |
 |------|------|-------|
-| `apps/web` | Public site: `/` (portfolio), `/about`, forms `/submit` and `/join`, `/imprint`, `/privacy`; `POST /api/revalidate` (the API marks the `projects` cache stale) | Next.js 16 App Router, Tailwind v4 |
+| `apps/web` | Public site: `/` (portfolio), `/about`, the pitch form `/submit`, the task board (`/contribute`, `/tasks`, `/contributors`, `/u/<handle>`, `/sign-in`, `/settings`), `/imprint`, `/privacy`; `/join` redirects to `/contribute`; `POST /api/revalidate` (the API marks the `projects`, `tasks` or `contributors` cache stale) | Next.js 16 App Router, Tailwind v4 |
 | `apps/admin` | Internal admin panel (admin.novawerk.io) | React 19 SPA, Vite+, TanStack Router + Query, shadcn (Base UI, `base-vega`), AI Elements |
 | `apps/api` | The only entry to the database from the internet: `/public` (forms, portfolio, task board, intake chat, visit events), `/auth` (members; `/auth/contributor` for contributors), `/admin` (incl. the assistant chat), `/contrib` (signed-in contributors), `/cron`, `/webhooks` | Hono on Vercel Functions |
 | `agents/` | Agent entry points + runner (`pnpm agent <id>`). Their workflows (`agent-<id>.yml`) live in the private repo and check this one out | TypeScript on GitHub Actions |
@@ -37,7 +37,7 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
 - **Binary files** (contracts, receipts) → the private Vercel Blob store; a `documents` row links
   them. Project images go to the public Blob store and are referenced by URL. Uploads go from
   the browser straight to Blob with a short-lived token from the API (`@nw/object-store`).
-  CVs attached on `/submit` and `/join` live in the private store under `_resumes/`, linked from
+  CVs attached on `/submit` (and on `/join`, before it closed) live in the private store under `_resumes/`, linked from
   the pitch or application row; `/cron/resume-cleanup` deletes the ones never sent.
 - **Records** (minutes, ADRs, partner history) → `records/` in the private repo, never here.
   `apps/web` may read `knowledge/`; it must **never** read `records/`.

@@ -29,6 +29,9 @@ const nextConfig: NextConfig = {
       { source: "/blog", destination: "/about", permanent: false },
       { source: "/blog/:path*", destination: "/about", permanent: false },
       { source: "/community", destination: "/about", permanent: false },
+      // Applications to join closed with the task board; old links land on /contribute (308).
+      { source: "/join", destination: "/contribute?from=join", permanent: true },
+      { source: "/join/:path*", destination: "/contribute?from=join", permanent: true },
     ];
   },
 };

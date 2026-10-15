@@ -1495,11 +1495,12 @@ export type AdminChatEvent =
 // only in memory. The API is the real gate and stores only what passes these schemas.
 // The catalog and what each metric means: docs/analytics.md.
 
-export const CTA_TARGETS = ["submit", "join"] as const;
+/** `join` stays readable for old events; the site links to `contribute` since the task board. */
+export const CTA_TARGETS = ["submit", "join", "contribute", "tasks", "agent"] as const;
 export type CtaTarget = (typeof CTA_TARGETS)[number];
 
-/** Where on the site a "Pitch a project" / "Join" link sits. */
-export const CTA_PLACEMENTS = ["header", "hero", "get-involved", "footer"] as const;
+/** Where on the site a call to action sits. `contribute` is the /contribute page itself. */
+export const CTA_PLACEMENTS = ["header", "hero", "get-involved", "footer", "contribute"] as const;
 export type CtaPlacement = (typeof CTA_PLACEMENTS)[number];
 
 export const FORM_KINDS = ["pitch", "join", "newsletter"] as const;
@@ -1563,6 +1564,23 @@ export const webEventInput = z.discriminatedUnion("name", [
     required: eventCount,
     submitted: z.boolean(),
   }),
+
+  // The task board (docs/contributor-board-design.md). Counts only: no task id, no handle,
+  // nothing typed. `filter` names which control changed, never its value.
+  webEvent("task_view", { status: z.enum(["suggested", "open", "assigned", "in_review", "done", "closed", "declined", "duplicate"]) }),
+  webEvent("task_filter", { filter: z.enum(["search", "area", "size", "status", "skills", "sort", "view"]) }),
+  webEvent("propose_open", { edit: z.boolean(), signedIn: z.boolean() }),
+  webEvent("propose_sent", { edit: z.boolean() }),
+  webEvent("propose_failed", { reason: z.enum(["invalid", "limit", "unavailable"]) }),
+  webEvent("proposal_withdrawn", {}),
+  webEvent("post_sent", { reply: z.boolean() }),
+  webEvent("vote", { on: z.boolean() }),
+  webEvent("suggestion_sent", { kind: z.enum(["improvement", "bug"]) }),
+  webEvent("sign_in_open", { placement: z.enum(["page", "dialog"]) }),
+  webEvent("sign_in_start", { method: z.enum(["github", "email"]) }),
+  webEvent("sign_in_done", { method: z.enum(["github", "email"]), firstRun: z.boolean() }),
+  webEvent("profile_saved", {}),
+  webEvent("account_deleted", {}),
 
   // The plain step-by-step forms and the newsletter box.
   webEvent("form_step", { form: intakeMode, step: eventCount, of: eventCount }),

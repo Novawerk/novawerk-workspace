@@ -2,25 +2,56 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { Suspense, useEffect, useId, useRef, useState } from "react";
 
 import { trackClick } from "@/lib/analytics";
 
+import { MobileAccountLinks, useSignedIn } from "./account-menu";
 import { NavLink } from "./nav-link";
 import { buttonInk, buttonOutline } from "./ui";
 
 /**
- * The header on a phone: one Menu button that opens the links and both actions in a panel
+ * The header on a phone: one Menu button that opens the links and the actions in a panel
  * under the header row. Rendered inside the header's wrapping flex row, so the panel takes a
  * line of its own (`basis-full`) and pushes the page down instead of covering it.
  * It closes on a route change, when a link is picked, and on Escape.
  */
 export function MobileMenu() {
+  // The path is request data on dynamic routes: the prerendered page shows the button, the menu streams in.
+  return (
+    <Suspense fallback={<MenuButton open={false} />}>
+      <Menu />
+    </Suspense>
+  );
+}
+
+function MenuButton({ open, ...props }: { open: boolean } & React.ComponentProps<"button">) {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      className="-mr-2 inline-flex h-10 items-center gap-2 px-2 text-sm font-medium sm:hidden"
+      {...props}
+    >
+      Menu
+      <svg viewBox="0 0 20 20" className="size-5" aria-hidden="true">
+        {open ? (
+          <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+        ) : (
+          <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+        )}
+      </svg>
+    </button>
+  );
+}
+
+function Menu() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [openOn, setOpenOn] = useState(pathname);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
+  const signedIn = useSignedIn();
 
   // Another page (Back, Forward, a link): close. Adjusting state during render, not in an effect.
   if (openOn !== pathname) {
@@ -41,23 +72,7 @@ export function MobileMenu() {
 
   return (
     <>
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((current) => !current)}
-        className="-mr-2 inline-flex h-10 items-center gap-2 px-2 text-sm font-medium sm:hidden"
-      >
-        Menu
-        <svg viewBox="0 0 20 20" className="size-5" aria-hidden="true">
-          {open ? (
-            <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-          ) : (
-            <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-          )}
-        </svg>
-      </button>
+      <MenuButton ref={buttonRef} open={open} aria-controls={panelId} onClick={() => setOpen((current) => !current)} />
 
       <div
         id={panelId}
@@ -80,9 +95,15 @@ export function MobileMenu() {
                 About
               </NavLink>
             </li>
+            <li>
+              <NavLink href="/tasks" className="block py-3 text-base">
+                Tasks
+              </NavLink>
+            </li>
+            <MobileAccountLinks linkClass="block py-3 text-base text-muted transition-colors hover:text-ink" />
           </ul>
         </nav>
-        <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className={`mt-2 grid gap-2 ${signedIn ? "grid-cols-1" : "grid-cols-2"}`}>
           {/* Counted as the header: on a phone this panel is the header's actions. */}
           <Link
             href="/submit"
@@ -91,9 +112,11 @@ export function MobileMenu() {
           >
             Pitch a project
           </Link>
-          <Link href="/join" className={buttonInk} {...trackClick("cta_click", { target: "join", placement: "header" })}>
-            Join
-          </Link>
+          {signedIn ? null : (
+            <Link href="/contribute" className={buttonInk} {...trackClick("cta_click", { target: "contribute", placement: "header" })}>
+              Contribute
+            </Link>
+          )}
         </div>
       </div>
     </>

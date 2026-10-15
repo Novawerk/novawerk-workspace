@@ -3,10 +3,12 @@ import Link from "next/link";
 import { trackClick } from "@/lib/analytics";
 import { CONTACT_EMAIL, GITHUB_URL, TAGLINE } from "@/lib/site";
 
+import { HeaderActions } from "./account-menu";
 import { MobileMenu } from "./mobile-menu";
 import { NavLink } from "./nav-link";
+import { NewsletterForm } from "./newsletter-form";
 import { NovaStar } from "./nova-star";
-import { buttonInk, buttonOutline, container, textLink } from "./ui";
+import { container, textLink } from "./ui";
 
 export function Logo() {
   return (
@@ -17,7 +19,7 @@ export function Logo() {
   );
 }
 
-/** One row: the logo, the links and both actions. On a phone the links and actions sit behind Menu. */
+/** One row: the logo, the links and the actions. On a phone the links and actions sit behind Menu. */
 export function SiteHeader() {
   return (
     <header className="border-b border-line">
@@ -27,21 +29,11 @@ export function SiteHeader() {
           <nav aria-label="Main" className="hidden items-center gap-6 sm:flex">
             <NavLink href="/">Projects</NavLink>
             <NavLink href="/about">About</NavLink>
+            <NavLink href="/tasks">Tasks</NavLink>
           </nav>
         </div>
         <MobileMenu />
-        <div className="hidden gap-2 sm:flex">
-          <Link
-            href="/submit"
-            className={`${buttonOutline} h-10`}
-            {...trackClick("cta_click", { target: "submit", placement: "header" })}
-          >
-            Pitch a project
-          </Link>
-          <Link href="/join" className={`${buttonInk} h-10`} {...trackClick("cta_click", { target: "join", placement: "header" })}>
-            Join
-          </Link>
-        </div>
+        <HeaderActions />
       </div>
     </header>
   );
@@ -50,7 +42,7 @@ export function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-line">
-      <div className={`${container} grid gap-10 py-12 sm:grid-cols-[2fr_1fr_1fr]`}>
+      <div className={`${container} grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.6fr]`}>
         <div className="space-y-3">
           <Logo />
           <p className="text-sm text-muted">{TAGLINE}</p>
@@ -65,10 +57,16 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <Link className={textLink} href="/join" {...trackClick("cta_click", { target: "join", placement: "footer" })}>
-                Join
+              <Link className={textLink} href="/contribute" {...trackClick("cta_click", { target: "contribute", placement: "footer" })}>
+                Contribute
               </Link>
             </li>
+            <li>
+              <Link className={textLink} href="/tasks" {...trackClick("cta_click", { target: "tasks", placement: "footer" })}>
+                Open tasks
+              </Link>
+            </li>
+            <li><Link className={textLink} href="/contributors">Contributors</Link></li>
           </ul>
         </nav>
         <ul className="space-y-2 text-sm">
@@ -83,6 +81,13 @@ export function SiteFooter() {
             </a>
           </li>
         </ul>
+        <section aria-labelledby="footer-newsletter" className="space-y-2">
+          <h2 id="footer-newsletter" className="text-sm font-semibold">
+            Newsletter
+          </h2>
+          <p className="text-sm text-muted">Posts, open tasks and who shipped what. Monthly.</p>
+          <NewsletterForm idPrefix="footer" />
+        </section>
       </div>
       <div className={`${container} flex flex-col gap-3 border-t border-line py-6 sm:flex-row sm:items-center sm:justify-between`}>
         <p className="font-mono text-xs text-muted">© Novawerk · Non-profit community</p>
