@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useRef } from "react";
 
+import { closesOnBackdropClick } from "./dialog-logic";
+
 /**
  * A task board dialog in the VI's shape (docs/contributor-board-design.md, "Visual direction"):
  * a 16 px container with a tinted header band, one close control (× top right, plus Escape), a
@@ -18,6 +20,7 @@ export function Dialog({
   as = "div",
   onSubmit,
   dismissible = true,
+  closeOnBackdrop = true,
   children,
 }: {
   open: boolean;
@@ -32,9 +35,12 @@ export function Dialog({
   onSubmit?: (event: React.FormEvent<HTMLFormElement>) => void;
   /** false: no ×, and Escape or the backdrop do nothing (the footer has the only ways out). */
   dismissible?: boolean;
+  /** false: a click on the backdrop doesn't close it (× and Escape still do). */
+  closeOnBackdrop?: boolean;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const pressOnBackdrop = useRef(false);
   const titleId = useId();
   const metaId = useId();
 
@@ -100,9 +106,20 @@ export function Dialog({
         event.preventDefault();
         if (dismissible) onClose();
       }}
+      onPointerDown={(event) => {
+        pressOnBackdrop.current = event.target === ref.current;
+      }}
       onClick={(event) => {
-        // A click on the backdrop (the dialog element itself, outside the panel) closes it.
-        if (dismissible && event.target === ref.current) onClose();
+        // A click on the backdrop (the dialog element itself, outside the panel) closes it, when
+        // the press started there too (not a drag out of a field).
+        const close = closesOnBackdropClick({
+          clickOnDialog: event.target === ref.current,
+          pressStartedOnDialog: pressOnBackdrop.current,
+          closeOnBackdrop,
+          dismissible,
+        });
+        pressOnBackdrop.current = false;
+        if (close) onClose();
       }}
       className={`m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 text-ink backdrop:bg-ink/45 sm:m-auto sm:mt-14 sm:h-auto sm:max-h-[calc(100dvh-7rem)] sm:w-[calc(100%-2rem)] ${width}`}
     >

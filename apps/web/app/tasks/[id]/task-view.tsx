@@ -16,6 +16,7 @@ import {
   WHERE_LABELS,
   type BoardState,
 } from "@/components/board/labels";
+import { confirmPromptOpen } from "@/components/board/dialog-logic";
 import { SignInDialog } from "@/components/board/sign-in";
 import { buttonAccent, buttonOutline, buttonSmallDanger, buttonSmallOutline, container, textLink } from "@/components/ui";
 import { track } from "@/lib/analytics";
@@ -102,8 +103,10 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
     };
   }, [session.status, task.id, apply]);
 
-  // A confirm link opened while signed out: ask to sign in, then the draft shows here.
-  const confirmPrompt = !!confirmId && session.status === "signed-out" && !confirmPromptClosed;
+  // A confirm link opened while signed out: ask to sign in, then the draft shows here. Only the
+  // visitor closing the prompt turns it off; a note on the page can open it again.
+  const confirmPrompt = confirmPromptOpen({ confirmId, status: session.status, closedByUser: confirmPromptClosed });
+  const confirmWaiting = !!confirmId && session.status === "signed-out";
 
   const askSignIn = (title: string) => setSigningIn(title);
   const openPropose = () => {
@@ -181,6 +184,17 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
             <p className="max-w-[60ch] text-[17px] text-muted">{task.summary}</p>
             <div className="grid gap-3 border border-line bg-paper p-5 lg:hidden">{action}</div>
           </div>
+
+          {confirmWaiting && !confirmPrompt ? (
+            <Note tone="info" className="mt-6">
+              <b>Your agent drafted a proposal for this task.</b> Sign in to read it and confirm it; nobody sees it until you do.
+              <div className="mt-2.5">
+                <button type="button" className={buttonSmallOutline} onClick={() => setConfirmPromptClosed(false)}>
+                  Sign in
+                </button>
+              </div>
+            </Note>
+          ) : null}
 
           {mine?.status === "not_chosen" && mine.declineNote ? (
             <Note className="mt-6">
@@ -307,6 +321,7 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
         }}
         title={signingIn ?? (confirmPrompt ? "Sign in to confirm your agent's proposal" : undefined)}
         returnTo={confirmId ? `/tasks/${task.id}?confirm=${encodeURIComponent(confirmId)}` : `/tasks/${task.id}`}
+        closeOnBackdrop={!confirmPrompt}
       />
     </div>
   );

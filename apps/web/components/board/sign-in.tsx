@@ -213,17 +213,20 @@ export function SignInDialog({
   onClose,
   title = "Sign in to contribute",
   returnTo,
+  closeOnBackdrop = true,
 }: {
   open: boolean;
   onClose: () => void;
   title?: string;
   returnTo: string;
+  /** false: only × or Escape close it (the confirm-link prompt, which is the point of the visit). */
+  closeOnBackdrop?: boolean;
 }) {
   useEffect(() => {
     if (open) track("sign_in_open", { placement: "dialog" });
   }, [open]);
   return (
-    <Dialog open={open} onClose={onClose} title={title} width="sm:max-w-[440px]">
+    <Dialog open={open} onClose={onClose} title={title} width="sm:max-w-[440px]" closeOnBackdrop={closeOnBackdrop}>
       <SignInPanel returnTo={returnTo} heading={false} onSignedIn={onClose} />
     </Dialog>
   );
