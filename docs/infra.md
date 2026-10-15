@@ -34,8 +34,10 @@ or a local `.env` (ignored by git).
 - **admin.novawerk.io and api.novawerk.io are live**, on the new Neon database. New pitches and
   applications email info@novawerk.io through Resend.
 - **The old site is parked.** The Vercel project `nw-web-portal` (Payload CMS) has no custom
-  domain any more and keeps its own Neon database, untouched, until we've exported what we
-  keep. To roll back, move `novawerk.io` and `www.novawerk.io` back to it.
+  domain any more and keeps its own Neon database, untouched. To roll back, move `novawerk.io`
+  and `www.novawerk.io` back to it. **To do (a person):** delete `nw-web-portal` and its
+  database. We don't import its newsletter subscribers: they never confirmed (decided
+  2026-10-15).
 - The web build still refuses to run in production if `knowledge/legal/*.md` has
   `{{placeholders}}`, and the Deploy workflow then skips the web.
 - **Email DNS is done** (2026-10-03): Google receives mail, and Resend is verified to send it.

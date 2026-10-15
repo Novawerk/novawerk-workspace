@@ -269,6 +269,11 @@ describe("newsletter", () => {
     return { ...made, mails };
   }
   const tokenOf = (url: string) => new URL(url).searchParams.get("token")!;
+  /** The Confirm button on the page the link opens: where it lands. */
+  const confirm = async (app: TestApp, token: string) =>
+    (await app.request(`/public/newsletter/confirm?token=${token}`, { method: "POST" })).headers.get("location");
+  const SUBSCRIBED = `${WEB_ORIGIN}/newsletter/subscribed`;
+  const EXPIRED = `${WEB_ORIGIN}/newsletter/link-expired`;
   const row = async (email = "ada@example.com") =>
     (await db.select().from(newsletterSubscribers).where(eq(newsletterSubscribers.email, email)))[0]!;
 
@@ -296,7 +301,7 @@ describe("newsletter", () => {
       const res = await subscribe(app, { email: "ada@example.com" });
       answers.push([res.status, await res.json()]);
     }
-    await app.request(new URL(mails[1]!.url).pathname + new URL(mails[1]!.url).search);
+    await confirm(app, tokenOf(mails[1]!.url));
     expect((await row()).confirmedAt).not.toBeNull();
     const res = await subscribe(app, { email: "ada@example.com" });
     answers.push([res.status, await res.json()]);
@@ -331,40 +336,49 @@ describe("newsletter", () => {
     expect((await subscribe(app, { email: "one-more@example.com" })).status).toBe(429);
   });
 
+  it("opens a page on GET, so a mail scanner confirms nothing; the page's POST confirms", async () => {
+    const { app, mails } = newsletterApp();
+    await subscribe(app, { email: "ada@example.com" });
+    const token = tokenOf(mails[0]!.url);
+    const page = await app.request(`/public/newsletter/confirm?token=${token}`);
+    expect(page.status).toBe(200);
+    expect(page.headers.get("content-type")).toContain("text/html");
+    expect(page.headers.get("referrer-policy")).toBe("no-referrer");
+    // The button's redirect lands on the website: the CSP must allow it, or the browser stops there.
+    expect(page.headers.get("content-security-policy")).toContain(`form-action 'self' ${WEB_ORIGIN};`);
+    const html = await page.text();
+    expect(html).toContain(`<form method="post" action="?token=${token}">`);
+    expect(html).not.toContain("<script");
+    expect((await row()).confirmedAt).toBeNull();
+    for (const bad of ["", "?token=short", "?token=x&token=y"]) {
+      expect((await app.request(`/public/newsletter/confirm${bad}`)).headers.get("location")).toBe(`${WEB_ORIGIN}/newsletter/link-expired`);
+    }
+    expect(await confirm(app, "short")).toBe(EXPIRED);
+  });
+
   it("confirms with the latest link only, and only until it expires", async () => {
     const { app, mails } = newsletterApp();
     await subscribe(app, { email: "ada@example.com" });
     await subscribe(app, { email: "ada@example.com" });
     const [first, second] = mails.map((m) => tokenOf(m.url));
 
-    const old = await app.request(`/public/newsletter/confirm?token=${first}`);
-    expect(old.status).toBe(303);
-    expect(old.headers.get("location")).toBe(`${WEB_ORIGIN}/newsletter/link-expired`);
+    expect(await confirm(app, first!)).toBe(EXPIRED);
     expect((await row()).confirmedAt).toBeNull();
 
-    const ok = await app.request(`/public/newsletter/confirm?token=${second}`);
-    expect(ok.headers.get("location")).toBe(`${WEB_ORIGIN}/newsletter/subscribed`);
+    expect(await confirm(app, second!)).toBe(SUBSCRIBED);
     const confirmedAt = (await row()).confirmedAt;
     expect(confirmedAt).not.toBeNull();
 
     // A second click is fine and keeps the first confirmation time.
-    const again = await app.request(`/public/newsletter/confirm?token=${second}`);
-    expect(again.headers.get("location")).toBe(`${WEB_ORIGIN}/newsletter/subscribed`);
+    expect(await confirm(app, second!)).toBe(SUBSCRIBED);
     expect((await row()).confirmedAt).toEqual(confirmedAt);
-
-    for (const bad of ["", "?token=short", "?token=x&token=y"]) {
-      expect((await app.request(`/public/newsletter/confirm${bad}`)).headers.get("location")).toBe(
-        `${WEB_ORIGIN}/newsletter/link-expired`,
-      );
-    }
   });
 
   it("refuses an expired link", async () => {
     const { app, mails } = newsletterApp();
     await subscribe(app, { email: "ada@example.com" });
     await db.update(newsletterSubscribers).set({ confirmTokenExpiresAt: new Date(Date.now() - 1000) });
-    const res = await app.request(`/public/newsletter/confirm?token=${tokenOf(mails[0]!.url)}`);
-    expect(res.headers.get("location")).toBe(`${WEB_ORIGIN}/newsletter/link-expired`);
+    expect(await confirm(app, tokenOf(mails[0]!.url))).toBe(EXPIRED);
     expect((await row()).confirmedAt).toBeNull();
   });
 
@@ -372,7 +386,7 @@ describe("newsletter", () => {
     const { app, mails } = newsletterApp();
     await subscribe(app, { email: "ada@example.com" });
     const confirmToken = tokenOf(mails[0]!.url);
-    await app.request(`/public/newsletter/confirm?token=${confirmToken}`);
+    await confirm(app, confirmToken);
     const { unsubscribeToken } = await row();
 
     const page = await app.request(`/public/newsletter/unsubscribe?token=${unsubscribeToken}`);
@@ -396,7 +410,7 @@ describe("newsletter", () => {
 
     // Idempotent, and the old confirmation link can't bring them back.
     expect((await app.request(`/public/newsletter/unsubscribe?token=${unsubscribeToken}`, { method: "POST" })).status).toBe(200);
-    await app.request(`/public/newsletter/confirm?token=${confirmToken}`);
+    expect(await confirm(app, confirmToken)).toBe(EXPIRED);
     expect((await row()).subscribed).toBe(false);
   });
 
@@ -416,7 +430,7 @@ describe("newsletter", () => {
     expect(mails).toHaveLength(1);
     expect((await row()).subscribed).toBe(false);
 
-    await app.request(`/public/newsletter/confirm?token=${tokenOf(mails[0]!.url)}`);
+    await confirm(app, tokenOf(mails[0]!.url));
     expect(await row()).toMatchObject({ subscribed: true, confirmedAt: expect.any(Date) });
   });
 

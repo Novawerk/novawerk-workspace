@@ -136,6 +136,14 @@ the address that just signed up for the newsletter, at most 3 a day per address 
 and `sendContributorNotice()` sends fixed emails to a contributor about their own account and
 tasks, to their own verified address (NB-ADR-0013).
 
+The confirmation link opens a small page the API serves itself (`GET /public/newsletter/confirm`:
+plain HTML, no scripts, so links never wait on a web deploy). Only its button confirms (`POST`),
+so a mail scanner that opens links confirms nobody; the POST lands on the website's "you're
+subscribed" or "link expired" page. `GET /cron/newsletter-cleanup` (daily) deletes unconfirmed
+addresses with no marker: signups whose link expired once they are 30 days old, and every
+unconfirmed row that never got a confirmation email (`confirm_send_count = 0`: from before
+double opt-in went live on 2026-10-14; we don't ask them).
+
 ### Contributor notices
 
 `GET /cron/contributor-notices` (`apps/api/src/contributor-notices.ts`) runs every 10 minutes

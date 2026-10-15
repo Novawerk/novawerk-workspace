@@ -42,6 +42,10 @@
     {
       "path": "/cron/contributor-notices",
       "schedule": "15 4 * * *"
+    },
+    {
+      "path": "/cron/newsletter-cleanup",
+      "schedule": "30 4 * * *"
     }
   ]
 }

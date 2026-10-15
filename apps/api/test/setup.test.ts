@@ -208,7 +208,7 @@ describe("Vercel deployment", () => {
     expect(read("src/index.ts")).toMatch(/^export default app;$/m);
   });
 
-  it("runs the cleanups, the GitHub sync and the contributor-notice fallback every day", () => {
+  it("runs the cleanups, the GitHub sync and the contributor-notice fallback every day (and the newsletter cleanup)", () => {
     expect(JSON.parse(read("vercel.json")).crons).toEqual([
       { path: "/cron/intake-cleanup", schedule: "0 3 * * *" },
       { path: "/cron/analytics-cleanup", schedule: "15 3 * * *" },
@@ -216,6 +216,7 @@ describe("Vercel deployment", () => {
       { path: "/cron/sign-in-cleanup", schedule: "45 3 * * *" },
       { path: "/cron/github-sync", schedule: "0 4 * * *" },
       { path: "/cron/contributor-notices", schedule: "15 4 * * *" },
+      { path: "/cron/newsletter-cleanup", schedule: "30 4 * * *" },
     ]);
   });
 });

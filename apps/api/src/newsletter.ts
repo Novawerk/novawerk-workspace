@@ -2,7 +2,11 @@
 //
 // - Signing up makes a pending row and emails a link; only clicking it confirms. Issues go to
 //   confirmed rows that haven't unsubscribed (`isConfirmedSubscriber` in @nw/db).
-// - Only a SHA-256 of the confirmation token is stored. A link lives 72 hours.
+// - Only a SHA-256 of the confirmation token is stored. A link lives 72 hours. The link opens a
+//   page; only its button confirms (routes/public.ts), so a mail scanner confirms nobody.
+// - Unconfirmed rows go, with no marker: 30 days after signup once the link expired, and every
+//   unconfirmed row that never got a confirmation email: those are from before double opt-in
+//   (deleteUnconfirmed, daily).
 // - At most 3 confirmation emails per address per 24 hours, so the form can't flood a stranger.
 // - Signing up says the same thing whether the address is new, pending or confirmed.
 // - Unsubscribing keeps only the marker: `subscribed` false, no confirmation, no live token.
@@ -10,9 +14,9 @@
 
 import { createHash, randomBytes } from "node:crypto";
 
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
 
-import { NEWSLETTER_CONFIRM_TTL_HOURS } from "@nw/contracts";
+import { NEWSLETTER_CONFIRM_TTL_HOURS, NEWSLETTER_PENDING_RETENTION_DAYS } from "@nw/contracts";
 import { newsletterSubscribers, type Database } from "@nw/db";
 
 export const CONFIRM_TTL_MS = NEWSLETTER_CONFIRM_TTL_HOURS * 3_600_000;
@@ -85,4 +89,33 @@ export async function unsubscribe(db: Database, unsubscribeToken: string): Promi
     .update(newsletterSubscribers)
     .set({ subscribed: false, confirmedAt: null, confirmTokenHash: null, confirmTokenExpiresAt: null })
     .where(eq(newsletterSubscribers.unsubscribeToken, unsubscribeToken.toLowerCase()));
+}
+
+export interface CleanupResult {
+  /** Signups that never confirmed: link expired, 30 days old. */
+  expired: number;
+  /** Unconfirmed rows never sent a confirmation email: from before double opt-in. */
+  beforeDoubleOptIn: number;
+}
+
+/**
+ * Unconfirmed addresses go, with no marker (privacy notice). Daily, GET /cron/newsletter-cleanup.
+ * Both deletes only touch rows nobody confirmed and that have no live link, so running it again
+ * deletes nothing new.
+ */
+export async function deleteUnconfirmed(db: Database, now = new Date()): Promise<CleanupResult> {
+  const pending = and(eq(newsletterSubscribers.subscribed, true), isNull(newsletterSubscribers.confirmedAt));
+  const noLiveLink = or(isNull(newsletterSubscribers.confirmTokenExpiresAt), lt(newsletterSubscribers.confirmTokenExpiresAt, now));
+  const old = new Date(now.getTime() - NEWSLETTER_PENDING_RETENTION_DAYS * 86_400_000);
+  // requestSubscription() is the only writer and always sends at least one confirmation, so a
+  // row with none is from before double opt-in (whatever its date: #48 went live mid-morning).
+  const before = await db
+    .delete(newsletterSubscribers)
+    .where(and(pending, noLiveLink, eq(newsletterSubscribers.confirmSendCount, 0)))
+    .returning({ id: newsletterSubscribers.id });
+  const expired = await db
+    .delete(newsletterSubscribers)
+    .where(and(pending, lt(newsletterSubscribers.confirmTokenExpiresAt, now), lt(newsletterSubscribers.createdAt, old)))
+    .returning({ id: newsletterSubscribers.id });
+  return { expired: expired.length, beforeDoubleOptIn: before.length };
 }
