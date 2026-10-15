@@ -54,6 +54,7 @@ import type {
   Member,
   MemberApplication,
   MemberCreateInput,
+  MemberSelfUpdateInput,
   MemberPatch,
   OutboxApproveResult,
   OutboxDraftInput,
@@ -106,6 +107,8 @@ export interface AdminDataSource {
   members(): Promise<Member[]>
   createMember(input: MemberCreateInput): Promise<Member>
   updateMember(id: string, patch: MemberPatch): Promise<Member>
+  /** PATCH /admin/me: the signed-in member's own public profile. */
+  updateMe(patch: MemberSelfUpdateInput): Promise<Me>
 
   listSubmissions(status?: SubmissionStatus): Promise<ProjectSubmission[]>
   getSubmission(id: string): Promise<ProjectSubmission>
@@ -222,6 +225,7 @@ const liveSource: AdminDataSource = {
     return member
   },
   updateMember: (id, patch) => call(admin.members[":id"].$patch({ param: { id }, json: patch })),
+  updateMe: (patch) => call(admin.me.$patch({ json: patch })),
 
   listSubmissions: (status) => call(admin.submissions.$get({ query: { status } })),
   getSubmission: (id) => call(admin.submissions[":id"].$get({ param: { id } })),
@@ -435,6 +439,17 @@ const sampleSource: AdminDataSource = {
     }
     store.members.set(member.id, member)
     return { ...member }
+  },
+  updateMe: async (patch) => {
+    await delay()
+    const clean = definedOnly(patch)
+    const handle = clean.profileHandle ?? SAMPLE_ME.profileHandle
+    if (clean.publicProfile && !handle) refuse("Pick a handle first", "profileHandle")
+    if (clean.profileHandle && [...store.members.keys()].some((id) => id !== SAMPLE_ME.id && id === clean.profileHandle)) {
+      refuse("That handle is taken", "profileHandle", 409)
+    }
+    Object.assign(SAMPLE_ME, clean)
+    return { ...SAMPLE_ME }
   },
   updateMember: async (id, patch) => {
     await delay()

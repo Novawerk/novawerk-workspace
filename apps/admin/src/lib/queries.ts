@@ -11,6 +11,7 @@ import type {
   FinanceEntryInput,
   MemberApplication,
   MemberCreateInput,
+  MemberSelfUpdateInput,
   MemberPatch,
   OutboxDraftInput,
   OutboxEmail,
@@ -104,6 +105,18 @@ export function useCreateMember() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.members })
       // A new member may have become the Initiator of a project.
       void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all })
+    },
+  })
+}
+
+/** PATCH /admin/me: the member's own public profile. The answer replaces `me`. */
+export function useUpdateMe() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: MemberSelfUpdateInput) => dataSource.updateMe(patch),
+    onSuccess: (me) => {
+      queryClient.setQueryData(queryKeys.me, me)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.members })
     },
   })
 }

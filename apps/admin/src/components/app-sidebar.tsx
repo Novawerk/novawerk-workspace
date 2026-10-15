@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { ChevronsUpDownIcon, LogOutIcon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react"
+import { ChevronsUpDownIcon, LogOutIcon, MonitorIcon, MoonIcon, SunIcon, UserRoundIcon } from "lucide-react"
 
 import { NovaStar } from "@nw/ui/compound/nova-star"
 import { useTheme } from "@nw/ui/compound/theme-provider"
@@ -177,6 +177,9 @@ function UserMenu({ me }: { me: Me }) {
               </DropdownMenuRadioGroup>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => void navigate({ to: "/profile" })}>
+              <UserRoundIcon /> Your public profile
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => void signOut()}>
               <LogOutIcon /> Sign out
             </DropdownMenuItem>
