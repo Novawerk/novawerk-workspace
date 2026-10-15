@@ -5,6 +5,7 @@ import type { CardFontLoader } from "@nw/promo/cards";
 import type { TeamNotification } from "@nw/email";
 
 import type { GitHubApi } from "@nw/github";
+import type { TokenContext } from "@nw/tasks";
 
 import type { GitHubOAuth } from "./contributor-auth.js";
 import type { ContributorNoticeSender } from "./contributor-notices.js";
@@ -33,6 +34,11 @@ export interface ApiConfig {
   webRevalidate?: { url: string; secret: string };
   /** Vercel Cron's bearer token for /cron/*. Unset: those routes answer 404. */
   cronSecret?: string;
+  /**
+   * The website's server sends it as `x-nw-web-key` on its task board reads, which then skip the
+   * anonymous per-network limit (Vercel's shared egress IPs would hit it). Unset: no exemption.
+   */
+  webReadKey?: string;
   /** GitHub's webhook signing secret. Unset: POST /webhooks/github answers 404. */
   githubWebhookSecret?: string;
   /** Public origins of this API and of the website: the links in newsletter emails point there. */
@@ -189,6 +195,9 @@ export const toAdminMember = (m: Member): AdminMember => ({
 
 /** Hono env for every router in this app. */
 export interface ApiEnv {
-  /** `member` on /admin (src/auth.ts), `contributor` on /contrib (src/contributor-auth.ts). Never both. */
-  Variables: { member: AdminMember; contributor: Contributor };
+  /**
+   * `member` on /admin (src/auth.ts), `contributor` on /contrib (src/contributor-auth.ts). Never
+   * both. `token` is set when the contributor came with a personal access token (src/token-gate.ts).
+   */
+  Variables: { member: AdminMember; contributor: Contributor; token: TokenContext | undefined };
 }

@@ -229,7 +229,24 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
   from GitHub and accepts only one that counts. Inactivity writes task events
   only (`inactivity_reminder` after 7 quiet days, then `released` after 14, 21 with "a week
   more"); emails go out from the events.
-- **Tokens** (`contributor_tokens`: hashed secret, scopes, expiry, last use) exist as a table only.
+- **Agents** act for a contributor with a personal access token (`contributor_tokens`: only the
+  SHA-256 of `nwt_…` is kept; scopes `tasks:read` (always), `proposals:write`,
+  `discussion:write`, `tasks:work`, `suggestions:write`, `profile:write`; 30 or 90 days; at most
+  10 live; revocable). `Authorization: Bearer` works on `/contrib/*` (each route checks its
+  scope), on the board's `/public` reads (optional) and on `/mcp`. A token never manages
+  tokens, confirms drafts, deletes the account, or changes the handle or who sees the profile.
+  A proposal made with a token is a `draft` until its person confirms it in the browser
+  (`POST /contrib/proposals/:id/confirm`); a token edits and discards drafts only, and drafts
+  go when their task leaves `open`. Proposals, posts and task events (suggestions, PR links,
+  releases, extensions) keep `via_token_id`, shown as "via agent · <token name>"; votes,
+  reports and profile edits aren't marked. A suspended account's tokens stop; signing out ends
+  browser sessions only, tokens live until revoked or expired. Browser writes on `/contrib`
+  must come from the website's origins or carry JSON. Anonymous board reads have a looser
+  per-network budget (600 an hour). `/mcp` takes one JSON-RPC message per POST, only from our
+  origins in a browser. Each token has an hourly budget (1000
+  reads, 100 writes; in memory, per instance). The MCP server (`apps/api/src/mcp.ts`, official
+  TypeScript SDK, stateless Streamable HTTP) calls the same `@nw/tasks` functions; reading works
+  without a token. `apps/web/public/llms.txt` tells agents how.
 - **Next**: a database-level guard that makes `werk_ledger` append-only (a trigger, or no
   UPDATE/DELETE grant), and a database-backed per-IP limit or a challenge on
   `/auth/contributor/email/start` against email bombing (today's per-IP limit is per instance).
@@ -248,3 +265,6 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
 | `GET /public/blocks` | anyone | merged tasks for the builders scene; private people as `anon-<hash>` |
 | `POST /webhooks/github`, `GET /cron/github-sync` | GitHub, Vercel Cron | pull requests move tasks; reconcile and inactivity |
 | `PATCH /contrib/me/profile`, `DELETE /contrib/me` | contributor | profile, delete account |
+| `GET`/`POST /contrib/tokens`, `DELETE /contrib/tokens/:id`, `POST /contrib/proposals/:id/confirm` | contributor, browser only | tokens; confirm an agent's draft |
+| `GET /contrib/me`, `GET /contrib/me/votes` | contributor or token | who am I; the suggestions I +1'd |
+| `/mcp` | anyone; a token to act | the MCP server |

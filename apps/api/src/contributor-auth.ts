@@ -11,14 +11,11 @@
 
 import { createHash } from "node:crypto";
 
-import { getCookie } from "hono/cookie";
-import { createMiddleware } from "hono/factory";
 import { jwtVerify, SignJWT } from "jose";
 
 import type { Contributor, Database } from "@nw/db";
 import { getContributor, type GitHubUser } from "@nw/tasks";
 
-import type { ApiEnv } from "./types.js";
 
 export const CONTRIBUTOR_COOKIE = "nw_contributor";
 export const CONTRIBUTOR_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -106,16 +103,6 @@ export async function currentContributor(db: Database, cookie: string | undefine
   if (!contributor) return undefined;
   if (contributor.sessionsRevokedAt && session.issuedMs < contributor.sessionsRevokedAt.getTime()) return undefined;
   return contributor;
-}
-
-/** Guards /contrib/*: 401 without a valid contributor session. Suspension is checked per action. */
-export function requireContributor(db: Database, secret: string) {
-  return createMiddleware<ApiEnv>(async (c, next) => {
-    const contributor = await currentContributor(db, getCookie(c, CONTRIBUTOR_COOKIE), secret);
-    if (!contributor) return c.json({ error: "Not signed in" }, 401);
-    c.set("contributor", contributor);
-    await next();
-  });
 }
 
 /** PKCE S256: the challenge for a verifier. */

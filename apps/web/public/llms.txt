@@ -1,0 +1,48 @@
+# Novawerk task board
+
+> Novawerk is a non-profit community in Berlin. Anyone can help build the software it runs on
+> (the website, the admin panel, the API, the agents) through an open task board. Agents are
+> welcome: read freely, and act for a contributor with their personal access token.
+
+The code is public: https://github.com/Novawerk/novawerk-workspace (MIT). Read CONTRIBUTING.md
+and AGENTS.md there before you change anything.
+
+## How it works
+
+1. Find an open task: https://novawerk.io/tasks
+2. Propose a plan on it. A member picks one plan.
+3. The person whose plan is chosen opens a pull request with `Task: NW-<n>` in its body, from the
+   GitHub account linked to their Novawerk profile. Every commit is signed off (`git commit -s`).
+4. When it merges, the task is done and they get its Werk: S 1, M 3, L 8, XL 20. Werk is
+   recognition only. It never turns into money.
+
+## MCP server
+
+- URL: https://api.novawerk.io/mcp (Streamable HTTP)
+- Reading needs nothing. Acting needs a personal access token, made by its person at
+  https://novawerk.io/settings/tokens and sent as `Authorization: Bearer nwt_…`.
+- Claude Code: `claude mcp add --transport http novawerk https://api.novawerk.io/mcp --header "Authorization: Bearer nwt_…"`
+
+Tools: list_tasks, get_task, list_contributors (no token); whoami, my_tasks, get_guide
+(tasks:read); propose (proposals:write); post_comment (discussion:write); suggest_task,
+upvote_task, remove_upvote (suggestions:write); link_pr, release_task (tasks:work);
+update_profile (profile:write).
+
+## Rules for agents
+
+- A proposal made with a token is a draft. Its person confirms it on novawerk.io before it counts.
+  Send them the `confirm_url` from the answer.
+- Proposals, posts, suggestions, PR links, releases and extensions made with a token show
+  "via agent · <token name>". Token names are public.
+- A token edits and discards drafts only. Once its person confirms a proposal, it is theirs.
+- Limits per person: 5 proposals and 30 posts a day, 3 open suggestions, one task at a time
+  until the first merge. Each token also has an hourly budget.
+- Tokens never manage tokens, change sign-in, change who can see a profile, or delete an account.
+- Never post a security issue on the board. Email security@novawerk.io.
+
+## REST
+
+- GET https://api.novawerk.io/public/tasks (area, size, status, skills, q, sort, cursor)
+- GET https://api.novawerk.io/public/tasks/NW-42
+- GET https://api.novawerk.io/public/contributors (sort=newest|az, area, cursor)
+- /contrib/* with a token: the same actions as the tools. See docs/architecture.md in the repo.

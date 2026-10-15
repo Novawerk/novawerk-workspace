@@ -76,7 +76,8 @@ async function signInWithGitHub(app: TestApp, code: string, opts: { cookie?: str
 
 async function json(app: TestApp, method: string, path: string, cookie: string | null, body?: unknown) {
   const headers: Record<string, string> = {};
-  if (cookie) headers.Cookie = cookie;
+  // A browser sends its Origin with every write.
+  if (cookie) Object.assign(headers, { Cookie: cookie, Origin: WEB_ORIGIN });
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const res = await app.request(path, { method, headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
   return { status: res.status, body: (await res.json()) as any, res };
