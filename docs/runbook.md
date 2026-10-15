@@ -79,10 +79,11 @@ agent workflow.
 (`scripts/tasks.example.json` shows the format; it is what `POST /admin/tasks` takes).
 
 1. `pnpm import:tasks tasks.json` checks the file and writes nothing.
-2. `DATABASE_URL=… pnpm import:tasks tasks.json` also checks the titles against that board.
-3. `DATABASE_URL=… pnpm import:tasks tasks.json --apply --member <your id>` publishes them all in
-   one transaction, or none: it refuses when a title is already there (any case) or the member
-   isn't active. It prints the new `NW-<n>` ids. Use the production URL only when you mean it.
+2. `DATABASE_URL=… pnpm import:tasks tasks.json --member <your id>` also checks, without
+   writing: titles already on that board, every reviewer, and that you're an active member with
+   admin rights.
+3. Add `--apply` to publish them all in one transaction, or none (the same checks run again). It
+   prints the new `NW-<n>` ids. Use the production URL only when you mean it.
 
 ## The task board and GitHub
 

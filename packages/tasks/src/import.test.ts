@@ -6,7 +6,7 @@ import { taskImportInput } from "@nw/contracts";
 import { members, taskEvents, tasks, type Database } from "@nw/db";
 import { createTestDb, resetDb } from "@nw/db/testing";
 
-import { TaskRuleError, existingTaskTitles, importTasks } from "./index.js";
+import { TaskRuleError, existingTaskTitles, importProblems, importTasks } from "./index.js";
 
 let db: Database;
 beforeAll(async () => {
@@ -15,8 +15,9 @@ beforeAll(async () => {
 beforeEach(async () => {
   await resetDb(db);
   await db.insert(members).values([
-    { id: "haodong", displayName: "Haodong", email: "h@novawerk.io" },
-    { id: "gone", displayName: "Gone", email: "g@novawerk.io", active: false },
+    { id: "haodong", displayName: "Haodong", email: "h@novawerk.io", canAdmin: true },
+    { id: "grace", displayName: "Grace", email: "grace@novawerk.io" },
+    { id: "gone", displayName: "Gone", email: "g@novawerk.io", active: false, canAdmin: true },
   ]);
 });
 
@@ -61,17 +62,32 @@ describe("importTasks", () => {
     expect(await db.select().from(tasks)).toHaveLength(1);
 
     await resetDb(db);
-    await db.insert(members).values({ id: "gone", displayName: "Gone", email: "g@novawerk.io", active: false });
-    await expect(importTasks(db, "gone", list)).rejects.toThrow(/No active member/);
+    await db.insert(members).values([
+      { id: "gone", displayName: "Gone", email: "g@novawerk.io", active: false, canAdmin: true },
+      { id: "grace", displayName: "Grace", email: "grace@novawerk.io" },
+    ]);
+    await expect(importTasks(db, "gone", list)).rejects.toThrow(/active member with admin rights/);
+    await expect(importTasks(db, "grace", list)).rejects.toThrow(/active member with admin rights/); // active, not an admin
     expect(await db.select().from(tasks)).toEqual([]);
   });
 
-  it("rolls back every task when one fails half-way", async () => {
+  it("names the task whose reviewer doesn't exist, before anything is written", async () => {
+    const typo = taskImportInput.parse([
+      { title: "Fine", area: "web", size: "S", reviewerId: "haodong" },
+      { title: "Typo", area: "web", size: "S", reviewerId: "haodogn" },
+    ]);
+    expect(await importProblems(db, "haodong", typo)).toEqual(['"Typo": no member "haodogn" to review it']);
+    expect(await importProblems(db, "nobody", list)).toEqual(['"nobody" isn\'t an active member with admin rights: only they may file tasks']);
+    expect(await importProblems(db, "haodong", list)).toEqual([]);
+  });
+
+  it("writes none of the list when one task can't go in", async () => {
+    // One bad task refuses the whole list: nothing of it is written.
     const bad = taskImportInput.parse([
       { title: "Fine", area: "web", size: "S" },
       { title: "Unknown reviewer", area: "web", size: "S", reviewerId: "nobody" },
     ]);
-    await expect(importTasks(db, "haodong", bad)).rejects.toThrow();
+    await expect(importTasks(db, "haodong", bad)).rejects.toThrow(/Unknown reviewer/);
     expect(await db.select().from(tasks)).toEqual([]);
   });
 });
