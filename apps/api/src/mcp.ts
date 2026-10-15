@@ -189,7 +189,7 @@ export function buildMcpServer(
     () =>
       run(async () => {
         const { me } = as("tasks:read", "read");
-        return { ...toContributorMe(me), email: null, token: { name: caller!.token.name, scopes: caller!.token.scopes } };
+        return { ...toContributorMe(me), email: null, notifyEmail: null, token: { name: caller!.token.name, scopes: caller!.token.scopes } };
       }),
   );
 
@@ -352,7 +352,7 @@ export function buildMcpServer(
       run(async () => {
         const { me } = as("profile:write");
         const row = await updateProfile(db, me.id, profileUpdateInput.parse({ ...rest, ...(display_name !== undefined ? { displayName: display_name } : {}) }));
-        return { ...toContributorMe(row), email: null };
+        return { ...toContributorMe(row), email: null, notifyEmail: null };
       }),
   );
 

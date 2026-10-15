@@ -2,7 +2,7 @@
 // (when the webhook missed it), ask for a week more, or give the task back. And "Report" on a
 // post, which any contributor can do.
 
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { formatTaskId, type TaskGuide } from "@nw/contracts";
 import { postReports, taskEvents, taskPosts, tasks, type Contributor, type Database, type Task } from "@nw/db";
@@ -11,7 +11,7 @@ import { canWork } from "./contributors.js";
 import { TaskRuleError } from "./errors.js";
 import { whyPullRequestDoesNotCount, type PullRequestInput } from "./github.js";
 import type { Via } from "./actions.js";
-import { transitionTask } from "./transitions.js";
+import { lockContributor, transitionTask } from "./transitions.js";
 
 async function heldTask(db: Database, c: Contributor, taskId: number): Promise<Task> {
   const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId)).limit(1);
@@ -106,12 +106,15 @@ export async function extendTask(db: Database, c: Contributor, taskId: number, n
   const task = await heldTask(db, c, taskId);
   if (task.status !== "assigned") throw new TaskRuleError("invalid_state", "Only a task in progress can get more time");
   return db.transaction(async (tx) => {
-    const [updated] = await tx
-      .update(tasks)
-      .set({ extendedAt: now, updatedAt: now })
-      .where(and(eq(tasks.id, taskId), eq(tasks.assigneeId, c.id), eq(tasks.status, "assigned"), isNull(tasks.extendedAt)))
-      .returning();
-    if (!updated) throw new TaskRuleError("conflict", "You already asked for a week more on this task");
+    // The lock order everywhere: the person, then the task (transitions.ts).
+    await lockContributor(tx, c.id);
+    const [current] = await tx.select().from(tasks).where(eq(tasks.id, taskId)).for("update");
+    if (!current || current.assigneeId !== c.id || current.status !== "assigned") {
+      throw new TaskRuleError("invalid_state", "This task isn't yours in progress any more");
+    }
+    if (current.extendedAt) throw new TaskRuleError("conflict", "You already asked for a week more on this task");
+    const [updated] = await tx.update(tasks).set({ extendedAt: now, updatedAt: now }).where(eq(tasks.id, taskId)).returning();
+    if (!updated) throw new TaskRuleError("not_found", "This task is gone");
     await tx.insert(taskEvents).values({
       taskId,
       kind: "extended",

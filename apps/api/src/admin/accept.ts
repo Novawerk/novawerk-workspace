@@ -27,11 +27,12 @@ import {
   type Project,
   type ProjectSubmission,
 } from "@nw/db";
+import { TaskRuleError, claimMemberId } from "@nw/tasks";
 
 /** A refusal the route turns into an ApiError: 404 for a missing row, 409 for a taken value. */
 export class AcceptError extends Error {
   constructor(
-    readonly status: 404 | 409,
+    readonly status: 400 | 404 | 409,
     message: string,
     readonly field?: string,
   ) {
@@ -133,12 +134,22 @@ export async function acceptApplication(
     }
     if (!member) {
       let id: string;
+      // One handle namespace with contributors (@nw/tasks handles.ts), locked until we commit.
       if (input.memberId) {
-        const [taken] = await tx.select({ id: members.id }).from(members).where(eq(members.id, input.memberId));
-        if (taken) throw new AcceptError(409, "Another member already has this handle", "memberId");
-        id = input.memberId;
+        try {
+          id = await claimMemberId(tx, input.memberId, { exact: true, field: "memberId" });
+        } catch (err) {
+          if (err instanceof TaskRuleError && err.code === "conflict") {
+            throw new AcceptError(409, "Another member or contributor already has this handle", "memberId");
+          }
+          if (err instanceof TaskRuleError) throw new AcceptError(400, err.message, "memberId");
+          throw err;
+        }
       } else {
-        id = await freeHandle(tx, members.id, toHandle(application.name) || "member", 40);
+        id = await claimMemberId(tx, await freeHandle(tx, members.id, toHandle(application.name) || "member", 40), {
+          exact: false,
+          field: "memberId",
+        });
       }
       [member] = await tx
         .insert(members)

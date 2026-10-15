@@ -3,7 +3,7 @@
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { members, projectMembers, projects, type Database } from "@nw/db";
+import { contributors, members, projectMembers, projects, type Database } from "@nw/db";
 
 import { TEST_MEMBERS, adminFetch, createTestDb, makeApp, resetDb } from "./helpers.js";
 
@@ -63,6 +63,34 @@ describe("website cache", () => {
       await adminFetch(app, "PATCH", `/admin/projects/${project!.id}`, { title: "Quiet Desk Berlin" });
       const bodies = fetchMock.mock.calls.map((call) => ((call as unknown[])[1] as RequestInit).body);
       expect(bodies).toEqual([JSON.stringify({ tags: ["contributors"] }), JSON.stringify({ tags: ["projects", "contributors"] })]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe("member ids share the handle namespace", () => {
+  it("refuses a new member id a contributor already has, and counts up when accepting", async () => {
+    await db.insert(contributors).values({ handle: "lena-k", displayName: "Lena" });
+    const { app } = makeApp(db);
+    const clash = await adminFetch(app, "POST", "/admin/members", { id: "lena-k", displayName: "Lena Member", email: "lena@novawerk.io" });
+    expect(clash.status).toBe(409);
+    expect(((await clash.json()) as any).issues.id).toBeDefined();
+    expect((await adminFetch(app, "POST", "/admin/members", { id: "lena-m", displayName: "Lena Member", email: "lena@novawerk.io" })).status).toBe(201);
+  });
+});
+
+describe("suspending someone", () => {
+  it("refreshes the wall, where they no longer show", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const [lena] = await db.insert(contributors).values({ handle: "lena-k", displayName: "Lena" }).returning();
+      const { app } = makeApp(db, { env: { webRevalidate: { url: "https://novawerk.io/api/revalidate", secret: "r" } } });
+      const res = await adminFetch(app, "POST", `/admin/contributors/${lena!.id}/suspend`, { reason: "Spam" });
+      expect(res.status).toBe(200);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(fetchMock.mock.calls.map((call) => ((call as unknown[])[1] as RequestInit).body)).toContain(JSON.stringify({ tags: ["contributors"] }));
     } finally {
       vi.unstubAllGlobals();
     }

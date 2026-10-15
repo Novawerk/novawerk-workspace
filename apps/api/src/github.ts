@@ -7,6 +7,7 @@ import { parsePullRequestUrl, type PullRequestFacts } from "@nw/github";
 import {
   applyPullRequest,
   checkInactivity,
+  isRetryable,
   deleteOldDeliveries,
   reconcileLinkedPullRequest,
   tasksInReview,
@@ -34,7 +35,17 @@ export async function handlePullRequest(
   pr: PullRequestFacts,
   opts: { source: "webhook" | "reconcile"; action?: string },
 ): Promise<PullRequestOutcome> {
-  const outcome = await applyPullRequest(deps.db, pr, { ...opts, webUrl: deps.env.publicUrls.webUrl });
+  // A deadlock with a member's action on the same person or task: run it again (GitHub won't).
+  let outcome: PullRequestOutcome;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      outcome = await applyPullRequest(deps.db, pr, { ...opts, webUrl: deps.env.publicUrls.webUrl });
+      break;
+    } catch (err) {
+      if (!isRetryable(err) || attempt >= 3) throw err;
+      deps.logger.warn(`[github] ${pr.repo}#${pr.number}: retrying after a deadlock (${attempt})`);
+    }
+  }
   for (const reply of outcome.replies) {
     if (!deps.githubApi) {
       deps.logger.warn(`[github] no App credentials: not replying on ${pr.repo}#${pr.number} (${reply.kind})`);

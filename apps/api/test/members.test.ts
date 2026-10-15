@@ -47,7 +47,7 @@ describe("POST /admin/members", () => {
     const { app } = makeApp(db);
     const taken = await adminFetch(app, "POST", "/admin/members", { id: "grace", displayName: "G", email: "g2@x.org" });
     expect(taken.status).toBe(409);
-    expect(await taken.json()).toMatchObject({ issues: { id: ["Another member already has this handle"] } });
+    expect(await taken.json()).toMatchObject({ issues: { id: ["Another member or contributor already has this handle"] } });
 
     const sameEmail = await adminFetch(app, "POST", "/admin/members", {
       id: "grace-two",

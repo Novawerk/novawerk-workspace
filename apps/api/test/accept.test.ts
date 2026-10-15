@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  contributors,
   memberApplications,
   members,
   projectMembers,
@@ -178,9 +179,21 @@ describe("POST /admin/applications/:id/accept", () => {
     const c = await insertApplication({ email: "c@example.org" });
     const clash = await adminFetch(app, "POST", `/admin/applications/${c.id}/accept`, { memberId: "ada" });
     expect(clash.status).toBe(409);
-    expect(await clash.json()).toMatchObject({ issues: { memberId: ["Another member already has this handle"] } });
+    expect(await clash.json()).toMatchObject({ issues: { memberId: ["Another member or contributor already has this handle"] } });
     const [row] = await db.select().from(memberApplications).where(eq(memberApplications.id, c.id));
     expect(row).toMatchObject({ status: "new", memberId: null });
+  });
+
+  it("counts past a contributor's handle and steps around reserved words when it picks the id", async () => {
+    const { app } = makeApp(db);
+    await db.insert(contributors).values({ handle: "lena-k", displayName: "Lena" });
+    const lena = await insertApplication({ name: "Lena K", email: "lena@example.org" });
+    expect((await adminJson(app, "POST", `/admin/applications/${lena.id}/accept`, {})).member.id).toBe("lena-k-2");
+    const admin = await insertApplication({ name: "Admin", email: "admin@example.org" });
+    expect((await adminJson(app, "POST", `/admin/applications/${admin.id}/accept`, {})).member.id).toBe("member-admin");
+    const typed = await insertApplication({ email: "t@example.org" });
+    const reserved = await adminFetch(app, "POST", `/admin/applications/${typed.id}/accept`, { memberId: "settings" });
+    expect(reserved.status).toBe(400);
   });
 
   it("links (and reactivates) the member who already has the applicant's email", async () => {

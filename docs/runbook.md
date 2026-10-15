@@ -93,7 +93,7 @@ agent workflow.
   GitHub sent and what we answered (`{"result": …}`). GitHub doesn't retry a failed delivery by
   itself: redeliver it from there. Each delivery id is handled once; one that failed is
   forgotten so a redelivery runs, and one whose handling was cut off (a timeout) can be claimed
-  again after 5 minutes. The safety net is the nightly `/cron/github-sync`: it runs the last
+  again after 10 minutes. The safety net is the nightly `/cron/github-sync`: it runs the last
   week's PRs through the same rules and checks every task in review against its PR. Run it by
   hand with `curl -H "Authorization: Bearer $CRON_SECRET" https://api.novawerk.io/cron/github-sync`;
   its `errors` list names any GitHub call that failed.

@@ -74,8 +74,11 @@ describe("tokens", () => {
     const { app } = makeApp(db);
     const readOnly = await makeToken(app, []);
     const task = await openTask();
+    await db.update(contributors).set({ notifyEmail: "lena@github.example" });
     const me = await call(app, "GET", "/contrib/me", { bearer: readOnly.secret });
-    expect(me.body).toMatchObject({ handle: "lena-k", email: null });
+    // Through a token: no address at all, not even masked.
+    expect(me.body).toMatchObject({ handle: "lena-k", email: null, notifyEmail: null });
+    expect((await call(app, "GET", "/contrib/me", { cookie })).body.notifyEmail).toBe("l***@github.example");
     const denied = await call(app, "POST", `/contrib/tasks/${task.id}/proposals`, { bearer: readOnly.secret }, plan);
     expect(denied.status).toBe(403);
     expect(denied.body.error).toMatch(/proposals:write/);
@@ -209,7 +212,8 @@ describe("/mcp", () => {
     const { app } = makeApp(db);
     const task = await openTask();
     const readOnly = await makeToken(app, []);
-    expect((await tool(app, "whoami", {}, readOnly.secret)).json).toMatchObject({ handle: "lena-k", email: null });
+    await db.update(contributors).set({ notifyEmail: "lena@github.example" });
+    expect((await tool(app, "whoami", {}, readOnly.secret)).json).toMatchObject({ handle: "lena-k", email: null, notifyEmail: null });
     expect((await tool(app, "propose", { task_id: `NW-${task.id}`, approach: "x", eta: "week" }, readOnly.secret)).text).toMatch(/proposals:write/);
 
     const writer = await makeToken(app, ["proposals:write"], "my agent");

@@ -3,7 +3,10 @@
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
+
+import { DELIVERY_STALE_MS } from "@nw/tasks";
 
 import {
   APPLICATION_STATUSES,
@@ -206,6 +209,12 @@ describe("Vercel deployment", () => {
     expect(read("api/index.js")).toMatch(/from "\.\.\/dist\/index\.js"/);
     expect(read("tsup.config.ts")).toMatch(/entry: \[[^\]]*"src\/index\.ts"/);
     expect(read("src/index.ts")).toMatch(/^export default app;$/m);
+  });
+
+  it("lets a GitHub delivery claim go stale only well after the function's longest run", () => {
+    const maxDuration = JSON.parse(read("vercel.json")).functions["api/index.js"].maxDuration as number;
+    expect(maxDuration).toBeGreaterThan(0);
+    expect(DELIVERY_STALE_MS).toBeGreaterThanOrEqual(2 * maxDuration * 1000);
   });
 
   it("runs the cleanups, the GitHub sync and the contributor-notice fallback every day (and the newsletter cleanup)", () => {

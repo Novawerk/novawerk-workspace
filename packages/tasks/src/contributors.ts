@@ -26,6 +26,11 @@ export interface GitHubUser {
   login: string;
   name: string | null;
   avatarUrl: string | null;
+  /**
+   * The primary email GitHub has verified, or null. Kept only when the contributor has no email
+   * yet (never over one they verified with a code), and never shown publicly: it's for notices.
+   */
+  email?: string | null;
 }
 
 const MAX_HANDLE = 39;
@@ -100,7 +105,7 @@ export async function signInWithGitHub(
         throw err;
       });
     if (!linked) throw new TaskRuleError("conflict", "This account is already linked to a different GitHub account");
-    return linked;
+    return keepGitHubEmail(db, linked, gh.email);
   }
   if (owner) {
     const [updated] = await db
@@ -108,10 +113,10 @@ export async function signInWithGitHub(
       .set({ githubLogin: gh.login, avatarUrl: gh.avatarUrl, lastSignInAt: now })
       .where(eq(contributors.id, owner.id))
       .returning();
-    return updated!;
+    return keepGitHubEmail(db, updated!, gh.email);
   }
   try {
-    return await insertWithFreeHandle(db, gh.login, (handle) => ({
+    const created = await insertWithFreeHandle(db, gh.login, (handle) => ({
       handle,
       displayName: gh.name?.trim() || gh.login,
       githubId: gh.id,
@@ -119,6 +124,7 @@ export async function signInWithGitHub(
       avatarUrl: gh.avatarUrl,
       lastSignInAt: now,
     }));
+    return keepGitHubEmail(db, created, gh.email);
   } catch (err) {
     // Two callbacks for the same new person at once: the other one created the row.
     const [raced] = isUniqueViolation(err) ? await db.select().from(contributors).where(eq(contributors.githubId, gh.id)) : [];
@@ -148,6 +154,24 @@ async function insertWithFreeHandle(
     if (created) return created;
     if (attempt >= 3) throw new TaskRuleError("conflict", "Couldn't find a free handle. Try again.");
   }
+}
+
+/**
+ * Keep GitHub's verified primary email for notices (contributors.notify_email). It is never a way
+ * to sign in: signInWithEmail reads `email` only, so whoever controls an old GitHub address
+ * (a former employer's mailbox, say) can't get into a GitHub-only account with it.
+ */
+async function keepGitHubEmail(db: Database, c: Contributor, email: string | null | undefined): Promise<Contributor> {
+  // notify_email only ever comes from GitHub, so it follows their current verified primary.
+  if (!email || c.notifyEmail === email) return c;
+  const [updated] = await db.update(contributors).set({ notifyEmail: email }).where(eq(contributors.id, c.id)).returning();
+  return updated ?? c;
+}
+
+/** "lena@example.com" → "l***@example.com": enough for its owner to recognise, in settings. */
+export function maskEmail(email: string): string {
+  const [local = "", domain = ""] = email.split("@");
+  return `${local.slice(0, 1)}***@${domain}`;
 }
 
 /**
@@ -192,6 +216,7 @@ export function toContributorMe(c: Contributor): ContributorMe {
     handle: c.handle,
     displayName: c.displayName,
     email: c.email,
+    notifyEmail: c.notifyEmail ? maskEmail(c.notifyEmail) : null,
     github: c.githubId !== null ? { id: c.githubId, login: c.githubLogin } : null,
     avatarUrl: c.avatarUrl,
     bio: c.bio,
@@ -281,12 +306,14 @@ export async function deleteContributor(db: Database, contributorId: string, con
       );
     }
     await tx.delete(contributors).where(eq(contributors.id, contributorId));
-    // One last email, to the address the account had (NB-ADR-0013). The notices cron sends it,
-    // then clears the address; it is cleared after 7 days at the latest.
-    if (me.email) {
+    // One last email, to the address the account had (NB-ADR-0013): the one they sign in with,
+    // else GitHub's for notices. The notices cron sends it, then clears the address; it is
+    // cleared after 7 days at the latest.
+    const lastAddress = me.email ?? me.notifyEmail;
+    if (lastAddress) {
       await tx
         .insert(contributorNotices)
-        .values({ key: `deleted:${contributorId}`, kind: "account_deleted", toEmail: me.email, data: { handle: me.handle } })
+        .values({ key: `deleted:${contributorId}`, kind: "account_deleted", toEmail: lastAddress, data: { handle: me.handle } })
         .onConflictDoNothing({ target: contributorNotices.key });
     }
   });
