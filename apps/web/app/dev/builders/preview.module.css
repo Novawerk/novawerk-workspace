@@ -1,0 +1,50 @@
+/* The preview's own ground, so the scene can be checked in both themes before the site has a dark mode. */
+.stage {
+  --pv-canvas: #f4f4f5;
+  --pv-ink: #18181b;
+  --pv-muted: #52525b;
+  --pv-line: #c4c4cb;
+  --pv-paper: #ffffff;
+  min-height: 100vh;
+  background: var(--pv-canvas);
+  color: var(--pv-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .stage {
+    --pv-canvas: #0c0c0e;
+    --pv-ink: #f4f4f5;
+    --pv-muted: #a1a1aa;
+    --pv-line: #3f3f46;
+    --pv-paper: #161618;
+  }
+}
+
+:global(:root[data-theme="dark"]) .stage {
+  --pv-canvas: #0c0c0e;
+  --pv-ink: #f4f4f5;
+  --pv-muted: #a1a1aa;
+  --pv-line: #3f3f46;
+  --pv-paper: #161618;
+}
+
+.muted {
+  color: var(--pv-muted);
+}
+
+.chip {
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--pv-line);
+  background: var(--pv-paper);
+  color: var(--pv-ink);
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--pv-ink);
+  background: var(--pv-ink);
+  color: var(--pv-canvas);
+}
