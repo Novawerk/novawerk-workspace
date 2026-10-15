@@ -137,7 +137,7 @@ and production. "—" means unset.
 | `ANTHROPIC_API_KEY` | — (the crons on GitHub Actions do the work) | a key from the Novawerk Console workspace |
 | `LLM_PROVIDER` | — (Claude, with `ANTHROPIC_API_KEY`), or `mock` | — (Claude) |
 | `BLOB_PUBLIC_READ_WRITE_TOKEN`, `BLOB_PRIVATE_READ_WRITE_TOKEN` | `vercel env pull` (same stores as production), or unset | set by connecting the stores |
-| `CRON_SECRET` | — | set; Vercel Cron sends it to `/cron/*` |
+| `CRON_SECRET` | — | set; Vercel Cron sends it to `/cron/*`. Also a GitHub Actions secret on this repo for `contributor-notices.yml` |
 | `RESEND_WEBHOOK_SECRET`, `RESEND_RECEIVING_API_KEY`, `SLACK_INBOX_WEBHOOK_URL` | — | set; see "info@ in Slack" |
 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` | the GitHub App's, or unset (email codes still work) | the GitHub App `novawerk-task-board` |
 | `CONTRIBUTOR_ORIGINS` | default | `https://novawerk.io,https://www.novawerk.io` |

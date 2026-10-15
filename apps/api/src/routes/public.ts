@@ -42,6 +42,7 @@ import {
   resumeIssues,
 } from "../forms.js";
 import { rejectInvalid, rejectInvalidForm, validationFailed } from "../http.js";
+import { turnNoticesOff } from "../contributor-notices.js";
 import { FixedWindowLimiter, clientIp } from "../intake-chat/rate-limit.js";
 import { confirmSubscription, requestSubscription, unsubscribe } from "../newsletter.js";
 import type { ApiEnv, AppDeps, Logger } from "../types.js";
@@ -154,6 +155,14 @@ export function publicRoutes({
     .post("/newsletter/unsubscribe", zValidator("query", newsletterUnsubscribeQuery, rejectInvalid), async (c) => {
       await unsubscribe(db, c.req.valid("query").token);
       return c.json({ ok: true as const }, 200);
+    })
+
+    // List-Unsubscribe on reply and reminder mails (src/contributor-notices.ts): POST turns that
+    // kind off, signed per contributor, no sign-in needed (RFC 8058). GET only opens Settings.
+    .get("/contributor-notices/off", (c) => c.redirect(webPage("/settings"), 303))
+    .post("/contributor-notices/off", async (c) => {
+      const ok = await turnNoticesOff(db, c.req.query(), env.sessionSecret);
+      return ok ? c.json({ ok: true as const }, 200) : c.json({ error: "This link doesn't work" }, 400);
     });
 }
 

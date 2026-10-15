@@ -13,7 +13,7 @@ import { loadConfig, requiredVars } from "@nw/config";
 import { createDb } from "@nw/db";
 import { createGitHubApi } from "@nw/github";
 import { BlobFiles, type FileStoreConfig } from "@nw/object-store";
-import { notifyTeam, sendNewsletterConfirmation, sendSignInCode, type NotifyOptions } from "@nw/email";
+import { notifyTeam, sendContributorNotice, sendNewsletterConfirmation, sendSignInCode, type ContributorNoticeMail, type NotifyOptions } from "@nw/email";
 
 import { adminMockStep } from "./admin-chat/mock.js";
 import { createGitHubOAuth } from "./contributor-auth.js";
@@ -307,6 +307,18 @@ export function depsFromEnv(env: EnvSource): AppDeps {
           sendNewsletterConfirmation: (to: string, confirmUrl: string) =>
             sendNewsletterConfirmation(to, confirmUrl, {
               from: outbox.from,
+              ...(outbox.resendApiKey ? { resendApiKey: outbox.resendApiKey } : {}),
+            }),
+        }
+      : {}),
+    // Contributor notices (NB-ADR-0013): the same rule again.
+    ...(outbox.resendApiKey || !production
+      ? {
+          sendContributorNotice: (to: string, mail: ContributorNoticeMail, send: { idempotencyKey: string; unsubscribeUrl?: string }) =>
+            sendContributorNotice(to, mail, {
+              ...send,
+              from: outbox.from,
+              webUrl: config.publicUrls.webUrl,
               ...(outbox.resendApiKey ? { resendApiKey: outbox.resendApiKey } : {}),
             }),
         }

@@ -301,6 +301,7 @@ export async function checkInactivity(db: Database, now = new Date()): Promise<{
     await db.insert(taskEvents).values({
       taskId: task.id,
       kind: "inactivity_reminder",
+      subjectContributorId: task.assigneeId,
       note: `No activity since ${since.toISOString().slice(0, 10)}. Back on the board on ${releaseAt.toISOString().slice(0, 10)} unless something happens.`,
       createdAt: now,
     });

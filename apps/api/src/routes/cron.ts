@@ -7,6 +7,7 @@ import { Hono } from "hono";
 
 import { deleteExpiredAnalyticsEvents } from "../analytics/cleanup.js";
 import { syncWithGitHub } from "../github.js";
+import { runContributorNotices } from "../contributor-notices.js";
 import { notFound } from "../http.js";
 import { deleteExpiredIntakeSessions } from "../intake-chat/cleanup.js";
 import { deleteUnsentResumes } from "../resume-cleanup.js";
@@ -20,7 +21,7 @@ function sameSecret(given: string, expected: string): boolean {
 }
 
 export function cronRoutes(deps: AppDeps & { logger: Logger }) {
-  const { db, env, files } = deps;
+  const { db, env, files, sendContributorNotice, logger } = deps;
   return new Hono<ApiEnv>()
     .use("*", async (c, next) => {
       if (!env.cronSecret) return c.json(notFound, 404);
@@ -34,5 +35,15 @@ export function cronRoutes(deps: AppDeps & { logger: Logger }) {
     .get("/resume-cleanup", async (c) => c.json({ deleted: await deleteUnsentResumes(db, files) }, 200))
     .get("/sign-in-cleanup", async (c) => c.json({ deleted: await deleteOldCodes(db) }, 200))
     // Nightly: catch up on pull requests GitHub didn't deliver, remind and release idle tasks.
-    .get("/github-sync", async (c) => c.json(await syncWithGitHub(deps), 200));
+    .get("/github-sync", async (c) => c.json(await syncWithGitHub(deps), 200))
+    // Every 10 minutes from GitHub Actions (.github/workflows/contributor-notices.yml), daily from
+    // Vercel as a fallback: the queue, then the mail (NB-ADR-0013).
+    .get("/contributor-notices", async (c) =>
+      c.json(
+        await runContributorNotices(db, sendContributorNotice, logger, {
+          unsubscribe: { apiUrl: env.publicUrls.apiUrl, secret: env.sessionSecret },
+        }),
+        200,
+      ),
+    );
 }

@@ -1759,6 +1759,33 @@ export const TASK_LIMITS = {
   extensionDays: 7,
 } as const;
 
+/**
+ * Emails to a contributor about their own account and tasks (NB-ADR-0013): fixed templates in
+ * @nw/email, sent without outbox approval, only to their own verified address. Everything else
+ * sent outside Novawerk still waits in the outbox.
+ */
+export const CONTRIBUTOR_NOTICE_KINDS = [
+  "proposal_chosen",
+  "proposal_not_chosen",
+  "replies",
+  "reminder",
+  "released",
+  "task_closed",
+  "suggestion_accepted",
+  "suggestion_declined",
+  "suggestion_duplicate",
+  "suggestion_needs_info",
+  "werk_awarded",
+  "account_deleted",
+] as const;
+export type ContributorNoticeKind = (typeof CONTRIBUTOR_NOTICE_KINDS)[number];
+
+/** The notices a contributor may turn off in /settings, and the setting that does it. The rest always go. */
+export const OPTIONAL_CONTRIBUTOR_NOTICES = {
+  replies: "notifyReplies",
+  reminder: "notifyReminders",
+} as const satisfies Partial<Record<ContributorNoticeKind, string>>;
+
 /** 42 → "NW-42". */
 export const formatTaskId = (n: number) => `NW-${n}`;
 
@@ -2012,6 +2039,10 @@ export interface ContributorMe {
   /** GitHub is linked and the account isn't suspended: they may propose and work on tasks. */
   canWork: boolean;
   suspended: boolean;
+  /** Email me about replies on my posts and tasks (batched, at most one mail per task an hour). */
+  notifyReplies: boolean;
+  /** Email me when a task I hold has had no activity for 7 days. */
+  notifyReminders: boolean;
   createdAt: string;
 }
 
@@ -2110,6 +2141,8 @@ export const profileUpdateInput = z
     banner: z.enum(PROFILE_BANNERS).optional(),
     public: z.boolean().optional(),
     onWall: z.boolean().optional(),
+    notifyReplies: z.boolean().optional(),
+    notifyReminders: z.boolean().optional(),
     /** The pledge and DCO tick on first run. Can't be taken back here. */
     acceptPledge: z.literal(true).optional(),
   })

@@ -38,6 +38,10 @@
     {
       "path": "/cron/github-sync",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/cron/contributor-notices",
+      "schedule": "15 4 * * *"
     }
   ]
 }

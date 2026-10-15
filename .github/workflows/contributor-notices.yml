@@ -1,0 +1,33 @@
+name: Contributor notices
+
+# Emails to contributors about their own tasks (NB-ADR-0013, apps/api/src/contributor-notices.ts).
+# Vercel's Hobby plan runs crons once a day, so GitHub calls the API every 10 minutes instead;
+# apps/api/vercel.json keeps a daily run as the fallback. Needs the CRON_SECRET repository secret.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: contributor-notices
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /cron/contributor-notices
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET isn't set on this repository; nothing to do."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://api.novawerk.io/cron/contributor-notices

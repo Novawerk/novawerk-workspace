@@ -53,6 +53,31 @@ const actorColumns = (actor: Actor) => ({
   actorMemberId: actor.kind === "member" ? actor.id : null,
 });
 
+/**
+ * Who the event is about (task_events.subject_contributor_id): notices go to them. The new
+ * assignee, the person who lost or finished the task, or the one whose suggestion was decided.
+ */
+function subjectOf(action: TaskAction, task: Task, patch: Partial<typeof tasks.$inferInsert>): string | null {
+  switch (action) {
+    case "choose":
+    case "accept_assign":
+      return patch.assigneeId ?? null;
+    case "accept":
+    case "decline":
+    case "mark_duplicate":
+    case "request_info":
+      return task.suggestedBy;
+    case "release":
+    case "link_pr":
+    case "pr_closed":
+    case "merge":
+    case "close":
+      return task.assigneeId;
+    case "publish":
+      return null;
+  }
+}
+
 async function lockTask(tx: Tx, taskId: number): Promise<Task> {
   const [task] = await tx.select().from(tasks).where(eq(tasks.id, taskId)).for("update");
   if (!task) throw new TaskRuleError("not_found", `${formatTaskId(taskId)} doesn't exist`);
@@ -185,6 +210,7 @@ async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
     fromStatus: task.status,
     toStatus: to,
     ...actorColumns(input.actor),
+    subjectContributorId: subjectOf(input.action, task, patch),
     note: input.note?.trim() || null,
     prUrl: input.action === "link_pr" || input.action === "merge" ? (patch.prUrl ?? null) : null,
     createdAt: now,
