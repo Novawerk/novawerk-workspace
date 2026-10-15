@@ -107,6 +107,27 @@ describe("accounts", () => {
     expect((await db.select().from(contributors).where(eq(contributors.id, mira.id)))[0]?.githubId).toBe(300);
   });
 
+  it("keeps GitHub's verified email for notices only: never a way to sign in", async () => {
+    const newcomer = await signInWithGitHub(db, { id: 400, login: "neu", name: null, avatarUrl: null, email: "neu@example.com" });
+    expect(newcomer).toMatchObject({ email: null, notifyEmail: "neu@example.com" });
+    expect(toContributorMe(newcomer).notifyEmail).toBe("n***@example.com"); // masked for its owner
+    // It follows GitHub's current verified primary; a sign-in without one keeps it.
+    expect((await signInWithGitHub(db, { id: 400, login: "neu", name: null, avatarUrl: null, email: "new@example.com" })).notifyEmail).toBe("new@example.com");
+    expect((await signInWithGitHub(db, { id: 400, login: "neu", name: null, avatarUrl: null, email: null })).notifyEmail).toBe("new@example.com");
+    expect((await signInWithGitHub(db, { id: 101, login: "lena-k", name: null, avatarUrl: null, email: "lena@example.com" })).notifyEmail).toBe("lena@example.com");
+
+    // Whoever controls that mailbox can't get into the GitHub account with an emailed code:
+    // signing in by email finds (or makes) an account by `email` only.
+    const stranger = await signInWithEmail(db, "new@example.com");
+    expect(stranger.id).not.toBe(newcomer.id);
+    expect(stranger.githubId).toBeNull();
+
+    // Linking keeps the address verified by code as the sign-in one.
+    const mira = await signInWithEmail(db, "mira@example.com");
+    const linked = await signInWithGitHub(db, { id: 500, login: "mira", name: null, avatarUrl: null, email: "mira@github.example" }, mira.id);
+    expect(linked).toMatchObject({ email: "mira@example.com", notifyEmail: "mira@github.example" });
+  });
+
   it("refuses a handle someone else has", async () => {
     expect(await code(() => updateProfile(db, jonas.id, { handle: "lena-k" }))).toBe("conflict");
     expect((await updateProfile(db, jonas.id, { handle: "jonas-w", public: true, acceptPledge: true })).pledgeAcceptedAt).not.toBeNull();

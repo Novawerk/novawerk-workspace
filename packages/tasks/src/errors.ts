@@ -46,3 +46,12 @@ export function isUniqueViolation(err: unknown): boolean {
   }
   return false;
 }
+
+/** Postgres deadlock_detected or serialization_failure: the same work can simply run again. */
+export function isRetryable(err: unknown): boolean {
+  for (let e: unknown = err, depth = 0; e && depth < 3; e = (e as { cause?: unknown }).cause, depth++) {
+    const code = (e as { code?: unknown }).code;
+    if (code === "40P01" || code === "40001") return true;
+  }
+  return false;
+}

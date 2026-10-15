@@ -121,6 +121,7 @@ pnpm new:record <category> <slug> ["Title"]   # a record with the right frontmat
 pnpm post new|check|render|sync|pull   # posts written in the repo (posts/README.md)
 pnpm video list|new|<project> render   # videos in videos/projects (videos/README.md)
 pnpm provision:member <id> "<Name>" <google-email> [--admin]   # prints SQL; runs nothing
+pnpm import:tasks <file.json> [--member <id>] [--apply]   # publish a list of tasks; dry-run by default
 pnpm demo:pipeline                     # sponsor pipeline + outbox gate, offline (PGlite, stubbed Claude)
 DATABASE_URL=… pnpm backup             # pg_dump; restore by hand (docs/runbook.md)
 ```

@@ -100,6 +100,7 @@ import { sessionCookieOptions } from "../auth.js";
 import { CONTRIBUTOR_COOKIE, currentContributor } from "../contributor-auth.js";
 import { FixedWindowLimiter } from "../intake-chat/rate-limit.js";
 import { issuesFrom, notFoundIfInvalid, rejectInvalid, validationFailed } from "../http.js";
+import { revalidateWeb } from "../revalidate.js";
 import { contributorOrToken, scope, sessionOnly, viaOf, type TokenGate } from "../token-gate.js";
 import type { ApiEnv, AppDeps } from "../types.js";
 
@@ -131,6 +132,8 @@ function proposalResult(row: TaskProposal, me: Contributor, viaAgent: string | n
 const BROWSER_ONLY_PROFILE = ["handle", "public", "onWall", "acceptPledge"] as const;
 
 export function contribRoutes({ db, env, githubApi, files, logger = console }: AppDeps, gate: TokenGate, origins: readonly string[]) {
+  // A saved profile or a removed person shows at once on /u/<handle> and the wall.
+  const refreshProfiles = () => revalidateWeb(env.webRevalidate, logger, ["contributors"]);
   const session = (c: Parameters<typeof getCookie>[0]) => currentContributor(db, getCookie(c, CONTRIBUTOR_COOKIE), env.sessionSecret);
   const screenshotTickets = new FixedWindowLimiter(SCREENSHOT_TICKETS_PER_HOUR, 60 * 60_000);
   return (
@@ -141,7 +144,7 @@ export function contribRoutes({ db, env, githubApi, files, logger = console }: A
       // ─── Reading my own things ──────────────────────────────────────────────
       .get("/me", scope("tasks:read"), (c) => {
         const me = toContributorMe(c.get("contributor"));
-        return c.json(c.get("token") ? { ...me, email: null } : me, 200);
+        return c.json(c.get("token") ? { ...me, email: null, notifyEmail: null } : me, 200);
       })
       .get("/me/proposals", scope("tasks:read"), async (c) => c.json(await myProposals(db, c.get("contributor").id), 200))
       .get("/me/tasks", scope("tasks:read"), async (c) => c.json(await myTasks(db, c.get("contributor").id), 200))
@@ -289,8 +292,9 @@ export function contribRoutes({ db, env, githubApi, files, logger = console }: A
           if (field) throw new TaskRuleError("forbidden", `A token can't change ${field}. Use novawerk.io in your browser.`, field);
         }
         const row = await updateProfile(db, c.get("contributor").id, patch);
+        await refreshProfiles();
         const me = toContributorMe(row);
-        return c.json(c.get("token") ? { ...me, email: null } : me, 200);
+        return c.json(c.get("token") ? { ...me, email: null, notifyEmail: null } : me, 200);
       })
       .delete("/me", sessionOnly, zValidator("json", accountDeleteInput, rejectInvalid), async (c) => {
         const me = c.get("contributor");
@@ -301,6 +305,7 @@ export function contribRoutes({ db, env, githubApi, files, logger = console }: A
             (err: unknown) => logger.warn("[contrib] screenshot cleanup on delete failed:", err instanceof Error ? err.message : err),
           );
         }
+        await refreshProfiles();
         deleteCookie(c, CONTRIBUTOR_COOKIE, sessionCookieOptions(c, 0));
         return c.json({ ok: true as const }, 200);
       })

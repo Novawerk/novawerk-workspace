@@ -1,0 +1,264 @@
+[
+  {
+    "title": "One max length for handles",
+    "summary": "Handles are allowed 39 characters in one place and 40 in another.",
+    "body": "Picking a handle in the profile allows 39 characters, while generated handles (a 35-character stem plus a suffix like \"-1000\") and generated member ids can reach 40, and the wall accepts 40. Pick one limit, enforce it in @nw/contracts and @nw/tasks, and make every generator (contributor handles and member ids) stay inside it.",
+    "area": "api",
+    "size": "S",
+    "skills": [
+      "TypeScript"
+    ],
+    "criteria": [
+      "One constant defines the limit",
+      "Generated handles and member ids never exceed it (test with a 39-character login)",
+      "Existing longer handles keep working"
+    ]
+  },
+  {
+    "title": "Sign one-click notice links with their own secret",
+    "summary": "The unsubscribe links in contributor notices are signed with the session secret itself.",
+    "body": "The one-click 'turn this off' links in contributor notices are an HMAC keyed by SESSION_SECRET, so rotating that secret breaks every link people already have. Sign them with their own secret (e.g. NOTICE_LINK_SECRET, defaulting to SESSION_SECRET) so SESSION_SECRET can rotate, and accept the previous secret for 60 days.",
+    "area": "api",
+    "size": "S",
+    "skills": [
+      "TypeScript",
+      "Security"
+    ],
+    "criteria": [
+      "Links are signed with NOTICE_LINK_SECRET when set",
+      "A previous secret is accepted for 60 days, then refused",
+      "Tests cover rotation"
+    ]
+  },
+  {
+    "title": "Give the notices workflow room for a backlog",
+    "summary": "The every-10-minutes workflow gives up after 120 seconds, while a big backlog can take longer.",
+    "body": "`.github/workflows/contributor-notices.yml` calls the API with `curl --max-time 120`. A run with ~400 sends can take longer, so the run goes red although the function finishes. Raise the limit or cap sends per run, and make the two agree.",
+    "area": "ci",
+    "size": "S",
+    "skills": [
+      "GitHub Actions"
+    ],
+    "criteria": [
+      "Workflow timeout and per-run cap are consistent and documented",
+      "No secrets printed"
+    ]
+  },
+  {
+    "title": "Task board numbers in the admin metrics",
+    "summary": "The admin metrics page counts visits but knows nothing about the board.",
+    "body": "Add a task board section to the admin metrics: open tasks, proposals per task, time from open to assigned and to merged, merges per week, suggestions accepted. Use existing tables; no new tracking of people.",
+    "area": "admin",
+    "size": "M",
+    "skills": [
+      "React",
+      "SQL"
+    ],
+    "criteria": [
+      "A Task board section on the metrics page",
+      "Numbers come from task_events and werk_ledger, aggregated, no names",
+      "Light and dark, phone width"
+    ]
+  },
+  {
+    "title": "A newsletter archive at /newsletter",
+    "summary": "Past newsletter issues should be readable on the site.",
+    "body": "Add /newsletter (list of issues) and /newsletter/[issue] (web version of one issue) as designed in docs/contributor-board-design.md. Issues don't exist in the database yet: start with the page, the API read and an empty state, so the monthly issue work can fill it. /newsletter/* already has the confirm and unsubscribe pages: issue slugs are yyyy-mm so they never clash with those.",
+    "area": "web",
+    "size": "M",
+    "skills": [
+      "Next.js",
+      "TypeScript"
+    ],
+    "criteria": [
+      "Both pages render, with an empty state",
+      "Cached and revalidated like other content",
+      "In the sitemap"
+    ]
+  },
+  {
+    "title": "Steadier idempotency for batched reply notices",
+    "summary": "A retried replies mail can be sent twice when new replies arrived in between.",
+    "body": "Batched reply notices use a hash of the claimed rows as the idempotency key. If Resend accepted a mail but answered with an error and new replies arrived before the retry, the retry claims more rows and sends a second, overlapping mail. Make the key stable for a batch window (person, task, hour).",
+    "area": "api",
+    "size": "M",
+    "skills": [
+      "TypeScript",
+      "Email"
+    ],
+    "criteria": [
+      "The retry after a lost response never sends a second mail for the same window (test)",
+      "A changed payload doesn't burn attempts on Resend's 409"
+    ]
+  },
+  {
+    "title": "A new tower each season in the builders scene",
+    "summary": "At about 300 blocks the tower should finish and a new one start.",
+    "body": "The design doc describes a season: the core lights up, the finished tower shifts left into a skyline, and a new tower starts. Build that in the pixel scene (apps/web/components/builders), deterministic from the block list, with reduced-motion and phone caps intact.",
+    "area": "web",
+    "size": "L",
+    "skills": [
+      "Canvas",
+      "Animation",
+      "TypeScript"
+    ],
+    "criteria": [
+      "Seasons render deterministically from the blocks",
+      "The handover animates once and respects reduced motion",
+      "60 fps on a mid-range phone with 1000 blocks"
+    ]
+  },
+  {
+    "title": "CONTRIBUTING in Chinese",
+    "summary": "Many of the people we reach read Chinese first.",
+    "body": "Translate CONTRIBUTING.md into Chinese (CONTRIBUTING.zh.md), keep the voice (short sentences, \"we\"), and link the two versions to each other.",
+    "area": "docs",
+    "size": "S",
+    "skills": [
+      "Writing",
+      "Chinese"
+    ],
+    "criteria": [
+      "A translated file, reviewed by a native speaker",
+      "Links between the versions"
+    ]
+  },
+  {
+    "title": "A finance agent",
+    "summary": "A monthly finance summary drafted from the ledger, for members to review.",
+    "body": "Build a new agent (`pnpm new:agent finance-digest`) that reads the finance ledger for a month and drafts a summary into records: income and spending by category, open items, entries without a receipt. The dev seed has no ledger rows: add your own fixtures. Develop and test only against fixtures and `--dry-run` (the dry run fakes records/, which is private); it never sees our real ledger, and members wire it into the private workflow. Include a short design in your proposal.",
+    "area": "agents",
+    "size": "XL",
+    "skills": [
+      "TypeScript",
+      "LLM agents",
+      "Accounting basics"
+    ],
+    "criteria": [
+      "`pnpm agent finance-digest --dry-run` works with no secrets",
+      "Writes only records/**/*.md",
+      "Fixture-based tests",
+      "Docs: what it reads, what it writes"
+    ]
+  },
+  {
+    "title": "Receipts in, ledger drafts out",
+    "summary": "Upload a receipt in the admin and get a ledger line to confirm.",
+    "body": "In the admin, a member uploads a receipt (PDF or image) to the private store; Claude reads amount, date, vendor and a category suggestion; the admin shows a draft ledger line that a member confirms or corrects. Nothing is written to the ledger without a click. Develop with sample receipts. Contributors have no Anthropic key: it must work with a stubbed extractor (LLM_PROVIDER=mock) locally and in CI. Sign in locally with DEV_LOGIN.",
+    "area": "admin",
+    "size": "L",
+    "skills": [
+      "React",
+      "TypeScript",
+      "LLM"
+    ],
+    "criteria": [
+      "Upload goes to the private store (existing @nw/object-store pattern)",
+      "Extraction with confidence and a manual fallback",
+      "Draft → confirm flow with tests",
+      "No receipt content in logs"
+    ]
+  },
+  {
+    "title": "Sponsor discovery with real web search",
+    "summary": "Make sponsor-discovery find real candidates with sources.",
+    "body": "Today sponsor-discovery proposes candidates from the model's memory. Ground it in web search so every candidate and contact comes with a source URL, and drop candidates without one. Keep the outbox gate: discovery drafts, members decide. Develop with `--dry-run` and recorded search results.",
+    "area": "agents",
+    "size": "L",
+    "skills": [
+      "TypeScript",
+      "LLM agents",
+      "Web search"
+    ],
+    "criteria": [
+      "Every candidate has at least one source URL",
+      "A search provider behind an interface with a fake for tests",
+      "`--dry-run` works without secrets",
+      "Never queues email itself beyond drafts"
+    ]
+  },
+  {
+    "title": "Follow-ups for sponsor outreach",
+    "summary": "Suggest the next step after a member marks a partner as replied.",
+    "body": "After an outreach email goes out, we lose track. Add a 'replied' action on the partner in the admin (a member marks it, with a short note), and have sponsor-outreach suggest a follow-up on a sensible cadence for partners who haven't replied or have. We don't store inbound mail (it's relayed to Slack), so nothing reads the inbox. All outgoing mail still waits in the outbox for a member.",
+    "area": "agents",
+    "size": "L",
+    "skills": [
+      "TypeScript",
+      "Email",
+      "LLM agents"
+    ],
+    "criteria": [
+      "A member can mark a partner as replied (who and when recorded)",
+      "Follow-up suggestions as outbox drafts only, with tests",
+      "Cadence configurable"
+    ]
+  },
+  {
+    "title": "A grants agent",
+    "summary": "Find EU and German funding that fits our projects, and draft the key points.",
+    "body": "Build an agent that watches public funding calls (EU programmes, German foundations) and matches them to our public portfolio projects, then drafts the main points of an application for a member to take further. Sources required for every call. Include a short design in your proposal.",
+    "area": "agents",
+    "size": "XL",
+    "skills": [
+      "TypeScript",
+      "LLM agents",
+      "Research"
+    ],
+    "criteria": [
+      "Calls come with source URLs and deadlines",
+      "Matching explained per project",
+      "`--dry-run` with recorded data",
+      "Drafts only; nothing is submitted"
+    ]
+  },
+  {
+    "title": "A translation agent",
+    "summary": "Draft Chinese and English versions of posts and site copy.",
+    "body": "Members write in one language; we publish posts in Chinese and English. Draft the other version of posts and selected site copy for a member to review, keeping our voice and the terms we use (Werk, Initiator, Member).",
+    "area": "agents",
+    "size": "L",
+    "skills": [
+      "TypeScript",
+      "LLM agents",
+      "Chinese"
+    ],
+    "criteria": [
+      "A glossary the agent follows",
+      "Drafts only, reviewed by a member",
+      "Tests with fixtures"
+    ]
+  },
+  {
+    "title": "Evals for our agents",
+    "summary": "Know whether a prompt change made an agent better or worse.",
+    "body": "Add an eval harness to @nw/agent-core: fixed inputs, expected properties, a score per agent, runnable locally and in CI without secrets (recorded model outputs for CI, live runs opt-in).",
+    "area": "agents",
+    "size": "L",
+    "skills": [
+      "TypeScript",
+      "LLM evaluation"
+    ],
+    "criteria": [
+      "`pnpm eval <agent>` runs offline",
+      "At least intake and promo have evals",
+      "CI runs the offline evals"
+    ]
+  },
+  {
+    "title": "A partner pipeline board in the admin",
+    "summary": "See sponsors and partners by stage at a glance.",
+    "body": "The admin lists partners by stage, but you can't move them on a board. Add a board view by stage with drag to move, filters and the last contact date. Record who moved a card and when in a small new table (narrative history stays in the private records). Develop with seed data.",
+    "area": "admin",
+    "size": "L",
+    "skills": [
+      "React",
+      "TypeScript"
+    ],
+    "criteria": [
+      "Board view by stage with drag and keyboard moves",
+      "Moving a card records who and when",
+      "Light and dark"
+    ]
+  }
+]

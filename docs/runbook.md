@@ -73,6 +73,18 @@ Secrets the agents use: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `JIRA_BASE_URL`, `J
 `JIRA_API_TOKEN`. `RESEND_API_KEY` and `EMAIL_FROM` belong to the API only — never add them to an
 agent workflow.
 
+## Put a list of tasks on the board
+
+`pnpm import:tasks <file.json>` publishes a list of tasks as open, in the order given
+(`scripts/tasks.example.json` shows the format; it is what `POST /admin/tasks` takes).
+
+1. `pnpm import:tasks tasks.json` checks the file and writes nothing.
+2. `DATABASE_URL=… pnpm import:tasks tasks.json --member <your id>` also checks, without
+   writing: titles already on that board, every reviewer, and that you're an active member with
+   admin rights.
+3. Add `--apply` to publish them all in one transaction, or none (the same checks run again). It
+   prints the new `NW-<n>` ids. Use the production URL only when you mean it.
+
 ## The task board and GitHub
 
 - **A PR didn't move its task.** Check that it names the task (`Task: NW-42` in the body, or
@@ -81,7 +93,7 @@ agent workflow.
   GitHub sent and what we answered (`{"result": …}`). GitHub doesn't retry a failed delivery by
   itself: redeliver it from there. Each delivery id is handled once; one that failed is
   forgotten so a redelivery runs, and one whose handling was cut off (a timeout) can be claimed
-  again after 5 minutes. The safety net is the nightly `/cron/github-sync`: it runs the last
+  again after 10 minutes. The safety net is the nightly `/cron/github-sync`: it runs the last
   week's PRs through the same rules and checks every task in review against its PR. Run it by
   hand with `curl -H "Authorization: Bearer $CRON_SECRET" https://api.novawerk.io/cron/github-sync`;
   its `errors` list names any GitHub call that failed.

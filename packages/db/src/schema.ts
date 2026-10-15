@@ -105,8 +105,13 @@ export const contributors = pgTable("contributors", {
   /** GitHub's numeric user id: logins can change, this can't. */
   githubId: bigint("github_id", { mode: "number" }).unique(),
   githubLogin: text("github_login"),
-  /** Lower-cased. Set when they sign in by email. Never in a public response. */
+  /** Lower-cased. Set when they sign in by email: the only address that signs in. Never public. */
   email: text("email").unique(),
+  /**
+   * GitHub's verified primary email, kept for notices only (when `email` is empty). Never a way
+   * to sign in, never public; the owner sees it masked.
+   */
+  notifyEmail: text("notify_email"),
   /** When they ticked the pledge and DCO sign-off. */
   pledgeAcceptedAt: timestamp("pledge_accepted_at", { withTimezone: true }),
   /** Set by a member (moderation): they can still sign in and read, but not write. */
@@ -886,6 +891,11 @@ export const taskEvents = pgTable(
     prUrl: text("pr_url"),
     /** Done through a personal access token: "via agent · <token name>". */
     viaTokenId: uuid("via_token_id").references(() => contributorTokens.id, { onDelete: "set null" }),
+    /**
+     * Machine-readable details for whoever reads the event (the notice emails), e.g. an
+     * inactivity_reminder's `{ idleSince, releaseAt }` (ISO). Not in public responses.
+     */
+    data: jsonb("data").$type<Record<string, string | number | boolean | null>>(),
     createdAt: createdAt(),
   },
   (t) => [index("task_events_task_idx").on(t.taskId, t.id)],
@@ -914,7 +924,7 @@ export const postReports = pgTable(
 
 /**
  * GitHub webhook deliveries (X-GitHub-Delivery), so a redelivery does nothing twice. A row
- * without `handledAt` is in progress; one whose handling died (no `handledAt` after 5 minutes)
+ * without `handledAt` is in progress; one whose handling died (no `handledAt` after 10 minutes)
  * can be claimed again by a redelivery. Kept 30 days (/cron/github-sync).
  */
 export const githubDeliveries = pgTable("github_deliveries", {

@@ -1,0 +1,70 @@
+name: Import tasks
+
+# Publishes a batch of tasks from tasks/*.json to the production board (scripts/import-tasks.ts).
+# Manual only. Run once with apply off (dry run: validates the file and checks titles and the
+# member against the board), then with apply on. Only people with write access can start it,
+# and it never runs for pull requests, so forks never see DATABASE_URL.
+
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: Task file under tasks/, e.g. tasks/2026-10-first-batch.json
+        required: true
+      member:
+        description: Admin member id recorded as the creator
+        required: true
+        default: haodong
+      apply:
+        description: Write to the database (off = dry run)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: import-tasks
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the inputs
+        env:
+          FILE: ${{ inputs.file }}
+          MEMBER: ${{ inputs.member }}
+        run: |
+          case "$FILE" in
+            tasks/*.json) ;;
+            *) echo "::error::file must be tasks/<name>.json"; exit 1 ;;
+          esac
+          case "$FILE" in *..*) echo "::error::no .. in the path"; exit 1 ;; esac
+          [ -f "$FILE" ] || { echo "::error::$FILE not found"; exit 1; }
+          echo "$MEMBER" | grep -Eq '^[a-z0-9][a-z0-9-]{0,39}$' || { echo "::error::bad member id"; exit 1; }
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Import
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FILE: ${{ inputs.file }}
+          MEMBER: ${{ inputs.member }}
+          APPLY: ${{ inputs.apply }}
+        run: |
+          if [ "$APPLY" = "true" ]; then
+            pnpm import:tasks "$FILE" --member "$MEMBER" --apply
+          else
+            pnpm import:tasks "$FILE" --member "$MEMBER"
+          fi

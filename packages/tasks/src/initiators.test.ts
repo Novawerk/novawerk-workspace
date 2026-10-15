@@ -14,6 +14,8 @@ import {
   listPublicContributors,
   listPublicInitiators,
   signInWithGitHub,
+  claimMemberId,
+  extendTask,
   updateMemberProfile,
   updateProfile,
 } from "./index.js";
@@ -171,5 +173,27 @@ describe("review fixes", () => {
     ]);
     expect(results.filter((r) => r === "ok")).toHaveLength(1);
     expect(results.filter((r) => r === "conflict")).toHaveLength(2);
+  });
+});
+
+describe("new member ids", () => {
+  it("refuses a typed reserved id, prefixes a generated one, and counts past contributors' handles", async () => {
+    await signInWithGitHub(db, { id: 1, login: "lena-k", name: null, avatarUrl: null });
+    const claim = (wanted: string, exact: boolean) => db.transaction((tx) => claimMemberId(tx, wanted, { exact, field: "id" }));
+    expect(await code(() => claim("admin", true))).toBe("invalid");
+    expect(await code(() => claim("anon-1", true))).toBe("invalid");
+    expect(await claim("admin", false)).toBe("member-admin");
+    expect(await claim("anon", false)).toBe("member-anon");
+    expect(await claim("lena-k", false)).toBe("lena-k-2");
+    expect(await code(() => claim("lena-k", true))).toBe("conflict");
+  });
+});
+
+describe("a week more", () => {
+  it("says so clearly when the task isn't theirs any more", async () => {
+    const lena = await signInWithGitHub(db, { id: 1, login: "lena-k", name: null, avatarUrl: null });
+    const [t] = await db.insert(tasks).values({ title: "Held", status: "assigned", assigneeId: lena.id, assignedAt: new Date() }).returning();
+    await db.update(tasks).set({ status: "open", assigneeId: null }).where(eq(tasks.id, t!.id));
+    expect(await code(() => extendTask(db, lena, t!.id))).toMatch(/forbidden|invalid_state/);
   });
 });

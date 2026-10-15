@@ -9,7 +9,8 @@
   "outputDirectory": "public",
   "functions": {
     "api/index.js": {
-      "includeFiles": "dist/{prompts,knowledge}/**"
+      "includeFiles": "dist/{prompts,knowledge}/**",
+      "maxDuration": 300
     }
   },
   "rewrites": [

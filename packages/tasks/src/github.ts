@@ -205,12 +205,16 @@ export async function applyPullRequest(
 
 // ─── Deliveries ──────────────────────────────────────────────────────────────
 
-/** A claim on a delivery that never finished can be taken over after this long. */
-export const DELIVERY_STALE_MS = 5 * 60_000;
+/**
+ * A claim on a delivery that never finished can be taken over after this long. Well above the
+ * API function's longest run (`maxDuration` 300 s in apps/api/vercel.json), so a slow delivery
+ * still in progress is never handled twice. Change both together.
+ */
+export const DELIVERY_STALE_MS = 10 * 60_000;
 
 /**
  * Claim an X-GitHub-Delivery id: true the first time, and for a redelivery of one whose handling
- * died (claimed, never marked handled, older than 5 minutes); false for one handled or in progress.
+ * died (claimed, never marked handled, older than DELIVERY_STALE_MS); false for one handled or in progress.
  */
 export async function claimDelivery(db: Database, id: string, event: string, now = new Date()): Promise<boolean> {
   const fresh = await db
@@ -303,6 +307,8 @@ export async function checkInactivity(db: Database, now = new Date()): Promise<{
       kind: "inactivity_reminder",
       subjectContributorId: task.assigneeId,
       note: `No activity since ${since.toISOString().slice(0, 10)}. Back on the board on ${releaseAt.toISOString().slice(0, 10)} unless something happens.`,
+      // For the reminder email: exact times, not the note's words.
+      data: { idleSince: since.toISOString(), releaseAt: releaseAt.toISOString() },
       createdAt: now,
     });
     reminded.push(task.id);

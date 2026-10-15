@@ -81,6 +81,7 @@ import {
 } from "@nw/tasks";
 
 import { notFound, notFoundIfInvalid, rejectInvalid } from "../../http.js";
+import { revalidateWeb } from "../../revalidate.js";
 import type { ApiEnv } from "../../types.js";
 import type { AdminDeps } from "./shared.js";
 
@@ -103,7 +104,7 @@ async function proposalTask(db: Database, proposalId: string): Promise<number> {
   return row.taskId;
 }
 
-export function boardAdminRoutes({ db, files, logger }: AdminDeps) {
+export function boardAdminRoutes({ db, env, files, logger }: AdminDeps) {
   /**
    * Accepted: the screenshot goes public, without its metadata (EXIF, comments). The private one
    * is deleted. A failure leaves it private and attached for the next try; the accept stands.
@@ -376,6 +377,8 @@ export function boardAdminRoutes({ db, files, logger }: AdminDeps) {
       async (c) => {
         const { id } = c.req.valid("param");
         await setContributorSuspended(db, c.get("member").id, id, true, c.req.valid("json").reason);
+        // A suspended person leaves the wall and their profile; back again when lifted.
+        void revalidateWeb(env.webRevalidate, logger, ["contributors"]);
         return c.json(await contributor(id), 200);
       },
     )
@@ -387,6 +390,8 @@ export function boardAdminRoutes({ db, files, logger }: AdminDeps) {
       async (c) => {
         const { id } = c.req.valid("param");
         await setContributorSuspended(db, c.get("member").id, id, false, c.req.valid("json").reason);
+        // A suspended person leaves the wall and their profile; back again when lifted.
+        void revalidateWeb(env.webRevalidate, logger, ["contributors"]);
         return c.json(await contributor(id), 200);
       },
     );

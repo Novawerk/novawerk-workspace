@@ -288,3 +288,33 @@ describe("GitHub App env in readEnv", () => {
     expect(readEnv({ ...required, GITHUB_WEBHOOK_SECRET: SECRET }).config.githubWebhookSecret).toBe(SECRET);
   });
 });
+
+describe("a deadlock while handling a pull request", () => {
+  it("runs the same work again instead of losing the delivery", async () => {
+    const { handlePullRequest } = await import("../src/github.js");
+    const t = await assignedTask({ status: "in_review", prUrl: fixture.pull_request.html_url });
+    let failures = 1;
+    // The first transaction deadlocks, as when a member suspends the same person at that moment.
+    const flaky = new Proxy(db, {
+      get(target, prop, receiver) {
+        if (prop === "transaction" && failures > 0) {
+          failures--;
+          return async () => {
+            throw Object.assign(new Error("deadlock detected"), { code: "40P01" });
+          };
+        }
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const logger = { error: vi.fn(), warn: vi.fn() };
+    const outcome = await handlePullRequest(
+      { db: flaky, env: { publicUrls: { apiUrl: "https://api.novawerk.io", webUrl: "https://novawerk.io" } } as never, logger },
+      facts({ state: "closed", merged: true, taskNumber: t.id }),
+      { source: "webhook", action: "closed" },
+    );
+    expect(outcome.result).toBe("merged");
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringMatching(/retrying after a deadlock/));
+    expect(await db.select().from(werkLedger)).toHaveLength(1);
+  });
+});

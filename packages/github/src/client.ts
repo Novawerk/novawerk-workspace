@@ -13,7 +13,7 @@ export interface GitHubApi {
   addLabels(repo: string, issueNumber: number, labels: string[]): Promise<void>;
   /** PRs updated since `since`, newest first (at most `limit`). */
   recentPullRequests(repo: string, since: Date, limit?: number): Promise<PullRequestFacts[]>;
-  /** One PR, or null when it doesn't exist. */
+  /** One PR, or null only when GitHub says 404. Anything else (a 5xx, a payload we can't read) throws. */
   getPullRequest(repo: string, number: number): Promise<PullRequestFacts | null>;
 }
 
@@ -67,14 +67,16 @@ export function createGitHubApi(credentials: GitHubAppCredentials, opts: { fetch
       });
     },
     async getPullRequest(repo, number) {
+      let data: unknown;
       try {
-        const res = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", { ...split(repo), pull_number: number });
-        const pr = pullRequestSchema.safeParse(res.data);
-        return pr.success ? pullRequestFacts(pr.data) : null;
+        data = (await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", { ...split(repo), pull_number: number })).data;
       } catch (err) {
         if ((err as { status?: number }).status === 404) return null;
         throw err;
       }
+      // A format we can't read is an error, never "gone": the nightly sync would otherwise send
+      // every task in review back to assigned.
+      return pullRequestFacts(pullRequestSchema.parse(data));
     },
     async recentPullRequests(repo, since, limit = 300) {
       const out: PullRequestFacts[] = [];

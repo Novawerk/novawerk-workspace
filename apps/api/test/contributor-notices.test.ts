@@ -7,7 +7,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { proposalInput, suggestionInput } from "@nw/contracts";
 import { contributorNotices, contributors, members, taskEvents, tasks, type Contributor, type Database } from "@nw/db";
 import type { ContributorNoticeMail } from "@nw/email";
-import { addPost, chooseProposal, propose, suggestTask, transitionTask } from "@nw/tasks";
+import { addPost, chooseProposal, deleteContributor, propose, suggestTask, transitionTask } from "@nw/tasks";
 
 import { collectNotices, dispatchNotices, noticeOffUrl, runContributorNotices } from "../src/contributor-notices.js";
 import { TEST_MEMBERS, TEST_SECRET, contributorCookie, createTestDb, makeApp, resetDb } from "./helpers.js";
@@ -57,6 +57,19 @@ const plan = proposalInput.parse({ approach: "Add a sort select to the wall.", e
 const ada = { kind: "member", id: "ada" } as const;
 
 describe("collect and send", () => {
+  it("reaches a GitHub-only person at GitHub's verified email (notify_email), the last mail too", async () => {
+    await db.update(contributors).set({ notifyEmail: "mila@github.example" }).where(eq(contributors.id, mila.id));
+    const task = await openTask();
+    const chosen = await propose(db, mila, task.id, plan);
+    await chooseProposal(db, { proposalId: chosen.id, memberId: "ada" });
+    await runContributorNotices(db, send, logger);
+    expect(kinds()).toEqual(["proposal_chosen→mila@github.example"]);
+
+    await deleteContributor(db, mila.id, "mila");
+    await runContributorNotices(db, send, logger);
+    expect(kinds().at(-1)).toBe("account_deleted→mila@github.example");
+  });
+
   it("tells the chosen proposer and the others, once each", async () => {
     const task = await openTask();
     const chosen = await propose(db, lena, task.id, plan);
@@ -176,6 +189,24 @@ describe("collect and send", () => {
     await runContributorNotices(db, send, logger);
     expect(mails.at(-1)!.mail).toMatchObject({ kind: "released", idle: true });
     expect(kinds().sort()).toEqual(["proposal_chosen→lena@example.org", "released→lena@example.org", "reminder→lena@example.org"]);
+  });
+
+  it("takes the reminder's dates from the event when the board recorded them", async () => {
+    const task = await openTask();
+    const p = await propose(db, lena, task.id, plan);
+    await chooseProposal(db, { proposalId: p.id, memberId: "ada" });
+    const now = new Date("2026-10-20T09:00:00Z");
+    // The row says otherwise (activity just now); the event's own times win.
+    await db.update(tasks).set({ lastActivityAt: now }).where(eq(tasks.id, task.id));
+    await db.insert(taskEvents).values({
+      taskId: task.id,
+      kind: "inactivity_reminder",
+      subjectContributorId: lena.id,
+      data: { idleSince: "2026-10-12T23:30:00.000Z", releaseAt: "2026-10-26T23:30:00.000Z" },
+      createdAt: now,
+    });
+    await runContributorNotices(db, send, logger, { now });
+    expect(mails.at(-1)!.mail).toMatchObject({ kind: "reminder", idleDays: 7, releaseOn: "2026-10-26" });
   });
 
   it("sends a reminder without a subject to whoever holds the task", async () => {

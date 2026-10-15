@@ -20,6 +20,7 @@ import { Route as AppMetricsRouteImport } from './routes/_app/metrics'
 import { Route as AppModerationRouteImport } from './routes/_app/moderation'
 import { Route as AppOutboxRouteImport } from './routes/_app/outbox'
 import { Route as AppPartnersRouteImport } from './routes/_app/partners'
+import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppProposalsRouteImport } from './routes/_app/proposals'
 import { Route as AppSubscribersRouteImport } from './routes/_app/subscribers'
 import { Route as AppSuggestionsRouteImport } from './routes/_app/suggestions'
@@ -92,6 +93,11 @@ const AppOutboxRoute = AppOutboxRouteImport.update({
 const AppPartnersRoute = AppPartnersRouteImport.update({
   id: '/partners',
   path: '/partners',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProposalsRoute = AppProposalsRouteImport.update({
@@ -202,6 +208,7 @@ export interface FileRoutesByFullPath {
   '/moderation': typeof AppModerationRoute
   '/outbox': typeof AppOutboxRoute
   '/partners': typeof AppPartnersRoute
+  '/profile': typeof AppProfileRoute
   '/proposals': typeof AppProposalsRoute
   '/subscribers': typeof AppSubscribersRoute
   '/suggestions': typeof AppSuggestionsRoute
@@ -232,6 +239,7 @@ export interface FileRoutesByTo {
   '/moderation': typeof AppModerationRoute
   '/outbox': typeof AppOutboxRoute
   '/partners': typeof AppPartnersRoute
+  '/profile': typeof AppProfileRoute
   '/proposals': typeof AppProposalsRoute
   '/subscribers': typeof AppSubscribersRoute
   '/suggestions': typeof AppSuggestionsRoute
@@ -265,6 +273,7 @@ export interface FileRoutesById {
   '/_app/moderation': typeof AppModerationRoute
   '/_app/outbox': typeof AppOutboxRoute
   '/_app/partners': typeof AppPartnersRoute
+  '/_app/profile': typeof AppProfileRoute
   '/_app/proposals': typeof AppProposalsRoute
   '/_app/subscribers': typeof AppSubscribersRoute
   '/_app/suggestions': typeof AppSuggestionsRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/moderation'
     | '/outbox'
     | '/partners'
+    | '/profile'
     | '/proposals'
     | '/subscribers'
     | '/suggestions'
@@ -329,6 +339,7 @@ export interface FileRouteTypes {
     | '/moderation'
     | '/outbox'
     | '/partners'
+    | '/profile'
     | '/proposals'
     | '/subscribers'
     | '/suggestions'
@@ -361,6 +372,7 @@ export interface FileRouteTypes {
     | '/_app/moderation'
     | '/_app/outbox'
     | '/_app/partners'
+    | '/_app/profile'
     | '/_app/proposals'
     | '/_app/subscribers'
     | '/_app/suggestions'
@@ -465,6 +477,13 @@ declare module '@tanstack/react-router' {
       path: '/partners'
       fullPath: '/partners'
       preLoaderRoute: typeof AppPartnersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/proposals': {
@@ -612,6 +631,7 @@ interface AppRouteChildren {
   AppModerationRoute: typeof AppModerationRoute
   AppOutboxRoute: typeof AppOutboxRoute
   AppPartnersRoute: typeof AppPartnersRoute
+  AppProfileRoute: typeof AppProfileRoute
   AppProposalsRoute: typeof AppProposalsRoute
   AppSubscribersRoute: typeof AppSubscribersRoute
   AppSuggestionsRoute: typeof AppSuggestionsRoute
@@ -643,6 +663,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppModerationRoute: AppModerationRoute,
   AppOutboxRoute: AppOutboxRoute,
   AppPartnersRoute: AppPartnersRoute,
+  AppProfileRoute: AppProfileRoute,
   AppProposalsRoute: AppProposalsRoute,
   AppSubscribersRoute: AppSubscribersRoute,
   AppSuggestionsRoute: AppSuggestionsRoute,

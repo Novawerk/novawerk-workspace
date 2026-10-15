@@ -137,20 +137,50 @@ export async function transitionTask(db: Database, input: TransitionInput): Prom
   return db.transaction((tx) => transitionIn(tx, input));
 }
 
-/** transitionTask inside a transaction the caller holds (a member's question plus its post). */
-export async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
-  const now = input.now ?? new Date();
-  // The person who gets the task is locked before the task (see lockContributor).
+/**
+ * Lock order, everywhere: the contributors involved first (sorted by id), then the task.
+ * Suspending someone locks their row and then their tasks; a merge used to lock the task and
+ * then (for the Werk row's foreign key) the contributor, and the two deadlocked. So we take the
+ * people first: whoever holds the task now, and whoever gets it.
+ */
+async function lockPeople(tx: Tx, input: TransitionInput): Promise<Set<string>> {
+  const [current] = await tx
+    .select({ assigneeId: tasks.assigneeId, suggestedBy: tasks.suggestedBy })
+    .from(tasks)
+    .where(eq(tasks.id, input.taskId));
   const taker =
     input.action === "choose"
       ? input.assigneeId
       : input.action === "accept_assign"
-        ? (input.assigneeId ??
-          (await tx.select({ id: tasks.suggestedBy }).from(tasks).where(eq(tasks.id, input.taskId)))[0]?.id ??
-          undefined)
+        ? (input.assigneeId ?? current?.suggestedBy ?? undefined)
         : undefined;
-  if (taker) await lockContributor(tx, taker);
+  // Choosing and closing decline every waiting plan, with an event about each author: lock them
+  // too, or a proposer posting on the task at that moment deadlocks with us.
+  const authors =
+    input.action === "choose" || input.action === "close"
+      ? (
+          await tx
+            .select({ id: taskProposals.contributorId })
+            .from(taskProposals)
+            .where(and(eq(taskProposals.taskId, input.taskId), eq(taskProposals.status, "pending")))
+        ).map((p) => p.id)
+      : [];
+  const ids = [...new Set([current?.assigneeId, taker, ...authors].filter((id): id is string => Boolean(id)))].sort();
+  for (const id of ids) await lockContributor(tx, id);
+  return new Set(ids);
+}
+
+/** Postgres' serialization_failure: the caller (the webhook's retry) runs the whole thing again. */
+const retryNeeded = (why: string) => Object.assign(new Error(why), { code: "40001" });
+
+/** transitionTask inside a transaction the caller holds (a member's question plus its post). */
+export async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
+  const now = input.now ?? new Date();
+  const locked = await lockPeople(tx, input);
   const task = await lockTask(tx, input.taskId);
+  // The task changed hands between reading its assignee and locking it: our lock order no longer
+  // holds. Start again (a retryable error) rather than lock the new assignee after the task.
+  if (task.assigneeId && !locked.has(task.assigneeId)) throw retryNeeded("The task changed hands; try again");
   const { to, event } = planTransition(task, input.action, input.actor);
   const patch: Partial<typeof tasks.$inferInsert> = { status: to, updatedAt: now };
 

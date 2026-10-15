@@ -3,6 +3,8 @@
 interface ImportMetaEnv {
   /** Base URL of apps/api, e.g. https://api.novawerk.io. Defaults to http://localhost:8787. */
   readonly VITE_API_URL?: string
+  /** The public website, e.g. https://novawerk.io (the default). Profile and task links point there. */
+  readonly VITE_WEB_URL?: string
   /** Google OAuth (Web) client id for Google Identity Services. */
   readonly VITE_GOOGLE_CLIENT_ID?: string
   /** "true" renders built-in sample data; anything else talks to the API. */

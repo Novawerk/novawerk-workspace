@@ -1,0 +1,12 @@
+[
+  {
+    "title": "Add /.well-known/security.txt to the website",
+    "summary": "Tell security researchers where to write, in the standard place.",
+    "body": "People who find a security problem look for `/.well-known/security.txt` (RFC 9116). Add it to `apps/web` with a contact and an expiry date.",
+    "criteria": ["GET /.well-known/security.txt answers 200 with Contact and Expires", "Expires is less than a year ahead"],
+    "area": "web",
+    "size": "S",
+    "skills": ["nextjs"],
+    "reviewerId": null
+  }
+]

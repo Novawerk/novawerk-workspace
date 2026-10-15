@@ -1,5 +1,5 @@
 {
-  "id": "ce5389c2-6979-496d-bad5-f167779a11d0",
+  "id": "1b79b50b-4b3f-43be-9445-ce8141fd0ae6",
   "prevId": "42aff4bf-26b8-4355-ae84-a2886cc69b42",
   "version": "7",
   "dialect": "postgresql",
@@ -947,6 +947,12 @@
         },
         "email": {
           "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notify_email": {
+          "name": "notify_email",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -3178,6 +3184,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -3952,18 +3964,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
-        },
-        "screenshot_pathname": {
-          "name": "screenshot_pathname",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "screenshot_url": {
-          "name": "screenshot_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "needs_info": {
           "name": "needs_info",
