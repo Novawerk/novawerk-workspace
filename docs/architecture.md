@@ -216,6 +216,12 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
   text or author. No email appears in any public response. Deleting the account removes the
   profile, proposals, votes and tokens and puts a held task back on the board; tasks, posts and
   Werk rows show "a former contributor".
+- **Initiators on the wall.** A Member can switch on a public profile (`members.public_profile`,
+  off by default, set only by them through `PATCH /admin/me`, with `profile_handle` and
+  `profile_bio`). Members who started a public project (`project_members.role = "Initiator"`)
+  then stand on `/contributors` with `kind: "initiator"` and that project, are listed on
+  `GET /public/initiators` (the flags in the builders scene), and get `/u/<handle>`. Handles are
+  one namespace across contributors and members. A Member's email never leaves.
 - **Werk ledger** (`werk_ledger`) is append-only: a merge adds one row per task and PR (unique
   `(task_id, pr)`), and a member's change is a new row with a reason. Nothing updates a row.
 - **GitHub.** A PR counts only when it names an assigned task (`Task: NW-42`, or NW-42 in its
@@ -263,6 +269,8 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
 | `GET /contrib/me/tasks`, `GET /contrib/tasks/:id/guide`, `POST /contrib/tasks/:id/pr` / `release` / `extend` | contributor (the assignee) | my tasks, the guide, link a PR, give it back, a week more |
 | `POST /contrib/posts/:id/report` | contributor | report a post (`post_reports`) |
 | `GET /public/blocks` | anyone | merged tasks for the builders scene; private people as `anon-<hash>` |
+| `GET /public/initiators` | anyone | opted-in Members who started a public project |
+| `GET`/`PATCH /admin/me` | the member themself | their own public profile (`publicProfile`, `profileHandle`, `profileBio`) |
 | `POST /webhooks/github`, `GET /cron/github-sync` | GitHub, Vercel Cron | pull requests move tasks; reconcile and inactivity |
 | `PATCH /contrib/me/profile`, `DELETE /contrib/me` | contributor | profile, delete account |
 | `GET`/`POST /contrib/tokens`, `DELETE /contrib/tokens/:id`, `POST /contrib/proposals/:id/confirm` | contributor, browser only | tokens; confirm an agent's draft |

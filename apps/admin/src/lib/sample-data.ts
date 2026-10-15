@@ -31,6 +31,9 @@ export const SAMPLE_ME: Me = {
   displayName: "Sample Admin",
   email: "admin@example.com",
   canAdmin: true,
+  publicProfile: false,
+  profileHandle: null,
+  profileBio: null,
 }
 
 const member = (id: string, displayName: string, opts: Partial<Member> = {}): Member => ({
@@ -40,6 +43,9 @@ const member = (id: string, displayName: string, opts: Partial<Member> = {}): Me
   canAdmin: false,
   joinedOn: daysAgoDate(200),
   active: true,
+  publicProfile: false,
+  profileHandle: null,
+  profileBio: null,
   createdAt: hoursAgo(24 * 200),
   ...opts,
 })

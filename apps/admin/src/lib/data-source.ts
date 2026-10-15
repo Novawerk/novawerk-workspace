@@ -428,6 +428,9 @@ const sampleSource: AdminDataSource = {
       canAdmin: input.canAdmin ?? false,
       joinedOn: input.joinedOn ?? today(),
       active: true,
+      publicProfile: false,
+      profileHandle: null,
+      profileBio: null,
       createdAt: nowIso(),
     }
     store.members.set(member.id, member)
@@ -560,6 +563,9 @@ const sampleSource: AdminDataSource = {
         displayName: input.displayName ?? current.name,
         email: current.email.toLowerCase(),
         canAdmin: false,
+        publicProfile: false,
+        profileHandle: null,
+        profileBio: null,
         joinedOn: today(),
         active: true,
         createdAt: nowIso(),

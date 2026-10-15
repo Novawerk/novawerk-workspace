@@ -5,9 +5,10 @@
 //
 //   GET /public/tasks?area=web,api&size=S&status=active&skills=react&q=…&sort=updated&cursor=…
 //   GET /public/tasks/NW-42
-//   GET /public/contributors?sort=newest|az&area=web&cursor=…
+//   GET /public/contributors?sort=newest|az&area=web&cursor=…   contributors and opted-in initiators
 //   GET /public/contributors/:handle
 //   GET /public/blocks                  every merged task, oldest first (the builders scene)
+//   GET /public/initiators              opted-in Members who started a public project (flags in the scene)
 
 import { createHmac } from "node:crypto";
 
@@ -16,7 +17,14 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { HANDLE_PATTERN, contributorListQuery, taskIdParam, taskListQuery } from "@nw/contracts";
-import { getPublicContributor, getPublicTask, listPublicBlocks, listPublicContributors, listPublicTasks } from "@nw/tasks";
+import {
+  getPublicContributor,
+  getPublicTask,
+  listPublicBlocks,
+  listPublicContributors,
+  listPublicInitiators,
+  listPublicTasks,
+} from "@nw/tasks";
 
 import { notFound, notFoundIfInvalid, rejectInvalid } from "../http.js";
 import type { TokenGate } from "../token-gate.js";
@@ -36,6 +44,7 @@ export function boardRoutes({ db, env }: AppDeps, gate: TokenGate) {
     .use("/contributors", token)
     .use("/contributors/*", token)
     .get("/blocks", async (c) => c.json(await listPublicBlocks(db, anonKey), 200))
+    .get("/initiators", async (c) => c.json(await listPublicInitiators(db), 200))
     .get("/tasks", zValidator("query", taskListQuery, rejectInvalid), async (c) =>
       c.json(await listPublicTasks(db, c.req.valid("query")), 200),
     )

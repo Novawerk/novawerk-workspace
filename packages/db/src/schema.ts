@@ -40,6 +40,15 @@ export const members = pgTable("members", {
   canAdmin: boolean("can_admin").notNull().default(false),
   joinedOn: date("joined_on"),
   active: boolean("active").notNull().default(true),
+  /**
+   * Opt-in public profile (NB-ADR-0013), off by default: an Initiator then stands on the
+   * contributors wall with their project. Set only by the member themself. Never the email.
+   */
+  publicProfile: boolean("public_profile").notNull().default(false),
+  /** /u/<handle>: shares the namespace with contributors' handles. Needed for a public profile. */
+  profileHandle: text("profile_handle").unique(),
+  /** One line on the public profile, up to 160 characters. */
+  profileBio: text("profile_bio"),
   createdAt: createdAt(),
 });
 

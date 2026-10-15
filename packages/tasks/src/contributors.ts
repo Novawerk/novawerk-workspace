@@ -12,7 +12,7 @@ import {
   type ProfileBanner,
   type ProfileUpdateInput,
 } from "@nw/contracts";
-import { contributorNotices, contributors, taskEvents, tasks, type Contributor, type Database } from "@nw/db";
+import { contributorNotices, contributors, members, taskEvents, tasks, type Contributor, type Database } from "@nw/db";
 
 import { TaskRuleError, isUniqueViolation } from "./errors.js";
 import { iso } from "./people.js";
@@ -32,16 +32,29 @@ const MAX_HANDLE = 39;
 export async function freeHandle(db: Database, base: string): Promise<string> {
   let stem = toHandle(base, MAX_HANDLE - 4);
   if (stem.length < 2) stem = "contributor";
-  const taken = new Set(
-    (
+  // /u/<handle> is shared with Members' public profiles.
+  const taken = new Set([
+    ...(
       await db
         .select({ handle: contributors.handle })
         .from(contributors)
         .where(sql`${contributors.handle} = ${stem} or ${contributors.handle} like ${`${stem}-%`}`)
     ).map((r) => r.handle),
-  );
+    ...(
+      await db
+        .select({ handle: members.profileHandle })
+        .from(members)
+        .where(sql`${members.profileHandle} = ${stem} or ${members.profileHandle} like ${`${stem}-%`}`)
+    ).map((r) => r.handle!),
+  ]);
   if (!taken.has(stem)) return stem;
   for (let n = 2; ; n++) if (!taken.has(`${stem}-${n}`)) return `${stem}-${n}`;
+}
+
+/** A Member's public profile uses this handle. */
+async function memberHasHandle(db: Database, handle: string): Promise<boolean> {
+  const [row] = await db.select({ id: members.id }).from(members).where(eq(members.profileHandle, handle)).limit(1);
+  return Boolean(row);
 }
 
 export async function getContributor(db: Database, id: string): Promise<Contributor | undefined> {
@@ -212,6 +225,7 @@ export async function updateProfile(
       .where(eq(contributors.handle, fields.handle))
       .limit(1);
     if (other && other.id !== contributorId) throw new TaskRuleError("conflict", "That handle is taken", "handle");
+    if (await memberHasHandle(db, fields.handle)) throw new TaskRuleError("conflict", "That handle is taken", "handle");
   }
   const [row] = await db
     .update(contributors)
