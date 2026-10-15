@@ -3,13 +3,21 @@
 // `can_admin`; projects, posts, cards and picture uploads are open to every member and check per
 // project (./admin/access.ts) who may see what.
 
+import { zValidator } from "@hono/zod-validator";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+
+import { memberSelfUpdateInput } from "@nw/contracts";
+import { members, type Database } from "@nw/db";
+import { updateMemberProfile } from "@nw/tasks";
 
 import { adminChatRoutes } from "../admin-chat/routes.js";
 import { postChatRoutes } from "../post-chat/routes.js";
 import { requireAdmin, requireSession } from "../auth.js";
-import type { ApiEnv } from "../types.js";
+import { rejectInvalid } from "../http.js";
+import { revalidateWeb } from "../revalidate.js";
+import type { AdminMember, ApiEnv } from "../types.js";
 import { cardRoutes } from "./admin/cards.js";
 import { documentRoutes } from "./admin/documents.js";
 import { financeRoutes } from "./admin/finance.js";
@@ -26,6 +34,16 @@ import { postGuard, projectGuard } from "./admin/access.js";
 import type { AdminDeps } from "./admin/shared.js";
 import { subscriberRoutes } from "./admin/subscribers.js";
 import { uploadRoutes } from "./admin/uploads.js";
+
+/** GET /admin/me: the session's member plus their public profile fields. */
+async function memberSelf(db: Database, member: AdminMember) {
+  const [row] = await db
+    .select({ publicProfile: members.publicProfile, profileHandle: members.profileHandle, profileBio: members.profileBio })
+    .from(members)
+    .where(eq(members.id, member.id))
+    .limit(1);
+  return { ...member, publicProfile: row?.publicProfile ?? false, profileHandle: row?.profileHandle ?? null, profileBio: row?.profileBio ?? null };
+}
 
 /** A project's Markdown body is the biggest thing we accept. */
 const MAX_BODY_BYTES = 512 * 1024;
@@ -56,7 +74,16 @@ export function adminRoutes(deps: AdminDeps) {
   const posts = postGuard(deps.db);
   app.use("/projects/:id", projects).use("/projects/:id/*", projects).use("/posts/:id", posts).use("/posts/:id/*", posts);
   return app
-    .get("/me", (c) => c.json(c.get("member"), 200))
+    // The signed-in member, with their own opt-in public profile (NB-ADR-0013).
+    .get("/me", async (c) => c.json(await memberSelf(deps.db, c.get("member")), 200))
+    // Only the member themself switches their public profile on or off; never an admin for them.
+    .patch("/me", zValidator("json", memberSelfUpdateInput, rejectInvalid), async (c) => {
+      await updateMemberProfile(deps.db, c.get("member").id, c.req.valid("json"));
+      // Their card on the wall and /u/<handle> change at once. Not awaited: the save doesn't wait
+      // on the website (revalidateWeb logs and never throws).
+      void revalidateWeb(deps.env.webRevalidate, deps.logger, ["contributors"]);
+      return c.json(await memberSelf(deps.db, c.get("member")), 200);
+    })
     .route("/", inboxRoutes(deps))
     .route("/members", memberRoutes(deps))
     .route("/metrics", metricsRoutes(deps))

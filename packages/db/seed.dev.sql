@@ -278,3 +278,8 @@ insert into werk_ledger (contributor_id, delta, reason, task_id, pr, created_at)
 values ('c1000000-0000-4000-8000-000000000001', 1, 'Merged NW-6: Show the post card''s size next to the download button', 6,
         'https://github.com/Novawerk/novawerk-workspace/pull/4', now() - interval '14 days')
 on conflict do nothing;
+
+-- An initiator who opted in to a public profile (NB-ADR-0013): Jonas stands on the contributors
+-- wall with the project he started.
+update members set public_profile = true, profile_handle = 'jonas-weber', profile_bio = 'Wished for a quiet place to write.'
+where id = 'jonas' and profile_handle is null;

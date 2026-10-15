@@ -401,6 +401,21 @@ const handle = (example: string, max = 40) =>
     .max(max, `Keep it under ${max} characters`)
     .regex(HANDLE_PATTERN, `Lowercase letters, digits and hyphens, e.g. ${example}`);
 
+/**
+ * Handles nobody may choose for /u/<handle>: words that are (or may become) pages, and prefixes the
+ * board makes itself (`anon-` for unnamed people, `contributor-` for new email sign-ups).
+ */
+export const RESERVED_HANDLE_WORDS = [
+  "about", "admin", "anon", "api", "app", "auth", "contrib", "contribute", "contributor", "contributors",
+  "edit", "help", "imprint", "join", "login", "logout", "mcp", "me", "member", "members", "new",
+  "newsletter", "novawerk", "privacy", "public", "security", "settings", "sign-in", "sign-out",
+  "signin", "submit", "support", "system", "task", "tasks", "team", "tokens", "u", "www",
+] as const;
+export const RESERVED_HANDLE_PREFIXES = ["anon-", "contributor-"] as const;
+
+export const isReservedHandle = (handle: string) =>
+  (RESERVED_HANDLE_WORDS as readonly string[]).includes(handle) || RESERVED_HANDLE_PREFIXES.some((p) => handle.startsWith(p));
+
 /** "Zoë Müller-Lüdenscheidt" → "zoe-muller-ludenscheidt". May return "" for text with no letters or digits. */
 export function toHandle(text: string, maxLength = 40): string {
   return text
@@ -460,6 +475,19 @@ export const memberUpdateInput = z
   })
   .refine(hasChanges, { message: "Nothing to update" });
 export type MemberUpdateInput = z.infer<typeof memberUpdateInput>;
+
+/**
+ * PATCH /admin/me: a member's own public profile (NB-ADR-0013), off by default. Switching it on
+ * needs a handle (/u/<handle>, shared with contributors). Only the member sets it, never an admin.
+ */
+export const memberSelfUpdateInput = z
+  .object({
+    publicProfile: z.boolean().optional(),
+    profileHandle: handle("ada-lovelace", 39).optional(),
+    profileBio: nullableText(160).optional(),
+  })
+  .refine(hasChanges, { message: "Nothing to update" });
+export type MemberSelfUpdateInput = z.infer<typeof memberSelfUpdateInput>;
 
 // ─── Accept flows ────────────────────────────────────────────────────────────
 
@@ -1966,6 +1994,8 @@ export interface PublicTaskDetail extends PublicTask {
 
 /** A card on /contributors. Never a Werk number: the wall doesn't rank. */
 export interface PublicContributor {
+  /** A contributor, or a Member who started a project and opted in to a public profile. */
+  kind: "contributor" | "initiator";
   handle: string;
   name: string;
   avatarUrl: string | null;
@@ -1976,6 +2006,23 @@ export interface PublicContributor {
   lastContributionAt: string;
   /** Has an accepted suggestion: the "idea" mark. */
   idea: boolean;
+  /** Initiators: the project they started most recently ("Started <project>"). */
+  project: PublicProjectRef | null;
+}
+
+/** A portfolio project, as linked from a profile or the wall. */
+export interface PublicProjectRef {
+  slug: string;
+  title: string;
+}
+
+/** GET /public/initiators: Members with a public profile who started a public project, one row per project. */
+export interface PublicInitiator {
+  handle: string;
+  name: string;
+  project: PublicProjectRef;
+  /** When the project was created. */
+  startedAt: string;
 }
 
 export const CONTRIBUTOR_SORTS = ["newest", "az"] as const;
@@ -2004,8 +2051,9 @@ export interface PublicTaskRef {
   werk: number | null;
 }
 
-/** GET /public/contributors/:handle (public profiles only). */
+/** GET /public/contributors/:handle (public profiles only): a contributor, or an initiator. */
 export interface PublicContributorProfile {
+  kind: "contributor" | "initiator";
   handle: string;
   name: string;
   avatarUrl: string | null;
@@ -2020,6 +2068,8 @@ export interface PublicContributorProfile {
   inProgress: PublicTaskRef[];
   done: (PublicTaskRef & { mergedAt: string | null })[];
   ideasAccepted: PublicTaskRef[];
+  /** Public projects they started (initiators); empty for contributors. */
+  projects: PublicProjectRef[];
 }
 
 /** The signed-in contributor, for themselves only (GET /auth/contributor/me). */

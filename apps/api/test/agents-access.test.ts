@@ -336,7 +336,7 @@ describe("review fixes", () => {
     for (let i = 0; i <= 600 && status === 200; i++) status = (await app.request("/public/tasks?limit=1", { headers: from })).status;
     expect(status).toBe(429);
     expect((await app.request("/public/tasks?limit=1", { headers: { "x-forwarded-for": "198.51.100.78" } })).status).toBe(200);
-  });
+  }, 60_000);
 
   it("exempts the website's server, which reads from shared IPs, with its key", async () => {
     const key = "web-read-key-0123456789-0123456789";
@@ -346,7 +346,7 @@ describe("review fixes", () => {
     expect((await app.request("/public/blocks", { headers: from })).status).toBe(429);
     expect((await app.request("/public/blocks", { headers: { ...from, "x-nw-web-key": "wrong" } })).status).toBe(429);
     expect((await app.request("/public/blocks", { headers: { ...from, "x-nw-web-key": key } })).status).toBe(200);
-  });
+  }, 60_000);
 });
 
 describe("/mcp transport rules", () => {

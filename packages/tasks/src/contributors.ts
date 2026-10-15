@@ -6,15 +6,17 @@ import { randomBytes } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import {
+  isReservedHandle,
   toHandle,
   type ContributorMe,
   type ProfileAccent,
   type ProfileBanner,
   type ProfileUpdateInput,
 } from "@nw/contracts";
-import { contributorNotices, contributors, taskEvents, tasks, type Contributor, type Database } from "@nw/db";
+import { contributorNotices, contributors, members, taskEvents, tasks, type Contributor, type Database } from "@nw/db";
 
 import { TaskRuleError, isUniqueViolation } from "./errors.js";
+import { claimHandle, handleIsFree, lockHandle } from "./handles.js";
 import { iso } from "./people.js";
 import { IN_PROGRESS_STATUSES } from "./state.js";
 
@@ -28,21 +30,31 @@ export interface GitHubUser {
 
 const MAX_HANDLE = 39;
 
-/** `base` as a free handle: "lena-k", else "lena-k-2", "lena-k-3"… */
-export async function freeHandle(db: Database, base: string): Promise<string> {
+/**
+ * `base` as a free handle: "lena-k", else "lena-k-2", "lena-k-3"… Never a reserved word, nor
+ * a Member's id or profile handle (one namespace, ./handles.ts). A GitHub login that starts with
+ * a reserved prefix gets "gh-" in front; `neutral` allows the board's own `contributor-` prefix.
+ */
+export async function freeHandle(db: Database, base: string, opts: { neutral?: boolean } = {}): Promise<string> {
   let stem = toHandle(base, MAX_HANDLE - 4);
-  if (stem.length < 2) stem = "contributor";
-  const taken = new Set(
-    (
-      await db
-        .select({ handle: contributors.handle })
-        .from(contributors)
-        .where(sql`${contributors.handle} = ${stem} or ${contributors.handle} like ${`${stem}-%`}`)
-    ).map((r) => r.handle),
-  );
-  if (!taken.has(stem)) return stem;
-  for (let n = 2; ; n++) if (!taken.has(`${stem}-${n}`)) return `${stem}-${n}`;
+  if (stem.length < 2) stem = "gh-user";
+  // A GitHub login that is reserved ("admin", "anon", "contributor") or starts with a reserved
+  // prefix ("anon-bob") gets "gh-" in front: numbering alone would never leave the reserved set.
+  if (!opts.neutral && isReservedHandle(stem)) stem = `gh-${stem}`.slice(0, MAX_HANDLE - 4);
+  const like = `${stem}-%`;
+  const taken = new Set([
+    ...(await db.select({ h: contributors.handle }).from(contributors).where(sql`${contributors.handle} = ${stem} or ${contributors.handle} like ${like}`)).map((r) => r.h),
+    ...(await db.select({ h: members.profileHandle }).from(members).where(sql`${members.profileHandle} = ${stem} or ${members.profileHandle} like ${like}`)).map((r) => r.h!),
+    ...(await db.select({ h: members.id }).from(members).where(sql`${members.id} = ${stem} or ${members.id} like ${like}`)).map((r) => r.h),
+  ]);
+  const free = (h: string) => !taken.has(h) && (opts.neutral || !isReservedHandle(h));
+  if (free(stem)) return stem;
+  for (let n = 2; n <= MAX_HANDLE_TRIES; n++) if (free(`${stem}-${n}`)) return `${stem}-${n}`;
+  throw new TaskRuleError("conflict", "Couldn't find a free handle. Pick one in your profile.");
 }
+
+/** How far freeHandle counts ("lena-k-2" … "lena-k-1000") before it gives up. */
+const MAX_HANDLE_TRIES = 1000;
 
 export async function getContributor(db: Database, id: string): Promise<Contributor | undefined> {
   const [row] = await db.select().from(contributors).where(eq(contributors.id, id)).limit(1);
@@ -115,21 +127,26 @@ export async function signInWithGitHub(
   }
 }
 
-/** Insert with a free handle from `base`, trying again if another sign-up takes it meanwhile. */
+/**
+ * Insert with a free handle from `base`: the handle is locked and checked again in the same
+ * transaction (./handles.ts), so a sign-up and a profile edit can't take it at once.
+ */
 async function insertWithFreeHandle(
   db: Database,
   base: string,
   row: (handle: string) => typeof contributors.$inferInsert,
+  opts: { neutral?: boolean } = {},
 ): Promise<Contributor> {
   for (let attempt = 0; ; attempt++) {
-    const handle = await freeHandle(db, base);
-    try {
-      const [created] = await db.insert(contributors).values(row(handle)).returning();
-      return created!;
-    } catch (err) {
-      const handleTaken = isUniqueViolation(err) && (await db.select({ id: contributors.id }).from(contributors).where(eq(contributors.handle, handle))).length > 0;
-      if (!handleTaken || attempt >= 3) throw err;
-    }
+    const created = await db.transaction(async (tx) => {
+      const handle = await freeHandle(tx, base, opts);
+      await lockHandle(tx, handle);
+      if (!(await handleIsFree(tx, handle))) return null;
+      const [inserted] = await tx.insert(contributors).values(row(handle)).returning();
+      return inserted!;
+    });
+    if (created) return created;
+    if (attempt >= 3) throw new TaskRuleError("conflict", "Couldn't find a free handle. Try again.");
   }
 }
 
@@ -152,12 +169,12 @@ export async function signInWithEmail(db: Database, email: string, now = new Dat
     return updated!;
   }
   try {
-    return await insertWithFreeHandle(db, neutralHandle(), (handle) => ({
-      handle,
-      displayName: handle,
-      email: address,
-      lastSignInAt: now,
-    }));
+    return await insertWithFreeHandle(
+      db,
+      neutralHandle(),
+      (handle) => ({ handle, displayName: handle, email: address, lastSignInAt: now }),
+      { neutral: true },
+    );
   } catch (err) {
     const [raced] = isUniqueViolation(err) ? await db.select().from(contributors).where(eq(contributors.email, address)) : [];
     if (raced) return raced;
@@ -205,26 +222,22 @@ export async function updateProfile(
   const me = await getContributor(db, contributorId);
   if (!me) throw new TaskRuleError("not_found", "Not signed in");
   if (me.suspendedAt) throw new TaskRuleError("suspended", "This account is suspended");
-  if (fields.handle) {
-    const [other] = await db
-      .select({ id: contributors.id })
-      .from(contributors)
-      .where(eq(contributors.handle, fields.handle))
-      .limit(1);
-    if (other && other.id !== contributorId) throw new TaskRuleError("conflict", "That handle is taken", "handle");
-  }
-  const [row] = await db
-    .update(contributors)
-    .set({
-      ...Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined)),
-      ...(acceptPledge ? { pledgeAcceptedAt: sql`coalesce(${contributors.pledgeAcceptedAt}, ${now})` } : {}),
-    })
-    .where(eq(contributors.id, contributorId))
-    .returning()
-    .catch((err: unknown) => {
-      if (isUniqueViolation(err)) throw new TaskRuleError("conflict", "That handle is taken", "handle");
-      throw err;
-    });
+  const [row] = await db.transaction(async (tx) => {
+    // A new handle: not reserved, not a Member's or another contributor's, held while we write.
+    if (fields.handle && fields.handle !== me.handle) await claimHandle(tx, fields.handle, "handle", { contributorId });
+    return tx
+      .update(contributors)
+      .set({
+        ...Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined)),
+        ...(acceptPledge ? { pledgeAcceptedAt: sql`coalesce(${contributors.pledgeAcceptedAt}, ${now})` } : {}),
+      })
+      .where(eq(contributors.id, contributorId))
+      .returning()
+      .catch((err: unknown) => {
+        if (isUniqueViolation(err)) throw new TaskRuleError("conflict", "That handle is taken", "handle");
+        throw err;
+      });
+  });
   if (!row) throw new TaskRuleError("not_found", "Not signed in");
   return row;
 }

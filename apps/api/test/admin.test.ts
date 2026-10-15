@@ -149,7 +149,15 @@ describe("session guard on /admin/*", () => {
   it("accepts a session cookie minted with the test secret", async () => {
     const res = await get(makeApp(db).app, "/admin/me", "ada");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ id: "ada", displayName: "Ada", email: "Ada@Novawerk.io", canAdmin: true });
+    expect(await res.json()).toEqual({
+      id: "ada",
+      displayName: "Ada",
+      email: "Ada@Novawerk.io",
+      canAdmin: true,
+      publicProfile: false,
+      profileHandle: null,
+      profileBio: null,
+    });
   });
 
   it("answers 403 once the member is no longer active, and says who is not an admin", async () => {

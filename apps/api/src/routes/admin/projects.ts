@@ -57,7 +57,8 @@ const imagesOf = (p: Pick<Project, "coverUrl" | "gallery">) => [
 ];
 
 export function projectRoutes({ db, env, logger, files, triggerPromo }: AdminDeps) {
-  const refreshWebsite = () => revalidateWeb(env.webRevalidate, logger);
+  // The portfolio, and the contributors wall: it shows who started which public project.
+  const refreshWebsite = () => revalidateWeb(env.webRevalidate, logger, ["projects", "contributors"]);
 
   /** Delete pictures `before` had and nothing uses any more. Best effort: never fails a save. */
   async function dropUnusedImages(projectId: string, before: string[], after: string[]) {
