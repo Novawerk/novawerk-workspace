@@ -941,13 +941,15 @@ export async function setContributorSuspended(
     for (const t of held) {
       // In review: unlink the pull request first, so a later merge of it finds no task to pay.
       if (t.status === "in_review") {
-        await transitionIn(tx, { taskId: t.id, action: "pr_closed", actor: { kind: "system" }, note: "The account is suspended.", now });
+        await transitionIn(tx, { taskId: t.id, action: "pr_closed", actor: { kind: "system" }, quiet: true, now });
       }
       await transitionIn(tx, {
         taskId: t.id,
         action: "release",
         actor: { kind: "system" },
-        note: "Back on the board: the account that held it is suspended.",
+        // Public and neutral: the timeline doesn't say why, and nobody is mailed.
+        note: "Back on the board.",
+        quiet: true,
         now,
       });
     }

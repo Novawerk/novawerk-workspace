@@ -47,6 +47,11 @@ export interface TransitionInput {
   idleAt?: Date;
   /** Done through a personal access token: recorded on the event. */
   viaTokenId?: string;
+  /**
+   * No notice: the event names nobody (subject_contributor_id stays null). For a release that
+   * follows a suspension, which must neither read like an idle release nor go out by email.
+   */
+  quiet?: boolean;
   now?: Date;
 }
 
@@ -256,7 +261,7 @@ export async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task
     fromStatus: task.status,
     toStatus: to,
     ...actorColumns(input.actor),
-    subjectContributorId: subjectOf(input.action, task, patch),
+    subjectContributorId: input.quiet ? null : subjectOf(input.action, task, patch),
     note: input.note?.trim() || null,
     prUrl: input.action === "link_pr" || input.action === "merge" ? (patch.prUrl ?? null) : null,
     viaTokenId: input.viaTokenId ?? null,

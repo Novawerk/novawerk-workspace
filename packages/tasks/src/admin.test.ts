@@ -182,8 +182,13 @@ describe("fixes from the server review", () => {
     const held = await openTask({ status: "in_review", assigneeId: jonas.id, assignedAt: new Date(), prUrl: "https://github.com/x/y/pull/1" });
     await setContributorSuspended(db, "ada", jonas.id, true, "Spam");
     expect((await db.select().from(tasks).where(eq(tasks.id, held.id)))[0]).toMatchObject({ status: "open", assigneeId: null, prUrl: null });
-    const [released] = await db.select().from(taskEvents).where(eq(taskEvents.kind, "released"));
-    expect(released).toMatchObject({ actorMemberId: null, actorContributorId: null, subjectContributorId: jonas.id });
+    // Nothing public says why, and no event names them, so no notice goes out.
+    const events = await db.select().from(taskEvents).where(eq(taskEvents.taskId, held.id)).orderBy(taskEvents.id);
+    expect(events.map((e) => [e.kind, e.note, e.subjectContributorId])).toEqual([
+      ["pr_closed", null, null],
+      ["released", "Back on the board.", null],
+    ]);
+    expect(JSON.stringify(await getPublicTask(db, held.id))).not.toContain("suspend");
     await setContributorSuspended(db, "grace", jonas.id, false, "Talked it through");
     expect((await moderationHistory(db, jonas.id)).map((h) => [h.action, h.by, h.reason])).toEqual([
       ["unsuspended", "Grace", "Talked it through"],
