@@ -45,7 +45,7 @@ English.
   missing to `kit/` when another video could use it.
 - Lay out in the 1080 × 1440 safe area (`Stage`); 9:16 adds space above and below. Captions
   ~100 px, keywords in green, at most two lines.
-- **Draw, don't record.** Screens (/submit, /join, the home page) are drawn in the video's own
+- **Draw, don't record.** Screens (/submit, /contribute, /tasks, the home page) are drawn in the video's own
   style from the site's real layout and labels; no screen recordings, no fake screenshots.
 
 ## 4. Sound on every event
