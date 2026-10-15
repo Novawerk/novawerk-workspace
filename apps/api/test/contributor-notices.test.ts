@@ -178,6 +178,24 @@ describe("collect and send", () => {
     expect(kinds().sort()).toEqual(["proposal_chosen→lena@example.org", "released→lena@example.org", "reminder→lena@example.org"]);
   });
 
+  it("takes the reminder's dates from the event when the board recorded them", async () => {
+    const task = await openTask();
+    const p = await propose(db, lena, task.id, plan);
+    await chooseProposal(db, { proposalId: p.id, memberId: "ada" });
+    const now = new Date("2026-10-20T09:00:00Z");
+    // The row says otherwise (activity just now); the event's own times win.
+    await db.update(tasks).set({ lastActivityAt: now }).where(eq(tasks.id, task.id));
+    await db.insert(taskEvents).values({
+      taskId: task.id,
+      kind: "inactivity_reminder",
+      subjectContributorId: lena.id,
+      data: { idleSince: "2026-10-12T23:30:00.000Z", releaseAt: "2026-10-26T23:30:00.000Z" },
+      createdAt: now,
+    });
+    await runContributorNotices(db, send, logger, { now });
+    expect(mails.at(-1)!.mail).toMatchObject({ kind: "reminder", idleDays: 7, releaseOn: "2026-10-26" });
+  });
+
   it("sends a reminder without a subject to whoever holds the task", async () => {
     const task = await openTask();
     const p = await propose(db, lena, task.id, plan);

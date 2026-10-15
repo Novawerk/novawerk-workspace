@@ -139,15 +139,17 @@ async function fromEvents(db: Database, since: Date): Promise<NewNotice[]> {
         break;
       }
       case "inactivity_reminder": {
-        // The dates come from the task row, the way the board computes them (@nw/tasks idle.ts):
-        // the last activity, plus 14 days, plus 7 after an extension.
-        const since = idleSince(idle);
+        // The exact times the board wrote on the event (task_events.data); for a reminder written
+        // before that, the task row, the way the board computes them (@nw/tasks idle.ts).
+        const recorded = reminderTimes(e.data);
+        const since = recorded?.idleSince ?? idleSince(idle);
+        const releaseAt = recorded?.releaseAt ?? idleReleaseAt(idle);
         out.push({
           ...base,
           kind: "reminder",
           data: {
             idleDays: Math.max(0, Math.floor((e.createdAt.getTime() - since.getTime()) / DAY_MS)),
-            releaseOn: idleReleaseAt(idle).toISOString().slice(0, 10),
+            releaseOn: releaseAt.toISOString().slice(0, 10),
           },
         });
         break;
@@ -535,4 +537,15 @@ export async function runContributorNotices(
   const queued = await collectNotices(db, now);
   const sent = await dispatchNotices(db, send, logger, { ...opts, now });
   return { queued, ...sent, ...tidied };
+}
+
+/** `{ idleSince, releaseAt }` from an inactivity_reminder's data, when both are real dates. */
+function reminderTimes(data: unknown): { idleSince: Date; releaseAt: Date } | null {
+  if (!data || typeof data !== "object") return null;
+  const { idleSince: a, releaseAt: b } = data as Record<string, unknown>;
+  const since = typeof a === "string" ? new Date(a) : null;
+  const release = typeof b === "string" ? new Date(b) : null;
+  return since && release && !Number.isNaN(since.getTime()) && !Number.isNaN(release.getTime())
+    ? { idleSince: since, releaseAt: release }
+    : null;
 }

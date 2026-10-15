@@ -137,19 +137,31 @@ export async function transitionTask(db: Database, input: TransitionInput): Prom
   return db.transaction((tx) => transitionIn(tx, input));
 }
 
-/** transitionTask inside a transaction the caller holds (a member's question plus its post). */
-export async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
-  const now = input.now ?? new Date();
-  // The person who gets the task is locked before the task (see lockContributor).
+/**
+ * Lock order, everywhere: the contributors involved first (sorted by id), then the task.
+ * Suspending someone locks their row and then their tasks; a merge used to lock the task and
+ * then (for the Werk row's foreign key) the contributor, and the two deadlocked. So we take the
+ * people first: whoever holds the task now, and whoever gets it.
+ */
+async function lockPeople(tx: Tx, input: TransitionInput): Promise<void> {
+  const [current] = await tx
+    .select({ assigneeId: tasks.assigneeId, suggestedBy: tasks.suggestedBy })
+    .from(tasks)
+    .where(eq(tasks.id, input.taskId));
   const taker =
     input.action === "choose"
       ? input.assigneeId
       : input.action === "accept_assign"
-        ? (input.assigneeId ??
-          (await tx.select({ id: tasks.suggestedBy }).from(tasks).where(eq(tasks.id, input.taskId)))[0]?.id ??
-          undefined)
+        ? (input.assigneeId ?? current?.suggestedBy ?? undefined)
         : undefined;
-  if (taker) await lockContributor(tx, taker);
+  const ids = [...new Set([current?.assigneeId, taker].filter((id): id is string => Boolean(id)))].sort();
+  for (const id of ids) await lockContributor(tx, id);
+}
+
+/** transitionTask inside a transaction the caller holds (a member's question plus its post). */
+export async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
+  const now = input.now ?? new Date();
+  await lockPeople(tx, input);
   const task = await lockTask(tx, input.taskId);
   const { to, event } = planTransition(task, input.action, input.actor);
   const patch: Partial<typeof tasks.$inferInsert> = { status: to, updatedAt: now };
