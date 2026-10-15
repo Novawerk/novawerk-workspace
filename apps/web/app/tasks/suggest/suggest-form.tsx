@@ -10,14 +10,15 @@ import {
 } from "@nw/contracts";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { Pills } from "@/components/board/dialog";
 import { WHERE_LABELS } from "@/components/board/labels";
 import { Check, SignInPanel } from "@/components/board/sign-in";
-import { buttonAccent, buttonGhost, container, eyebrow, field, fieldHint, fieldLabel, textLink } from "@/components/ui";
+import { buttonAccent, buttonGhost, buttonSmallOutline, container, eyebrow, field, fieldHint, fieldLabel, textLink } from "@/components/ui";
 import { track } from "@/lib/analytics";
 import { api } from "@/lib/contrib-api";
+import { SCREENSHOT_ACCEPT, screenshotProblem, UploadError, uploadSuggestionScreenshot } from "@/lib/uploads";
 import { useSession, useToast } from "@/lib/session";
 
 const SECURITY_EMAIL = "security@novawerk.io";
@@ -57,6 +58,7 @@ function Form({ handle }: { handle: string }) {
   const [where, setWhere] = useState<SuggestionWhere | "">("");
   const [path, setPath] = useState("");
   const [doItMyself, setDoItMyself] = useState(false);
+  const [screenshot, setScreenshot] = useState<Shot | null>(null);
   const [issues, setIssues] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -75,12 +77,14 @@ function Form({ handle }: { handle: string }) {
     };
   }, [handle]);
 
-  const canSend = title.trim().length > 0 && body.trim().length > 0 && !busy;
+  const uploading = screenshot?.state === "uploading";
+  const canSend = title.trim().length > 0 && body.trim().length > 0 && !busy && !uploading;
 
   const send = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!canSend) return;
-    const parsed = suggestionInput.safeParse({ title, kind, body, where: where || undefined, path: path || undefined, doItMyself });
+    const shot = screenshot?.state === "done" ? { pathname: screenshot.pathname } : undefined;
+    const parsed = suggestionInput.safeParse({ title, kind, body, where: where || undefined, path: path || undefined, doItMyself, screenshot: shot });
     if (!parsed.success) {
       setIssues(Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0] ?? "form"), i.message])));
       return;
@@ -96,7 +100,7 @@ function Form({ handle }: { handle: string }) {
       return;
     }
     track("suggestion_sent", { kind });
-    toast("Thanks. Your suggestion is on the board.");
+    toast(shot ? "Thanks. Your suggestion is on the board; the screenshot shows once a member accepts it." : "Thanks. Your suggestion is on the board.");
     router.push(`/tasks/${res.data.id}`);
   };
 
@@ -189,6 +193,8 @@ function Form({ handle }: { handle: string }) {
           </div>
         </div>
 
+        <ScreenshotField value={screenshot} onChange={setScreenshot} error={issues.screenshot} />
+
         <Check checked={doItMyself} onChange={setDoItMyself}>
           I&apos;d like to do this myself. <span className="text-muted">A member may assign it to you directly when they accept it.</span>
         </Check>
@@ -262,6 +268,96 @@ function Boundaries() {
           <span>Suggestions are public. Anyone can comment; nobody can propose until a member accepts it.</span>
         </li>
       </ul>
+    </div>
+  );
+}
+
+type Shot =
+  | { state: "uploading"; name: string; preview: string; percent: number }
+  | { state: "done"; name: string; preview: string; pathname: string }
+  | { state: "failed"; name: string; message: string };
+
+/**
+ * The optional screenshot: PNG or JPEG, up to 2 MB. It uploads as soon as it's picked (to our
+ * private store), and shows on the task only once a member accepts the suggestion.
+ */
+function ScreenshotField({ value, onChange, error }: { value: Shot | null; onChange: (shot: Shot | null) => void; error?: string }) {
+  const id = useId();
+  const hintId = `${id}-hint`;
+  const [input, setInput] = useState(0);
+  /** Which pick is current: an upload that finishes after Remove or a newer pick is ignored. */
+  const current = useRef(0);
+
+  // The local preview's object URL is freed when the picture changes or the form goes away.
+  const preview = value && value.state !== "failed" ? value.preview : null;
+  useEffect(() => {
+    if (!preview) return;
+    return () => URL.revokeObjectURL(preview);
+  }, [preview]);
+
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    const mine = ++current.current;
+    const update = (shot: Shot) => {
+      if (current.current === mine) onChange(shot);
+    };
+    const problem = screenshotProblem(file);
+    if (problem) return update({ state: "failed", name: file.name, message: problem });
+    const shot = URL.createObjectURL(file);
+    update({ state: "uploading", name: file.name, preview: shot, percent: 0 });
+    try {
+      const { pathname } = await uploadSuggestionScreenshot(file, (percent) =>
+        update({ state: "uploading", name: file.name, preview: shot, percent: Math.round(percent) }),
+      );
+      update({ state: "done", name: file.name, preview: shot, pathname });
+    } catch (err) {
+      update({ state: "failed", name: file.name, message: err instanceof UploadError ? err.message : "The upload didn't work. Please try again." });
+    }
+  };
+
+  const clear = () => {
+    current.current++;
+    onChange(null);
+    setInput((n) => n + 1); // a fresh <input type=file>, so the same file can be picked again
+  };
+
+  return (
+    <div className="grid gap-1.5">
+      <label htmlFor={id} className={fieldLabel}>
+        Screenshot <span className={fieldHint}>optional</span>
+      </label>
+      <p id={hintId} className="text-[13px] text-muted">
+        PNG or JPEG, up to 2 MB. No personal data, please: it becomes public once a member accepts the suggestion, without its metadata.
+      </p>
+      {value && value.state !== "failed" ? (
+        <div className="flex items-center gap-3 border border-line bg-paper p-2.5">
+          {/* A local preview of the file just picked (an object URL), not a remote image. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value.preview} alt="" className="size-16 shrink-0 border border-line object-cover" />
+          <div className="grid min-w-0 flex-1 gap-0.5 text-sm">
+            <span className="truncate">{value.name}</span>
+            <span className="text-[13px] text-muted" role="status">
+              {value.state === "uploading" ? `Uploading… ${value.percent}%` : "Attached"}
+            </span>
+          </div>
+          <button type="button" className={buttonSmallOutline} onClick={clear}>
+            Remove
+          </button>
+        </div>
+      ) : (
+        <input
+          key={input}
+          id={id}
+          type="file"
+          accept={SCREENSHOT_ACCEPT}
+          aria-describedby={hintId}
+          aria-invalid={value?.state === "failed" || error ? true : undefined}
+          onChange={(e) => void pick(e.target.files?.[0])}
+          className={`${field} py-1.5 text-sm file:mr-3 file:border file:border-line-strong file:bg-paper file:px-3 file:py-1 file:text-sm`}
+        />
+      )}
+      {value?.state === "failed" ? <p className="text-sm text-danger">{value.message}</p> : null}
+      {error ? <p className="text-sm text-danger">{error}</p> : null}
     </div>
   );
 }

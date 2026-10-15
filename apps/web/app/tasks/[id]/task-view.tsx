@@ -227,6 +227,16 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
               What and why
             </h2>
             <Markdown className="mt-3 max-w-[68ch]">{task.body || task.summary}</Markdown>
+            {safeHref(task.screenshotUrl) ? (
+              <figure className="mt-5 grid max-w-[68ch] gap-2">
+                <a href={safeHref(task.screenshotUrl)!} target="_blank" rel="noopener noreferrer" className="block border border-line bg-paper">
+                  {/* A public Blob picture, copied without metadata when a member accepted the suggestion. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={safeHref(task.screenshotUrl)!} alt="Screenshot from the suggestion" loading="lazy" className="max-h-[480px] w-full object-contain" />
+                </a>
+                <figcaption className="text-[13px] text-muted">Screenshot from the suggestion. Opens full size.</figcaption>
+              </figure>
+            ) : null}
           </section>
 
           {task.criteria.length > 0 ? (
