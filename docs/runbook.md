@@ -73,6 +73,17 @@ Secrets the agents use: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `JIRA_BASE_URL`, `J
 `JIRA_API_TOKEN`. `RESEND_API_KEY` and `EMAIL_FROM` belong to the API only — never add them to an
 agent workflow.
 
+## Put a list of tasks on the board
+
+`pnpm import:tasks <file.json>` publishes a list of tasks as open, in the order given
+(`scripts/tasks.example.json` shows the format; it is what `POST /admin/tasks` takes).
+
+1. `pnpm import:tasks tasks.json` checks the file and writes nothing.
+2. `DATABASE_URL=… pnpm import:tasks tasks.json` also checks the titles against that board.
+3. `DATABASE_URL=… pnpm import:tasks tasks.json --apply --member <your id>` publishes them all in
+   one transaction, or none: it refuses when a title is already there (any case) or the member
+   isn't active. It prints the new `NW-<n>` ids. Use the production URL only when you mean it.
+
 ## The task board and GitHub
 
 - **A PR didn't move its task.** Check that it names the task (`Task: NW-42` in the body, or
