@@ -88,7 +88,10 @@ export type MemberPatch = MemberUpdateInput
 // ─── Inbox ───────────────────────────────────────────────────────────────────
 
 /** A project pitch from novawerk.io/submit, with the project it became. GET /admin/submissions/:id. */
-export type ProjectSubmission = InferResponseType<Admin["submissions"][":id"]["$get"], 200>
+type SubmissionDetail = InferResponseType<Admin["submissions"][":id"]["$get"], 200>
+/** A pitch. Only GET /admin/submissions/:id says what accepting would do about the pitcher. */
+export type ProjectSubmission = Omit<SubmissionDetail, "pitcher"> & { pitcher?: SubmissionDetail["pitcher"] }
+export type PitcherPreview = NonNullable<SubmissionDetail["pitcher"]>
 
 /** Body of PATCH /admin/submissions/:id. `null` clears a field. */
 export type SubmissionPatch = SubmissionUpdateInput

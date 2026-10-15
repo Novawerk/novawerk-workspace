@@ -165,8 +165,22 @@ created together with the status change. Accepting a pitch also queues our accep
 happens next and how we work) and **Decline** queues a short no; both are fixed templates and wait
 in the outbox for a member's approval (switch them off in the dialog). **Invite to a call** has the
 API's language model draft an invite from the pitch and the times you offer; you edit it and send it
-to the outbox. The person who pitched becomes the project's Initiator as soon as
-they are a Member (NB-ADR-0005).
+to the outbox.
+
+The first acceptance of a pitch also makes the person who pitched a Member and the project's
+Initiator, in the same step. The dialog says which before you click:
+
+- **A new Member** (no member has the email): handle from their name (or the email's local part
+  when the name gives fewer than 2 characters), free across members and contributors; no admin
+  access; joined today. They sign in with that email (an emailed code, or Google) and see their
+  own projects only.
+- **An existing Member** with the email (any case) is linked as they are; an admin stays an admin.
+- **A deactivated Member** with the email: accepting is refused. Reactivate them in Members first
+  if they should come back; a pitch never does that by itself.
+
+A contributor account with the same email stays a separate account. Accepting again leaves
+membership and the team alone; declining creates nothing. Then add the new Member to
+`records/people/roster.md` in the private repo, as for anyone who joins.
 
 ## Add a member
 

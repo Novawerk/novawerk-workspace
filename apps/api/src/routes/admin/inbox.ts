@@ -24,7 +24,7 @@ import {
 import { memberApplications, projectSubmissions, type Database } from "@nw/db";
 import { queueEmail } from "@nw/email";
 
-import { AcceptError, acceptApplication, acceptSubmission, submissionHasProject } from "../../admin/accept.js";
+import { AcceptError, acceptApplication, acceptSubmission, previewPitcher, submissionHasProject } from "../../admin/accept.js";
 import { acceptedEmail, declinedEmail, draftInvite, type DraftedEmail } from "../../admin/pitch-emails.js";
 import { intakeTranscript } from "../../admin/transcripts.js";
 import { conflict, notFound, notFoundIfInvalid, rejectInvalid, validationFailed } from "../../http.js";
@@ -90,7 +90,10 @@ export function inboxRoutes({ db, adminChat, files }: AdminDeps) {
           .from(projectSubmissions)
           .where(eq(projectSubmissions.id, c.req.valid("param").id))
           .limit(1);
-        return row ? c.json(row, 200) : c.json(notFound, 404);
+        if (!row) return c.json(notFound, 404);
+        // What accepting would do about the pitcher, so the dialog can say it before anyone clicks.
+        const pitcher = row.status === "accepted" ? null : await previewPitcher(db, row);
+        return c.json({ ...row, pitcher }, 200);
       })
 
       .patch(
@@ -124,15 +127,20 @@ export function inboxRoutes({ db, adminChat, files }: AdminDeps) {
           const { id } = c.req.valid("param");
           const { email = true, ...input } = c.req.valid("json");
           const member = c.get("member").id;
-          const before = await getSubmission(db, id);
           try {
-            const result = await acceptSubmission(db, id, input, member);
-            // Only the first acceptance writes to them.
-            const emailQueued = email && before?.status !== "accepted";
-            if (emailQueued) {
-              const isMember = result.initiator !== null;
-              await queuePitchEmail(db, result.submission.email, id, member, acceptedEmail(result.submission, { isMember }));
-            }
+            // Only the first acceptance writes to them, decided under the pitch's lock: a double
+            // click queues one note. Whether accepting just made them a Member picks the text.
+            const result = await acceptSubmission(db, id, input, member, async (tx, accepted) => {
+              if (!email) return;
+              await queuePitchEmail(
+                tx,
+                accepted.submission.email,
+                id,
+                member,
+                acceptedEmail(accepted.submission, { addedAsMember: accepted.addedAsMember }),
+              );
+            });
+            const emailQueued = email && result.firstAcceptance;
             return c.json({ ...result, emailQueued }, 200);
           } catch (err) {
             if (!(err instanceof AcceptError)) throw err;

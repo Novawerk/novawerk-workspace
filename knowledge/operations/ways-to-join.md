@@ -24,7 +24,9 @@ encode how Novawerk members agree to show up for each other.
 
 - Apply to join at `novawerk.io/join`. Applications land in the admin panel
   inbox and the team is notified at `info@novawerk.io`.
-- Have an idea you want to start? Pitch it at `novawerk.io/submit`.
+- Have an idea you want to start? Pitch it at `novawerk.io/submit`. When we
+  accept the pitch, you become a Member and the project's Initiator, and you
+  sign in to the admin panel with the email you pitched from.
 - Subscribe to the newsletter at the bottom of `novawerk.io/about`.
 - Or just show up at the next [open day](../community/rhythm.md).
 
