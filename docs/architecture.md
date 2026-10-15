@@ -129,10 +129,41 @@ Every email to someone outside Novawerk goes through the `outbox` table.
 
 On top of the code, agent workflows never get `RESEND_API_KEY`, so an agent cannot reach Resend
 at all. The intake acknowledgement is a fixed template: nothing an applicant writes can change
-what we email back. Three other doors exist: `notifyTeam()` only reaches `@novawerk.io`,
+what we email back. Four other doors exist: `notifyTeam()` only reaches `@novawerk.io`,
 `sendSignInCode()` sends one fixed template with a sign-in code to the address that is signing
 in (an active member's own, or a contributor's; NB-ADR-0013), and `sendNewsletterConfirmation()` sends one fixed double opt-in email with a confirmation link to
-the address that just signed up for the newsletter, at most 3 a day per address (NB-ADR-0011).
+the address that just signed up for the newsletter, at most 3 a day per address (NB-ADR-0011),
+and `sendContributorNotice()` sends fixed emails to a contributor about their own account and
+tasks, to their own verified address (NB-ADR-0013).
+
+### Contributor notices
+
+`GET /cron/contributor-notices` (`apps/api/src/contributor-notices.ts`) runs every 10 minutes
+from GitHub Actions (`.github/workflows/contributor-notices.yml`; Vercel's Hobby plan only runs
+crons daily, so `vercel.json` keeps a daily run as the fallback). It only turns what happened
+into mail; the board decides what happens (the reminder, the release, extensions). Each run:
+
+1. tidies: rows stuck `sending` for 15 minutes become `failed` with `unknown_outcome` (maybe
+   sent; never retried); finished rows go after 30 days; a deleted account's address after 7;
+2. queues notices into `contributor_notices`, one row per notice and person, each with a unique
+   key: task events by `subject_contributor_id` (chosen, `inactivity_reminder`, released, closed,
+   suggestion outcomes, Werk), proposals not chosen, and new posts (to the author replied to,
+   the person on the task, the person who suggested it). It looks back 7 days. Reminder dates
+   come from the task row (last activity + 14 days);
+3. sends what is pending, other kinds first, then replies whose hour has passed (one mail per
+   person and task per hour). Each row is claimed (`pending` → `sending`) and Resend gets an
+   idempotency key per notice (or per set of replies), so a retry can't send it twice; once
+   Resend has it, a failure to record that leaves the row `sending`, never `pending`. Three
+   tries, then `failed`; a 429 isn't a try and ends the run. Skipped, with the reason: suspended
+   accounts, accounts without a verified address, kinds turned off in settings
+   (`notify_replies`, `notify_reminders`), anything older than 48 hours, and "it's yours" or
+   a reminder for a task that changed hands.
+
+Replies and reminders carry `List-Unsubscribe` with a signed one-click URL
+(`POST /public/contributor-notices/off`, HMAC with the session secret): it turns that kind off
+without signing in. Deleting an account queues one last `account_deleted` mail in the same
+transaction, with the address on the row; the address is cleared once it is sent, or after 7
+days.
 
 ## Who sees what in the admin panel
 

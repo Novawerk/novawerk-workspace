@@ -7,6 +7,7 @@ import type { TeamNotification } from "@nw/email";
 import type { GitHubApi } from "@nw/github";
 
 import type { GitHubOAuth } from "./contributor-auth.js";
+import type { ContributorNoticeSender } from "./contributor-notices.js";
 
 /** Plain config values. Built from env in src/deps.ts; tests pass their own. */
 export interface ApiConfig {
@@ -154,6 +155,8 @@ export interface AppDeps {
   files?: Files;
   /** Signing in by email. Optional: without it /auth/email/* answer 503 (Google still works). */
   sendSignInCode?: SignInCodeSender;
+  /** Emails to contributors about their own tasks (src/contributor-notices.ts). Optional: without it the cron queues but sends nothing. */
+  sendContributorNotice?: ContributorNoticeSender;
   /** Contributors' codes: the task board wording. Optional: without it /auth/contributor/email/* answer 503. */
   sendContributorSignInCode?: SignInCodeSender;
   /** Double opt-in emails. Optional: without it POST /public/subscribe answers 503. */

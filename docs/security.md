@@ -20,6 +20,15 @@ text, account ids or addresses into this repo, an issue or a pull request.
   `sendApproved()` refuses any row a member did not approve or that was already sent, and claims
   the row with a conditional update so it is sent at most once. Tested in
   `packages/email/src/outbox.test.ts`, including two senders racing.
+- **Contributor notices are fixed and go to the contributor only.** `sendContributorNotice()`
+  takes one of the `CONTRIBUTOR_NOTICE_KINDS` and nothing else: a task number and title, a
+  number or date, a member's note, all escaped. The cron sends it to `contributors.email`, which
+  only an emailed sign-in code sets, never to an address someone typed. Each queued notice has a
+  unique key, is claimed before it is sent and carries a Resend idempotency key, so it goes out
+  at most once (a run that dies mid-send leaves it `failed`, maybe sent, never resent); suspended accounts,
+  accounts without an address and kinds turned off in settings get nothing (NB-ADR-0013).
+  Tested in `apps/api/test/contributor-notices.test.ts` and
+  `packages/email/src/contributor-notices.test.ts`.
 - **Sign-in codes are short-lived.** An emailed code lives 10 minutes, allows 5 tries, works
   once, and only its keyed hash is stored; at most 3 per address per 15 minutes. Asking for one
   doesn't reveal who is a member. Tested in `apps/api/test/member-portal.test.ts`.

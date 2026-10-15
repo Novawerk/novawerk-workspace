@@ -103,6 +103,10 @@ export const contributors = pgTable("contributors", {
   /** Set by a member (moderation): they can still sign in and read, but not write. */
   suspendedAt: timestamp("suspended_at", { withTimezone: true }),
   lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
+  /** Emails about replies on their posts and tasks. Settings; on by default. */
+  notifyReplies: boolean("notify_replies").notNull().default(true),
+  /** The 7-day inactivity reminder. Settings; on by default. */
+  notifyReminders: boolean("notify_reminders").notNull().default(true),
   /** Sessions issued before this are refused: set on sign-out and when sign-in methods change. */
   sessionsRevokedAt: timestamp("sessions_revoked_at", { withTimezone: true }),
   createdAt: createdAt(),
@@ -824,6 +828,11 @@ export const taskEvents = pgTable(
     toStatus: taskStatus("to_status"),
     actorContributorId: uuid("actor_contributor_id").references(() => contributors.id, { onDelete: "set null" }),
     actorMemberId: text("actor_member_id").references(() => members.id, { onDelete: "set null" }),
+    /**
+     * The contributor the event is about: the one who got or lost the task, whose suggestion
+     * was decided, who earned the Werk. Notices go to them. Never shown publicly.
+     */
+    subjectContributorId: uuid("subject_contributor_id").references(() => contributors.id, { onDelete: "set null" }),
     /** Public. */
     note: text("note"),
     prUrl: text("pr_url"),
@@ -888,6 +897,52 @@ export const werkLedger = pgTable(
   (t) => [
     unique("werk_ledger_task_pr_key").on(t.taskId, t.pr),
     index("werk_ledger_contributor_idx").on(t.contributorId, t.createdAt),
+  ],
+);
+
+export const contributorNoticeStatus = pgEnum("contributor_notice_status", [
+  "pending",
+  "sending",
+  "sent",
+  "skipped",
+  "failed",
+]);
+
+/**
+ * Emails to contributors about their own account and tasks (NB-ADR-0013), one row per notice
+ * and recipient. GET /cron/contributor-notices fills it from task events, posts and proposals,
+ * then sends. `key` is unique, so a notice is queued once; a row is claimed
+ * (`pending` → `sending`) before it is sent and Resend gets an idempotency key, so it is sent at
+ * most once. Finished rows are pruned after 30 days.
+ */
+export const contributorNotices = pgTable(
+  "contributor_notices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Where it came from, e.g. `event:812`, `post:<id>:<recipient>`, `reminder:42:<ms>`. */
+    key: text("key").notNull().unique(),
+    /** CONTRIBUTOR_NOTICE_KINDS in @nw/contracts. */
+    kind: text("kind").notNull(),
+    /** Null only for `account_deleted`, whose account is gone. */
+    contributorId: uuid("contributor_id").references(() => contributors.id, { onDelete: "cascade" }),
+    taskId: integer("task_id").references(() => tasks.id, { onDelete: "cascade" }),
+    /** What the template needs besides the task: a member's note, Werk, a date. */
+    data: jsonb("data").$type<Record<string, string | number | boolean | null>>().notNull().default({}),
+    /** `account_deleted` only: the address, kept until that one email is sent, then cleared. */
+    toEmail: text("to_email"),
+    status: contributorNoticeStatus("status").notNull().default("pending"),
+    /** Why it was skipped or failed, e.g. `no_address`, `suspended`, `turned_off`. */
+    reason: text("reason"),
+    attempts: integer("attempts").notNull().default(0),
+    /** When a run claimed it (`sending`). A row still `sending` 15 minutes later is swept to `failed`. */
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    providerMessageId: text("provider_message_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("contributor_notices_status_idx").on(t.status, t.createdAt),
+    index("contributor_notices_recipient_idx").on(t.contributorId, t.taskId, t.kind, t.sentAt),
   ],
 );
 
@@ -965,4 +1020,5 @@ export type TaskVote = typeof taskVotes.$inferSelect;
 export type TaskEvent = typeof taskEvents.$inferSelect;
 export type WerkEntry = typeof werkLedger.$inferSelect;
 export type PostReport = typeof postReports.$inferSelect;
+export type ContributorNotice = typeof contributorNotices.$inferSelect;
 export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert;

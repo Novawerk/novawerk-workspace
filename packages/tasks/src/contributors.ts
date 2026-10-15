@@ -12,7 +12,7 @@ import {
   type ProfileBanner,
   type ProfileUpdateInput,
 } from "@nw/contracts";
-import { contributors, taskEvents, tasks, type Contributor, type Database } from "@nw/db";
+import { contributorNotices, contributors, taskEvents, tasks, type Contributor, type Database } from "@nw/db";
 
 import { TaskRuleError, isUniqueViolation } from "./errors.js";
 import { iso } from "./people.js";
@@ -188,6 +188,8 @@ export function toContributorMe(c: Contributor): ContributorMe {
     defaultHandle: c.githubId === null && /^contributor-[0-9a-f]{4}(?:-\d+)?$/.test(c.handle),
     canWork: canWork(c),
     suspended: c.suspendedAt !== null,
+    notifyReplies: c.notifyReplies,
+    notifyReminders: c.notifyReminders,
     createdAt: iso(c.createdAt),
   };
 }
@@ -264,5 +266,13 @@ export async function deleteContributor(db: Database, contributorId: string, con
       );
     }
     await tx.delete(contributors).where(eq(contributors.id, contributorId));
+    // One last email, to the address the account had (NB-ADR-0013). The notices cron sends it,
+    // then clears the address; it is cleared after 7 days at the latest.
+    if (me.email) {
+      await tx
+        .insert(contributorNotices)
+        .values({ key: `deleted:${contributorId}`, kind: "account_deleted", toEmail: me.email, data: { handle: me.handle } })
+        .onConflictDoNothing({ target: contributorNotices.key });
+    }
   });
 }

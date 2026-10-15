@@ -170,6 +170,22 @@ describe("transitions", () => {
     expect(await code(() => propose(db, mira, second.id, plan()))).toBe("github_required");
   });
 
+  it("records who each event is about, for the notices", async () => {
+    const task = await openTask();
+    const p = await propose(db, lena, task.id, plan());
+    await chooseProposal(db, { proposalId: p.id, memberId: "ada" });
+    await transitionTask(db, { taskId: task.id, action: "release", actor: ada, note: "Moving on" });
+    const s = await suggestTask(db, jonas, suggestionInput.parse({ title: "Sort the wall", kind: "improvement", body: "An A–Z sort helps find people.", where: "site" }));
+    await transitionTask(db, { taskId: s.id, action: "decline", actor: ada, note: "Not now" });
+    const events = await db.select({ kind: taskEvents.kind, subject: taskEvents.subjectContributorId }).from(taskEvents).orderBy(taskEvents.id);
+    expect(events).toEqual([
+      { kind: "assigned", subject: lena.id },
+      { kind: "released", subject: lena.id },
+      { kind: "suggested", subject: null },
+      { kind: "declined", subject: jonas.id },
+    ]);
+  });
+
   it("releases a task back to open, and only the assignee or a member may", async () => {
     const task = await openTask({ status: "assigned", assigneeId: lena.id });
     expect(await code(() => transitionTask(db, { taskId: task.id, action: "release", actor: { kind: "contributor", id: jonas.id } }))).toBe("forbidden");

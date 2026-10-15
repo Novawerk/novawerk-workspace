@@ -93,7 +93,7 @@ export async function extendTask(db: Database, c: Contributor, taskId: number, n
       .where(and(eq(tasks.id, taskId), eq(tasks.assigneeId, c.id), eq(tasks.status, "assigned"), isNull(tasks.extendedAt)))
       .returning();
     if (!updated) throw new TaskRuleError("conflict", "You already asked for a week more on this task");
-    await tx.insert(taskEvents).values({ taskId, kind: "extended", actorContributorId: c.id, createdAt: now });
+    await tx.insert(taskEvents).values({ taskId, kind: "extended", actorContributorId: c.id, subjectContributorId: c.id, createdAt: now });
     return updated;
   });
 }
