@@ -207,6 +207,10 @@ export type Geometry = {
   spots: [number, number][];
   /** Where initiators stand with their flags: the front-left edge of the tower's base. */
   flags: [number, number][];
+  /** The next few cells to build, drawn as dashed outlines ("room to build"). Hero only. */
+  plan: Slot[];
+  /** Art px from the centre of the tower's top face (outlines included) up to the star's top edge. */
+  starRise: number;
 };
 
 /** Screen position (art px) of grid point (x, y) at height z on a tower's ground. */
@@ -216,6 +220,24 @@ export function toScreen(t: Tower, x: number, y: number, z: number): [number, nu
 
 /** Height of the pixel star above a tower's top face centre (its top edge), at 2 px per star pixel. */
 const STAR_RISE = 46;
+/** The star is 22 art px tall. A hero's star sits just above the top face's back corner. */
+export const heroStarRise = (c: number) => (TOWER_N * c) / 2 + 24;
+/** How many unbuilt cells a hero outlines. */
+export const PLAN_CELLS = 4;
+
+/** The next `n` cells of a tower, as if `n` small blocks came next. */
+export function planSlots(season: Pick<Season, "blocks">, n = PLAN_CELLS): Slot[] {
+  const next = Array.from({ length: n }, () => ({ size: "S" }) as Block);
+  return towerSlots([...season.blocks, ...next]).slots.slice(season.blocks.length);
+}
+
+/**
+ * A hero's camera: about this many art px across. Few blocks frame the tower closely (bigger
+ * pixels); it eases out to the whole ground as the tower grows. A function of the count only.
+ */
+export function heroSpan(blocks: number): number {
+  return Math.round(240 - 110 * Math.exp(-Math.max(0, blocks) / 40));
+}
 /** Skyline towers: smaller tiles, a 1 px-per-pixel star. */
 export const SKY_C = 4;
 export const SKY_H = 3;
@@ -227,12 +249,18 @@ const towerTop = (layers: number, c: number, h: number) => (TOWER_N * c) / 2 - l
 export function sceneGeometry(model: Pick<SceneModel, "seasons" | "initiators">, width: number, size: BuildersSize): Geometry {
   const N = TOWER_N;
   // A hero scales its pixels with the width (about 240 logical pixels across), so it fills the page.
-  const P = width < 520 ? 2 : size === "hero" ? Math.min(6, Math.max(3, Math.floor(width / 240))) : 3;
+  const hero = size === "hero";
+  const total = model.seasons.reduce((n, s) => n + s.blocks.length, 0);
+  // A hero scales its pixels with the width and zooms in while the tower is small (heroSpan).
+  const P = hero ? Math.min(8, Math.max(2, Math.round(width / heroSpan(total)))) : width < 520 ? 2 : 3;
   const bw = Math.max(120, Math.floor(width / P));
   const minH = Math.floor(bw * (size === "compact" ? 0.72 : 0.5));
   const maxH = Math.floor(bw * (size === "compact" ? 0.95 : 0.8));
   const current = model.seasons[model.seasons.length - 1];
   const finished = model.seasons.slice(0, -1);
+  const plan = hero ? planSlots(current) : [];
+  // The top layer counting the outlines, which the star sits above.
+  const layers = Math.max(current.layers, ...plan.map((s) => s.z + 1));
 
   // As many skyline towers as fit next to a slab with a ring of at least two cells.
   const skyW = 2 * N * SKY_C + SKY_GAP;
@@ -249,7 +277,7 @@ export function sceneGeometry(model: Pick<SceneModel, "seasons" | "initiators">,
     const maxRing = size === "compact" ? 3 : 5;
     ring = Math.max(2, Math.min(maxRing, Math.floor(((bw - left - 4) / (2 * c) - N) / 2)));
     // Everything measured from oy: the star on top, the ground's front edge (+2 soil) at the bottom.
-    const top = towerTop(current.layers, c, h) - STAR_RISE;
+    const top = towerTop(layers, c, h) - (hero ? heroStarRise(c) + 2 : STAR_RISE);
     const bottom = (N + ring) * c + 2;
     const skyTop = Math.min(0, ...shown.map((s) => (N * c) / 2 + c - N * SKY_C + towerTop(s.layers, SKY_C, SKY_H) - SKY_STAR_RISE));
     need = bottom - Math.min(top, skyTop) + 6;
@@ -286,5 +314,6 @@ export function sceneGeometry(model: Pick<SceneModel, "seasons" | "initiators">,
   // 2.4 cells apart, so the name labels on the flags (14 px tall) never overlap.
   for (let n = 0; n < model.initiators.length && -0.6 - n * 2.4 >= -ring + 0.2; n++) flags.push([-0.6 - n * 2.4, N + 0.9]);
 
-  return { P, bw, bh, current: { ox, oy, c, h }, ring, skyline, hiddenSeasons: finished.length - shown.length, spots, flags };
+  const starRise = hero ? heroStarRise(c) : 44;
+  return { P, bw, bh, current: { ox, oy, c, h }, ring, skyline, hiddenSeasons: finished.length - shown.length, spots, flags, plan, starRise };
 }

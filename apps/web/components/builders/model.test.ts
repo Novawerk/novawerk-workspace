@@ -8,6 +8,9 @@ import {
   blocksToCarry,
   buildModel,
   latestBlocks,
+  heroSpan,
+  PLAN_CELLS,
+  planSlots,
   sceneGeometry,
   seasonLabel,
   sortBlocks,
@@ -135,12 +138,30 @@ describe("sceneGeometry", () => {
     expect(sceneGeometry(m, 360, "full").P).toBe(2);
   });
 
-  it("scales a hero's pixels with the width", () => {
+  it("zooms a hero in on a small tower and eases out as it grows", () => {
+    expect(heroSpan(0)).toBe(130);
+    expect(heroSpan(1)).toBeLessThan(heroSpan(5));
+    expect(heroSpan(5)).toBeLessThan(heroSpan(142));
+    expect(heroSpan(1000)).toBe(240);
+    const P = (n: number, w: number) => sceneGeometry(buildModel(fixtureBlocks(n), FIXTURE_PEOPLE), w, "hero").P;
+    expect(P(1, 1088)).toBe(8);
+    expect(P(142, 1088)).toBe(5);
+    expect(P(1, 343)).toBe(3);
+    expect(P(142, 343)).toBe(2);
+    expect(P(1, 1600)).toBe(8);
+  });
+
+  it("outlines the next cells on a hero, after the last block", () => {
     const m = buildModel(fixtureBlocks(1), FIXTURE_PEOPLE);
-    expect(sceneGeometry(m, 360, "hero").P).toBe(2);
-    expect(sceneGeometry(m, 760, "hero").P).toBe(3);
-    expect(sceneGeometry(m, 1120, "hero").P).toBe(4);
-    expect(sceneGeometry(m, 1600, "hero").P).toBe(6);
+    const g = sceneGeometry(m, 1088, "hero");
+    expect(g.plan).toHaveLength(PLAN_CELLS);
+    const built = new Set(m.seasons[0].slots.flatMap((s) => s.cells.map((c) => `${c.x},${c.y},${c.z}`)));
+    for (const s of g.plan) for (const c of s.cells) expect(built.has(`${c.x},${c.y},${c.z}`)).toBe(false);
+    expect(sceneGeometry(m, 760, "full").plan).toEqual([]);
+    expect(planSlots({ blocks: [] }, 2).map((s) => s.cells[0])).toEqual([
+      { x: 0, y: 0, z: 0 },
+      { x: 1, y: 0, z: 0 },
+    ]);
   });
 
   it("keeps the star and the ground inside the scene", () => {
@@ -150,7 +171,9 @@ describe("sceneGeometry", () => {
           const m = buildModel(fixtureBlocks(n, "2024-01-01"), FIXTURE_PEOPLE);
           const g = sceneGeometry(m, w, size);
           const cur = m.seasons[m.seasons.length - 1];
-          const starTop = g.current.oy + (TOWER_N * g.current.c) / 2 - cur.layers * g.current.h - 46;
+          const layers = Math.max(cur.layers, ...g.plan.map((s) => s.z + 1));
+          // The star's top edge, with 1 px of bob.
+          const starTop = g.current.oy + (TOWER_N * g.current.c) / 2 - layers * g.current.h - g.starRise - 1;
           expect(starTop, `${n} blocks at ${w}px ${size}`).toBeGreaterThanOrEqual(0);
           expect(g.current.oy + (TOWER_N + g.ring) * g.current.c + 2).toBeLessThanOrEqual(g.bh);
           for (const s of g.skyline) expect(s.ox - TOWER_N * s.c).toBeGreaterThanOrEqual(0);
