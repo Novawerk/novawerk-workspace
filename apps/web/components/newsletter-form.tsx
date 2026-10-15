@@ -18,7 +18,7 @@ type Input = z.input<typeof newsletterSignupInput>;
 type Output = z.output<typeof newsletterSignupInput>;
 
 /** Double opt-in: a good signup goes to "check your inbox"; the email's link confirms it. */
-export function NewsletterForm() {
+export function NewsletterForm({ idPrefix = "newsletter" }: { idPrefix?: string } = {}) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -47,16 +47,16 @@ export function NewsletterForm() {
 
   return (
     <form onSubmit={onSubmit} noValidate className="relative space-y-3">
-      <label htmlFor="newsletter-email" className="block text-sm font-medium">
+      <label htmlFor={`${idPrefix}-email`} className="block text-sm font-medium">
         Email
       </label>
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
-          id="newsletter-email"
+          id={`${idPrefix}-email`}
           type="email"
           autoComplete="email"
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? "newsletter-email-error" : undefined}
+          aria-describedby={error ? `${idPrefix}-email-error` : undefined}
           className="block h-11 w-full min-w-0 border border-line-strong bg-paper px-3 text-base transition-colors duration-150 hover:border-ink focus:border-accent aria-[invalid=true]:border-danger"
           {...register("email")}
         />
@@ -64,7 +64,7 @@ export function NewsletterForm() {
           {isSubmitting ? "Subscribing…" : "Subscribe"}
         </button>
       </div>
-      <FieldError id="newsletter-email" error={error} />
+      <FieldError id={`${idPrefix}-email`} error={error} />
       <p className="text-xs text-muted">
         We email you a link to confirm first. Unsubscribe any time. See our{" "}
         <Link className={textLink} href="/privacy">

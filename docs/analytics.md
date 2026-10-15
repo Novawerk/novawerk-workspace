@@ -49,7 +49,7 @@ The schema is `webEventInput` in `@nw/contracts`; the API stores nothing else.
 | Event | Props | When |
 |-------|-------|------|
 | `page_view` | `utmSource`, `utmMedium`, `utmCampaign` (first view only) | page load and each client navigation |
-| `cta_click` | `target` submit/join, `placement` header/hero/get-involved/footer | a "Pitch a project" / "Join" link |
+| `cta_click` | `target` submit/contribute/tasks/agent (join: old events), `placement` header/hero/get-involved/footer/contribute | a call to action: "Pitch a project", "Contribute", "Find a task", "Set up your agent" |
 | `project_click` | `project` (slug) | a portfolio card's outbound link |
 | `intake_open` | `mode`, `resumed` | the chat loaded (new or resumed) |
 | `intake_unavailable` | `mode` | the assistant is off, the plain form shows |
@@ -66,6 +66,20 @@ The schema is `webEventInput` in `@nw/contracts`; the API stores nothing else.
 | `form_step` | `form` pitch/join, `step`, `of` | a plain-form step is shown |
 | `form_submitted` | `form` pitch/join/newsletter | a plain form or the newsletter went through |
 | `form_failed` | `form`, `reason` invalid/unavailable | it didn't |
+| `task_view` | `status` | a task page opened (no task id; profile paths are counted as `/u/_`, never with the handle) |
+| `task_filter` | `filter` search/area/size/status/skills/sort/view | a board control changed (which one, never its value) |
+| `propose_open` | `edit`, `signedIn` | "Propose a plan" or "Edit proposal" pressed |
+| `propose_sent` | `edit` | a proposal sent, edited or confirmed from an agent's draft |
+| `propose_failed` | `reason` invalid/limit/unavailable | it didn't go through |
+| `proposal_withdrawn` | — | a pending proposal withdrawn |
+| `post_sent` | `reply` | a post or reply in a task thread |
+| `vote` | `on` | a +1 given (`on: true`) or taken back |
+| `suggestion_sent` | `kind` improvement/bug | a task suggested |
+| `sign_in_open` | `placement` page/dialog | the sign-in page or dialog shown |
+| `sign_in_start` | `method` github/email | "Continue with GitHub" or "Send code" pressed |
+| `sign_in_done` | `method`, `firstRun` | an email sign-in finished (GitHub returns through the API) |
+| `profile_saved` | — | the profile editor saved |
+| `account_deleted` | — | a contributor deleted their account |
 
 ## Server events (`source = api`)
 

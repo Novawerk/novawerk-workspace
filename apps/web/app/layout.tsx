@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { BoardProviders } from "@/components/board/providers";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { getIdentity } from "@/lib/knowledge";
+import { getIdentity, getPledge } from "@/lib/knowledge";
 import { SITE_NAME, SITE_URL, TAGLINE } from "@/lib/site";
 
 import "./globals.css";
@@ -43,14 +44,16 @@ export const viewport: Viewport = {
   themeColor: "#f4f4f5",
   colorScheme: "light",
   // Phones shrink the page when the keyboard opens, so the Intake Agent's message box stays in
-  // view. Set here, not on /submit and /join: a link opens them as an intercepted route, which
-  // doesn't apply those pages' viewport.
+  // view. Set here, not on /submit: a link opens it as an intercepted route, which
+  // doesn't apply that page's viewport.
   interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children, modal }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    // The site is light only until dark mode ships (NW-43). data-theme pins the components that
+    // already have dark tokens (the builders scene) to light, so they match the page.
+    <html lang="en" data-theme="light" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <a
           href="#main"
@@ -58,12 +61,14 @@ export default function RootLayout({ children, modal }: LayoutProps<"/">) {
         >
           Skip to content
         </a>
-        <SiteHeader />
-        <main id="main" className="flex-1">
-          {children}
-        </main>
-        <SiteFooter />
-        {modal}
+        <BoardProviders pledge={getPledge()}>
+          <SiteHeader />
+          <main id="main" className="flex-1">
+            {children}
+          </main>
+          <SiteFooter />
+          {modal}
+        </BoardProviders>
       </body>
     </html>
   );

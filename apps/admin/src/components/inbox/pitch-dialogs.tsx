@@ -60,7 +60,7 @@ export function DeclinePitchDialog({ submission }: { submission: ProjectSubmissi
         <SwitchRow
           label={`Email ${name}`}
           htmlFor="decline-email"
-          description="A short, kind no, with an invitation to pitch again or join as a Member. It waits in the Outbox until a member approves it."
+          description="A short, kind no, with an invitation to pitch again or help on the task board. It waits in the Outbox until a member approves it."
         >
           <Switch id="decline-email" checked={email} onCheckedChange={setEmail} />
         </SwitchRow>

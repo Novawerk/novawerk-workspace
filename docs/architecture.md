@@ -109,7 +109,7 @@ NB-ADR-0009.
 |------|-------|-----|
 | Narrative (minutes, ADRs, digests, agendas, partner history) | git markdown (`records/`, private repo) | versioned, diffable |
 | Structured (members, submissions, partners, ledger, outbox, document index) | Postgres | queryable; edited in the admin panel |
-| Binary (contracts, NDAs, invoices, receipts; CVs from /submit and /join under `_resumes/`) | Vercel Blob, private store | every read goes through the API |
+| Binary (contracts, NDAs, invoices, receipts; CVs from /submit (and the closed /join) under `_resumes/`) | Vercel Blob, private store | every read goes through the API |
 | Project images | Vercel Blob, public store | served by Vercel's CDN |
 
 Agents write `records/` only through `@nw/records`' `RecordStore`, which accepts nothing but

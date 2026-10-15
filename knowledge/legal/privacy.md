@@ -10,6 +10,7 @@ source:
   - apps/api/src/newsletter.ts (double opt-in, unconfirmed addresses deleted)
   - apps/web/lib/analytics.ts, apps/api/src/analytics/ (visit counts, docs/analytics.md)
   - novawerk.io DNS and email setup (2026-10-03)
+  - apps/web (task board pages), apps/api/src/routes/contributor-auth.ts, packages/tasks (contributor accounts)
 updated: 2026-10-15
 ---
 
@@ -62,10 +63,12 @@ ourselves, without cookies and without an analytics company.
   country and region come from your IP address, which our hosting provider
   reads anyway to deliver the page; we keep only the result.
 - **How we tell visits apart:** your browser makes up a random number when you
-  open the site and forgets it when you close the tab. Nothing is stored on
-  your device, so we can't recognise you when you come back.
+  open the site and forgets it when you close the tab. Counting stores nothing
+  on your device, so we can't recognise you when you come back. (A contributor
+  account keeps one small flag in your browser; see "When you make a
+  contributor account". Counting never reads it.)
 - **Why:** to see which pages people read, how they find us, and where the
-  pitch and join chats get stuck.
+  pitch chat and the task board get stuck.
 - **Legal basis:** Art. 6(1)(f) GDPR — our legitimate interest in knowing how
   our website is used, in a way that doesn't identify you.
 - **Who:** the counts stay in our own database at Neon in Frankfurt. No one
@@ -75,9 +78,9 @@ ourselves, without cookies and without an analytics company.
   Control", we don't count you at all. You can also object at any time
   (Art. 21 GDPR) by writing to us.
 
-### When you chat with our assistant (novawerk.io/submit and /join)
+### When you chat with our assistant (novawerk.io/submit)
 
-Pitching a project and applying to join both start with a chat. An AI
+Pitching a project starts with a chat. An AI
 assistant asks you questions and writes your answers into a draft next to the
 chat. You can read and change the draft at any time.
 
@@ -114,7 +117,10 @@ strictly necessary for the chat to work (§ 25(2) no. 2 TDDDG).
   on, start it with you as its Initiator.
 - **Legal basis:** Art. 6(1)(b) GDPR — you asked us to consider your pitch.
 
-### When you apply to join (novawerk.io/join)
+### Applications to join (closed)
+
+We no longer take applications; `novawerk.io/join` now leads to the task board.
+For applications sent before, this is what we kept:
 
 - **What:** your name and email, your city if you give it, what you can do,
   your background and motivation, how much time you have, any links you add,
@@ -145,6 +151,86 @@ in the chat or in the form. It is optional.
 - **How long:** the file as long as the pitch or application it belongs to.
   If you attach a CV and don't send, we delete it after a day, or together
   with the chat it is in.
+
+### When you make a contributor account (the task board)
+
+Anyone can read the task board at novawerk.io/tasks without an account. To
+propose, post, suggest or +1, you sign in with GitHub or with a code we email
+you. That makes a contributor account. It isn't Novawerk membership.
+
+- **What we keep about you:** your handle and display name; your email address
+  if you sign in with a code; your GitHub account's number, login name and
+  picture link if you sign in with GitHub (we read only your public GitHub
+  profile and never keep your GitHub token), and the primary email address
+  GitHub has verified for you; what you write on your profile
+  (bio, about, links, colours); whether your profile is public and on the
+  contributors wall; when you accepted the community pledge.
+- **What you do on the board:** your proposals, posts and replies, suggestions,
+  +1s and reports, the tasks you hold, the pull requests linked to them, and the
+  Werk you earn. When a pull request names a task, GitHub tells us its number,
+  its author's GitHub login and whether it was merged.
+- **What is public:** your handle on everything you do on the board
+  (proposals, posts, suggestions, +1s, the task timeline). Your profile page and
+  your place on the contributors wall only if you turn your profile on (it is
+  off by default). A note explaining why a proposal wasn't chosen goes only to
+  you. We never show your email address to anyone.
+- **Your GitHub email:** each time you sign in with GitHub, we keep the
+  primary email address GitHub has verified for you. We use it only to send
+  you the notices below, and only when you have no email of your own on the
+  account. It never signs you in and is never shown to anyone. If GitHub
+  returns no verified primary address, we keep the one we had. When you
+  delete the account we keep it only until the goodbye email has gone out, at
+  most 7 days.
+- **Screenshots on suggestions:** a screenshot you attach to a suggestion
+  stays in our private file store, where only Members can see it, until a
+  Member accepts the suggestion. Then we publish a copy without the picture's
+  metadata (such as the camera, the place or the date it was taken). While it
+  is private, we delete it when the suggestion is declined or marked a
+  duplicate, or when you delete your account. Once a suggestion is accepted,
+  the public copy stays with the task, like the suggestion itself, as "a
+  former contributor" after you delete your account. An upload you never sent
+  with a suggestion is deleted after a day.
+- **Tokens for agents:** if you make a personal access token, we keep its name,
+  its scopes, when it expires and when it was last used, and only a hash of the
+  token itself. Everything a token does shows "via agent".
+- **Emails:** fixed notices about your own account and tasks, to your own
+  address only: sign-in codes; a member's decision on your proposal (chosen or
+  not chosen); replies to your posts and on your tasks (at most one email per
+  task an hour); a reminder when a task you hold has had no activity for 7
+  days; a task you hold being released or closed; what happened to a
+  suggestion of yours (accepted, declined, a duplicate, or more info needed);
+  Werk you earn; and a goodbye when you delete your account. You can turn off
+  replies and reminders in Settings, or with the one-click link in each of
+  those emails; the others come with the account. The newsletter comes only if
+  you sign up for it separately.
+- **Why:** to run your account and the task board, and to credit your work.
+- **Legal basis:** Art. 6(1)(b) GDPR — you asked for an account and to take
+  part in the board. Showing your profile publicly is your choice, and you can
+  turn it off in Settings at any time.
+- **How long:** until you delete your account in Settings. Deleting removes
+  your profile, proposals, +1s and tokens, and gives back a task you hold. Your
+  posts and the tasks you finished stay on the board as "a former contributor",
+  without your handle, and so do your suggestions. Merged code stays in the
+  public git history under your GitHub name, as GitHub keeps it. We keep your
+  address only until the goodbye email has gone out, at most 7 days.
+
+Signing in sets one cookie, `nw_contributor`, on api.novawerk.io. It keeps you
+signed in for 30 days. Signing in with GitHub also sets `nw_github_state` for
+10 minutes, which checks that the answer from GitHub belongs to your sign-in.
+Both are strictly necessary for the account to work (§ 25(2) no. 2 TDDDG).
+Sign-in codes are stored only as a hash and stop working after 10 minutes.
+
+The website also keeps one flag in your browser's local storage,
+`nw:contributor`. It holds just "1": it is set when you sign in and removed
+when you sign out, and it lets the site show your account in the header on
+every page. Without it, pages outside the task board don't ask whether you are
+signed in. It contains nothing about you and is never sent anywhere. This too
+is strictly necessary for the account to work (§ 25(2) no. 2 TDDDG).
+
+In Settings you can download your data as a file: your account and profile,
+your notification settings, your proposals (with the private notes on them),
+your +1s, and your tokens (names, scopes and dates, never the token itself).
+What you post, suggest and work on is public on the board already.
 
 ### When you sign up for the newsletter
 
@@ -191,8 +277,8 @@ its job, under data processing terms with us (Art. 28 GDPR).
 | Plus Five Five, Inc. (Resend), USA | Sending emails; passing emails sent to info@novawerk.io on to Slack | EU (Ireland) |
 | Google Ireland Ltd. (Google Workspace) | Our email inbox | EU and USA |
 | Slack Technologies, LLC, USA | Our team chat, where we read emails sent to info@novawerk.io | USA |
-| Anthropic PBC, USA | The chat assistant on /submit and /join; AI summaries and draft replies | USA |
-| GitHub, Inc., USA | Running our scheduled tasks, such as the AI summaries | USA |
+| Anthropic PBC, USA | The chat assistant on /submit; AI summaries and draft replies | USA |
+| GitHub, Inc., USA | Running our scheduled tasks, such as the AI summaries; signing in with GitHub and telling us about pull requests on the task board | USA |
 | Vercel Inc., USA (Vercel Blob) | Storing project images, CVs and internal files | EU (Frankfurt) |
 
 When data goes to the USA, the transfer is covered by the EU–US Data Privacy
@@ -213,6 +299,13 @@ requires us to.
 | Applications we accept | While you are a Member; deleted within 3 months after you leave |
 | Newsletter address | Until you unsubscribe; after that only the "unsubscribed" marker |
 | Newsletter address you never confirmed | Deleted once the confirmation link has expired and the address is at least 30 days old |
+| Contributor account | Until you delete it in Settings; your posts, suggestions and finished tasks then stay as "a former contributor" |
+| A deleted account's email address | Until the goodbye email has gone out, at most 7 days |
+| A screenshot you upload but don't send | Deleted after a day |
+| A screenshot on a suggestion, while private | Until a Member accepts, declines or marks the suggestion a duplicate, or you delete your account |
+| The public copy of a screenshot on an accepted suggestion | As long as the task is on the board |
+| Notices we emailed you (a record of each one) | Deleted after 30 days |
+| Sign-in codes | Stop working after 10 minutes; stored only as a hash |
 | Emails with you | Deleted together with the pitch or application they belong to; other emails after 2 years |
 | Server logs | Up to 30 days |
 | Visit counts (no IP, no cookies) | 13 months |
@@ -234,7 +327,8 @@ and you can object to processing based on our legitimate interest (Art. 21).
 If you gave consent, you can withdraw it at any time; that doesn't affect
 anything we did before (Art. 7(3)).
 
-To do any of this, email info@novawerk.io.
+To do any of this, email info@novawerk.io. With a contributor account you can
+also download your data and delete your account yourself, in Settings.
 
 You can also complain to a data protection authority, for example the one in
 Berlin: Berliner Beauftragte für Datenschutz und Informationsfreiheit,
@@ -243,13 +337,15 @@ Alt-Moabit 59–61, 10555 Berlin, www.datenschutz-berlin.de.
 ## Do you have to give us this data?
 
 No law requires it. But without your name, email and answers we can't review a
-pitch or an application, and without your email we can't send a newsletter.
+pitch, without an account you can't propose on the task board, and without
+your email we can't send a newsletter.
 
 ## Signing in to the admin panel
 
 Members who sign in to our admin panel with their Google account get one
 cookie that keeps them signed in. It is strictly necessary for that service
-(§ 25(2) TDDDG). Visitors of the public website never get it.
+(§ 25(2) TDDDG). Visitors of the public website never get it, and neither do
+contributors (their own cookie is described above).
 
 ## Changes
 

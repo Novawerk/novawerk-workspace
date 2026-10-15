@@ -14,7 +14,7 @@ workflows that run the agents.
 
 | Folder | What it holds |
 |--------|---------------|
-| `apps/web` | novawerk.io — the portfolio, an about page, and two forms: pitch a project (`/submit`) and join as a Member (`/join`). |
+| `apps/web` | novawerk.io — the portfolio, an about page, the pitch form (`/submit`), and the contributor task board (`/contribute`, `/tasks`, `/contributors`). |
 | `apps/admin` | admin.novawerk.io — where Members review pitches and applications, approve outgoing email, and edit the portfolio. |
 | `apps/api` | The only way into the database from the internet. The website and the admin panel both talk to it. |
 | `agents/` | Agents that draft, summarise and tidy up. They run on GitHub Actions, from workflows in the private repo. Nothing they write to someone outside Novawerk is sent until a Member approves it. |

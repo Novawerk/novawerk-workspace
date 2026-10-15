@@ -23,13 +23,20 @@ import type { AdminMetrics } from "@/lib/types"
 
 import { BarList, Panel, Section, StatTile } from "./parts"
 
-const TARGET_LABELS: Record<CtaTarget, string> = { submit: "Submit", join: "Join" }
+const TARGET_LABELS: Record<CtaTarget, string> = {
+  submit: "Submit",
+  join: "Join (old)",
+  contribute: "Contribute",
+  tasks: "Find a task",
+  agent: "Set up your agent",
+}
 
 const PLACEMENT_LABELS: Record<CtaPlacement, string> = {
   header: "Header",
   hero: "Hero",
   "get-involved": "Get involved",
   footer: "Footer",
+  contribute: "/contribute",
 }
 
 const AGENT_LABELS: Record<string, string> = { intake: "Intake Agent", "admin-assistant": "Admin assistant" }
@@ -60,7 +67,7 @@ export function CtaSection({ traffic }: { traffic: AdminMetrics["traffic"] }) {
     <Section
       id="metrics-cta"
       title="Calls to action"
-      description="Clicks on the “Pitch a project” and “Join” links, by where they sit on the site."
+      description="Clicks on the calls to action (Pitch a project, Contribute, Find a task, Set up your agent; Join before it closed), by where they sit on the site."
     >
       <div className="grid gap-3 lg:grid-cols-2">
         <Panel title="Link clicks" description={`${formatCount(total)} clicks in the range`}>

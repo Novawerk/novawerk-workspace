@@ -44,6 +44,11 @@ describe("templates", () => {
     expect(pitchLanguage(zh)).toBe("zh");
     expect(acceptedEmail(zh, { addedAsMember: false }).subject).toBe("我们想和你一起做 血压记录");
     expect(declinedEmail(zh).body).toContain("这次我们先不接这个项目");
+    expect(declinedEmail(zh).body).toContain("https://novawerk.io/tasks");
+    expect(acceptedEmail(zh, { addedAsMember: true }).body).toContain("我们已经把你加为成员");
+    expect(acceptedEmail(zh, { addedAsMember: false }).body).toContain("登录 https://admin.novawerk.io");
+    expect(declinedEmail(PITCH).body).toContain("pick a task at https://novawerk.io/tasks. Anyone can contribute.");
+    expect(declinedEmail(PITCH).body).not.toContain("Member");
   });
 
   it("say what happens next and how we work when we accept", () => {
@@ -54,7 +59,12 @@ describe("templates", () => {
     expect(body).toContain("4. Build for real");
     // Accepting makes them a Member, so no version of the note sends them to /join.
     expect(body).not.toContain("/join");
-    expect(acceptedEmail(PITCH, { addedAsMember: false }).body).not.toContain("/join");
+    expect(body).toContain("We've added you as a Member and as the Initiator of Repair café calendar.");
+    expect(body).toContain("Sign in at https://admin.novawerk.io with this email address (Google or an emailed code)");
+    const member = acceptedEmail(PITCH, { addedAsMember: false }).body;
+    expect(member).not.toContain("/join");
+    expect(member).toContain("You're now the Initiator of Repair café calendar. Sign in at https://admin.novawerk.io to edit your project.");
+    expect(member).not.toContain("We've added you as a Member");
   });
 
   it("only take the first name and a flattened project name from the pitch", () => {

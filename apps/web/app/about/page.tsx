@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Suspense } from "react";
 
+import { Avatar } from "@/components/board/bits";
 import { NewsletterForm } from "@/components/newsletter-form";
 import { Section } from "@/components/section";
 import { container, eyebrow, textLink } from "@/components/ui";
+import { getContributorPage } from "@/lib/board";
 import { getIdentity, getMission, getPrinciples, getProcess } from "@/lib/knowledge";
 import { CONTACT_EMAIL } from "@/lib/site";
 
@@ -77,11 +81,32 @@ export default function AboutPage() {
         <p className="max-w-2xl text-base sm:text-lg">
           We run the day-to-day with AI agents. They draft emails, prepare our meetings and keep our task
           board in order. People make the decisions. Nothing goes out to anyone outside Novawerk until a
-          Member has read it and said yes.
+          Member has read it and said yes. The one exception is the task board&apos;s own short notices to
+          contributors, such as a sign-in code or a decision on their proposal.
         </p>
       </Section>
 
-      {/* 5 + 6 — Newsletter and contact */}
+      {/* 5 — The people who build our tools */}
+      <section aria-labelledby="people" className="border-t border-line">
+        <div className={`${container} grid items-center gap-6 py-16 sm:py-24 md:grid-cols-2`}>
+          <div>
+            <h2 id="people" className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+              People who built this
+            </h2>
+            <p className="mt-3 text-base text-muted sm:text-lg">Contributors from everywhere help build the tools we run on.</p>
+          </div>
+          <div className="grid gap-3">
+            <Suspense fallback={null}>
+              <Faces />
+            </Suspense>
+            <Link className={`${textLink} justify-self-start text-sm`} href="/contributors">
+              See everyone →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 6 + 7 — Newsletter and contact */}
       <section aria-labelledby="stay-in-touch" className="border-t border-line">
         <div className={`${container} grid gap-6 py-16 sm:py-24 md:grid-cols-2`}>
           <h2 id="stay-in-touch" className="sr-only">
@@ -108,5 +133,23 @@ export default function AboutPage() {
         </div>
       </section>
     </>
+  );
+}
+
+/** Newest faces first, from the contributors wall (cached). */
+async function Faces() {
+  const page = await getContributorPage("limit=7");
+  const faces = page?.contributors ?? [];
+  if (faces.length === 0) return <p className="text-sm text-muted">The first faces arrive with the first merged tasks.</p>;
+  return (
+    <ul className="flex flex-wrap gap-1.5">
+      {faces.map((c) => (
+        <li key={c.handle}>
+          <Link href={`/u/${c.handle}`} title={`@${c.handle}`} aria-label={`@${c.handle}`}>
+            <Avatar name={c.name || c.handle} url={c.avatarUrl} />
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }

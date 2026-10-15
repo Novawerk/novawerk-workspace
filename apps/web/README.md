@@ -1,6 +1,8 @@
 # @nw/web — novawerk.io
 
-The public site: `/` (portfolio), `/about`, and the forms `/submit` and `/join`.
+The public site: `/` (portfolio), `/about`, the pitch form `/submit`, and the contributor task board
+(`/contribute`, `/tasks`, `/tasks/NW-42`, `/tasks/suggest`, `/contributors`, `/u/<handle>`, `/sign-in`,
+`/settings`). `/join` redirects (308) to `/contribute`.
 Next.js 16 App Router with Cache Components, Tailwind v4.
 
 ```bash
@@ -15,14 +17,21 @@ pnpm --filter @nw/web build && pnpm --filter @nw/web start
 - **About copy** — `lib/knowledge.ts` reads `knowledge/` at the repo root (mission, principles,
   four steps). Edit the Markdown there, not here. A `summary` frontmatter field wins
   over the derived text.
-- **Submit / Join** — a full-page Intake Agent (`components/intake/`, `lib/intake/`). The chat
+- **Task board** — `lib/board.ts` reads `/public/tasks`, `/public/contributors`, `/public/blocks`
+  and `/public/initiators` inside `"use cache"`, tagged `tasks` / `contributors` (the API revalidates
+  them after a merge). The contributor session is an httpOnly cookie on the API's domain, so the
+  server never knows who is signed in: every page prerenders for a visitor, and `lib/session.tsx`
+  asks `GET /auth/contributor/me` from the browser; `lib/contrib-api.ts` calls `/contrib/*` with
+  credentials. Filters on `/tasks` live in the URL (`app/tasks/filters.ts`). Shared pieces are in
+  `components/board/` (tags, the VI dialog, sign-in, the profile view, safe Markdown).
+- **Submit** — a full-page Intake Agent (`components/intake/`, `lib/intake/`). The chat
   streams from `POST ${NEXT_PUBLIC_API_URL}/public/intake/sessions/:id/messages` (SSE read with
   `fetch`, not EventSource); the draft panel shows the agent's `draft` events live, saves the
   visitor's own edits with a debounced `PATCH …/draft`, and enables Send once the shared
   `intakeDraftIssues` check passes and consent is ticked. The session
-  id lives in localStorage (`nw:intake:pitch`, `nw:intake:join`), so a reload resumes the chat.
+  id lives in localStorage (`nw:intake:pitch`), so a reload resumes the chat.
 - **Plain forms** — "Prefer a plain form?", or a 503 from the API, swaps in the step-by-step
-  wizards (`app/submit/submission-wizard.tsx`, `app/join/application-wizard.tsx`), seeded with
+  wizard (`app/submit/submission-wizard.tsx`), seeded with
   what the chat collected. react-hook-form + the `@nw/contracts` schemas, posting to
   `${NEXT_PUBLIC_API_URL}/public/*`. API `issues` land on the matching fields.
 - **Design tokens** — `app/globals.css` (`@theme`). White, near-black, grey, one green.

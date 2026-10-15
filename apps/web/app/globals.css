@@ -17,6 +17,32 @@
   --color-accent: #1f7a4a;
   --color-accent-deep: #0a3920;
   --color-danger: #b42318;
+
+  /* The task board. Status dots are semantic, so they don't count as a second accent. */
+  --color-field: #8e8e96;
+  --color-placeholder: #6b6b74;
+  --color-accent-soft: #e7f2ec;
+  --color-sheet-head: #eef5f0;
+  --color-danger-soft: #fdecea;
+  --color-warn: #9a5a06;
+  --color-warn-soft: #fcf1de;
+  --color-info: #2a5dc8;
+  --color-info-soft: #e9effb;
+  --color-st-suggested: #8e8e96;
+  --color-st-open: #a1a1aa;
+  --color-st-proposed: #c27c0e;
+  --color-st-progress: #2a5dc8;
+  --color-st-review: #7c4dcc;
+  --color-st-done: #1f7a4a;
+  --color-st-closed: #71717a;
+
+  /* Profile accents: six presets that pass AA on paper. */
+  --color-pa-green: #1f7a4a;
+  --color-pa-blue: #2a5dc8;
+  --color-pa-plum: #8a3f7a;
+  --color-pa-amber: #9a5a06;
+  --color-pa-teal: #12706f;
+  --color-pa-ink: #18181b;
 }
 
 /* next/font sets these variables on <html>, so reference them at runtime. */
@@ -38,6 +64,11 @@
     background: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
+  }
+
+  ::placeholder {
+    color: var(--color-placeholder);
+    opacity: 1;
   }
 
   ::selection {
@@ -208,5 +239,57 @@
   }
   .chat-md th {
     font-weight: 600;
+  }
+}
+
+/* Markdown written by contributors (task bodies, proposals, posts, profiles). */
+@layer components {
+  .board-md > * + * {
+    margin-top: 0.75rem;
+  }
+  .board-md ul {
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+  .board-md ol {
+    list-style: decimal;
+    padding-left: 1.25rem;
+  }
+  .board-md li + li {
+    margin-top: 0.25rem;
+  }
+  .board-md strong {
+    font-weight: 600;
+  }
+  .board-md a {
+    text-decoration: underline;
+    text-decoration-color: var(--color-line-strong);
+    text-underline-offset: 4px;
+  }
+  .board-md a:hover {
+    text-decoration-color: var(--color-ink);
+  }
+  .board-md code {
+    background: var(--color-subtle);
+    padding: 0.0625rem 0.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+  }
+  .board-md pre {
+    overflow-x: auto;
+    border: 1px solid var(--color-line);
+    background: var(--color-subtle);
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+  .board-md pre code {
+    background: none;
+    padding: 0;
+  }
+  .board-md blockquote {
+    border-left: 2px solid var(--color-line-strong);
+    padding-left: 1rem;
+    color: var(--color-muted);
   }
 }

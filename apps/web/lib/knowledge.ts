@@ -180,6 +180,12 @@ export function getPrinciples(): Principle[] {
   });
 }
 
+/** `culture/principles/pledge.md` — the four lines of the community pledge. */
+export function getPledge(): string[] {
+  const doc = readDoc("culture/principles/pledge.md");
+  return firstOf(section(doc.tokens, "The pledge"), "list")?.items.map((item) => clean(plain(item.tokens))) ?? [];
+}
+
 export interface Step {
   number: string;
   name: string;

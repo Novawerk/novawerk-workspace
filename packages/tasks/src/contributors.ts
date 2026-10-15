@@ -27,8 +27,8 @@ export interface GitHubUser {
   name: string | null;
   avatarUrl: string | null;
   /**
-   * The primary email GitHub has verified, or null. Kept only when the contributor has no email
-   * yet (never over one they verified with a code), and never shown publicly: it's for notices.
+   * The primary email GitHub has verified, or null. Kept as `notify_email` on every GitHub sign-in;
+   * notices use it only when the contributor has no email of their own. Never shown publicly.
    */
   email?: string | null;
 }
