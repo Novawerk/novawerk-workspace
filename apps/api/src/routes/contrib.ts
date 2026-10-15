@@ -11,6 +11,12 @@
 //   POST   /contrib/suggestions           suggest a task          → 201 { id, number }
 //   PUT    /contrib/tasks/:id/vote        +1 a suggestion         → { ok }
 //   DELETE /contrib/tasks/:id/vote        take it back            → { ok }
+//   GET    /contrib/me/tasks              what I hold, and my pending proposals → MyTasks
+//   GET    /contrib/tasks/:id/guide       the contribution guide (assignee) → TaskGuide
+//   POST   /contrib/tasks/:id/pr          link a PR by hand { url } → { ok, status } (checked on GitHub)
+//   POST   /contrib/tasks/:id/release     give it back, body optional { reason? } → { ok }
+//   POST   /contrib/tasks/:id/extend      "I need a week more", once → { ok, extendedAt }
+//   POST   /contrib/posts/:id/report      report a post { reason? } → { ok }
 //   PATCH  /contrib/me/profile            → ContributorMe
 //   DELETE /contrib/me { confirmHandle }  delete the account, sign out
 
@@ -24,17 +30,28 @@ import {
   accountDeleteInput,
   formatTaskId,
   postInput,
+  prLinkInput,
   profileUpdateInput,
   proposalInput,
   proposalUpdateInput,
+  releaseInput,
+  reportInput,
   suggestionInput,
   taskIdParam,
 } from "@nw/contracts";
+import { parsePullRequestUrl } from "@nw/github";
 import {
+  TaskRuleError,
   addPost,
   deleteContributor,
+  extendTask,
+  guideFor,
+  linkPrByHand,
   myProposals,
+  myTasks,
   propose,
+  releaseHeldTask,
+  reportPost,
   suggestTask,
   toContributorMe,
   toPublicProposal,
@@ -47,13 +64,14 @@ import {
 
 import { sessionCookieOptions } from "../auth.js";
 import { CONTRIBUTOR_COOKIE, requireContributor } from "../contributor-auth.js";
-import { notFoundIfInvalid, rejectInvalid } from "../http.js";
+import { issuesFrom, notFoundIfInvalid, rejectInvalid, validationFailed } from "../http.js";
 import type { ApiEnv, AppDeps } from "../types.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
+/** Proposals and posts are uuids. */
 const proposalIdParam = z.object({ id: z.uuid() });
 
-export function contribRoutes({ db, env }: AppDeps) {
+export function contribRoutes({ db, env, githubApi }: AppDeps) {
   return new Hono<ApiEnv>()
     .use("*", requireContributor(db, env.sessionSecret))
     .use("*", bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json({ error: "Request body too large" }, 413) }))
@@ -86,6 +104,59 @@ export function contribRoutes({ db, env }: AppDeps) {
     })
 
     .get("/me/proposals", async (c) => c.json(await myProposals(db, c.get("contributor").id), 200))
+    .get("/me/tasks", async (c) => c.json(await myTasks(db, c.get("contributor").id), 200))
+
+    .get("/tasks/:id/guide", zValidator("param", taskIdParam, notFoundIfInvalid), async (c) =>
+      c.json(await guideFor(db, c.get("contributor"), c.req.valid("param").id), 200),
+    )
+    .post(
+      "/tasks/:id/pr",
+      zValidator("param", taskIdParam, notFoundIfInvalid),
+      zValidator("json", prLinkInput, rejectInvalid),
+      async (c) => {
+        // The PR as GitHub sees it: open, by the assignee's account, naming this task.
+        const ref = parsePullRequestUrl(c.req.valid("json").url);
+        if (!ref) throw new TaskRuleError("invalid", "A pull request link", "url");
+        if (!githubApi) {
+          return c.json({ error: 'Linking by hand isn\'t available yet. Put "Task: NW-<n>" in your pull request\'s description instead.' }, 503);
+        }
+        const pr = await githubApi.getPullRequest(ref.repo, ref.number);
+        if (!pr) throw new TaskRuleError("invalid", "We can't find that pull request", "url");
+        const task = await linkPrByHand(db, c.get("contributor"), c.req.valid("param").id, pr);
+        return c.json({ ok: true as const, status: task.status, prUrl: task.prUrl }, 200);
+      },
+    )
+    .post(
+      "/tasks/:id/release",
+      zValidator("param", taskIdParam, notFoundIfInvalid),
+      async (c) => {
+        // The body is optional: no body, `{}` and `{ reason }` all work.
+        const text = await c.req.text();
+        let body: unknown = {};
+        try {
+          body = text.trim() ? JSON.parse(text) : {};
+        } catch {
+          return c.json(validationFailed({ _form: ["That isn't JSON"] }), 400);
+        }
+        const input = releaseInput.safeParse(body);
+        if (!input.success) return c.json(validationFailed(issuesFrom(input.error)), 400);
+        await releaseHeldTask(db, c.get("contributor"), c.req.valid("param").id, input.data.reason);
+        return c.json({ ok: true as const }, 200);
+      },
+    )
+    .post("/tasks/:id/extend", zValidator("param", taskIdParam, notFoundIfInvalid), async (c) => {
+      const task = await extendTask(db, c.get("contributor"), c.req.valid("param").id);
+      return c.json({ ok: true as const, extendedAt: task.extendedAt!.toISOString() }, 200);
+    })
+    .post(
+      "/posts/:id/report",
+      zValidator("param", proposalIdParam, notFoundIfInvalid),
+      zValidator("json", reportInput, rejectInvalid),
+      async (c) => {
+        await reportPost(db, c.get("contributor"), c.req.valid("param").id, c.req.valid("json").reason);
+        return c.json({ ok: true as const }, 200);
+      },
+    )
 
     .post(
       "/tasks/:id/posts",

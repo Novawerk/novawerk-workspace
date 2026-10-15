@@ -1,0 +1,60 @@
+{
+  "action": "opened",
+  "number": 212,
+  "pull_request": {
+    "url": "https://api.github.com/repos/Novawerk/novawerk-workspace/pulls/212",
+    "id": 2001,
+    "html_url": "https://github.com/Novawerk/novawerk-workspace/pull/212",
+    "number": 212,
+    "state": "open",
+    "locked": false,
+    "title": "Web: dark mode toggle in the header",
+    "user": {
+      "login": "lena-k",
+      "id": 90000001,
+      "type": "User",
+      "site_admin": false
+    },
+    "body": "Adds the toggle.\n\nTask: NW-5\n\nSigned-off-by: Lena Krause <lena@example.com>",
+    "created_at": "2026-10-15T08:00:00Z",
+    "updated_at": "2026-10-15T08:00:00Z",
+    "closed_at": null,
+    "merged_at": null,
+    "draft": false,
+    "head": {
+      "label": "lena-k:nw-5-dark-mode",
+      "ref": "nw-5-dark-mode",
+      "sha": "abc123"
+    },
+    "base": {
+      "label": "Novawerk:main",
+      "ref": "main",
+      "sha": "def456",
+      "repo": {
+        "id": 1,
+        "name": "novawerk-workspace",
+        "full_name": "Novawerk/novawerk-workspace",
+        "private": false
+      }
+    },
+    "merged": false,
+    "mergeable": null,
+    "comments": 0,
+    "commits": 1,
+    "author_association": "CONTRIBUTOR"
+  },
+  "repository": {
+    "id": 1,
+    "name": "novawerk-workspace",
+    "full_name": "Novawerk/novawerk-workspace",
+    "private": false
+  },
+  "sender": {
+    "login": "lena-k",
+    "id": 90000001,
+    "type": "User"
+  },
+  "installation": {
+    "id": 171409213
+  }
+}

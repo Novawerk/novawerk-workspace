@@ -73,6 +73,12 @@ Commits are signed off (`git commit -s`).
 - [AGENTS.md](AGENTS.md): a brief for your coding agent.
 - [SECURITY.md](SECURITY.md): report vulnerabilities to security@novawerk.io, never in public.
 
+### Contributors
+
+<!-- contributors:start -->
+Nobody yet. Be the first: [open tasks](https://novawerk.io/tasks).
+<!-- contributors:end -->
+
 ## History
 
 In October 2026 three repos became this one: `nw-back-office` (this repo's

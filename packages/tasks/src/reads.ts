@@ -2,6 +2,8 @@
 // so nothing here may depend on who asks: drafts, hidden posts' text, decline notes, withdrawn
 // proposals, private profiles and every email stay out.
 
+import { createHmac } from "node:crypto";
+
 import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
@@ -13,6 +15,8 @@ import {
   parseTaskId,
   type ContributorListQuery,
   type MyProposal,
+  type MyTasks,
+  type PublicBlock,
   type ProfileAccent,
   type ProfileBanner,
   type ProposalEta,
@@ -479,4 +483,48 @@ export async function getPublicContributor(db: Database, handle: string): Promis
     done: done.map((t) => ({ ...refOf(t), mergedAt: t.doneAt ? iso(t.doneAt) : null })),
     ideasAccepted: ideas.map(refOf),
   };
+}
+
+// ─── Blocks and my tasks ─────────────────────────────────────────────────────
+
+/**
+ * A stable, opaque key for someone whose profile isn't public (or who left): the same person is
+ * the same key on every visit, and the key can't be turned back into a handle without `anonKey`.
+ */
+export const anonymousKey = (anonKey: string, seed: string) => `anon-${createHmac("sha256", anonKey).update(seed).digest("hex").slice(0, 8)}`;
+
+/**
+ * GET /public/blocks: every merged task, oldest first, for the builders scene. As on the wall, a
+ * person is named only with a public profile and an active account; anyone else is an unnamed
+ * figure with a stable key (the design: "people without a public profile appear as unnamed
+ * figures"). Tasks themselves still show a private person's handle, unlinked (people.ts).
+ */
+export async function listPublicBlocks(db: Database, anonKey: string): Promise<PublicBlock[]> {
+  const rows = await db
+    .select({
+      task: tasks,
+      assignee: { id: assignee.id, handle: assignee.handle, public: assignee.public, suspendedAt: assignee.suspendedAt },
+    })
+    .from(tasks)
+    .leftJoin(assignee, eq(assignee.id, tasks.assigneeId))
+    .where(and(eq(tasks.status, "done"), isNotNull(tasks.doneAt)))
+    .orderBy(asc(tasks.doneAt), asc(tasks.id));
+  return rows.map(({ task, assignee: who }) => ({
+    id: formatTaskId(task.id),
+    title: task.title,
+    area: task.area as TaskArea | null,
+    size: task.size,
+    // Named only with a public profile and an active account, as on the wall; else an unnamed figure.
+    handle: who?.public && !who.suspendedAt ? who.handle : anonymousKey(anonKey, who ? `contributor:${who.id}` : `task:${task.id}`),
+    mergedAt: iso(task.doneAt!),
+  }));
+}
+
+/** GET /contrib/me/tasks: what I hold (in progress or in review) and my pending proposals. */
+export async function myTasks(db: Database, contributorId: string): Promise<MyTasks> {
+  const held = await selectTasks(db)
+    .where(and(eq(tasks.assigneeId, contributorId), inArray(tasks.status, ["assigned", "in_review"])))
+    .orderBy(desc(tasks.updatedAt));
+  const proposals = (await myProposals(db, contributorId)).filter((p) => p.status === "pending" && !p.withdrawn);
+  return { held: held.map(toPublicTask), proposals };
 }

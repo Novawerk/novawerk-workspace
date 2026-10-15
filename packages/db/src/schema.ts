@@ -690,6 +690,8 @@ export const tasks = pgTable(
     assignedAt: timestamp("assigned_at", { withTimezone: true }),
     /** The assignee's last post, commit or PR event: tasks go back on the board after 14 idle days. */
     lastActivityAt: timestamp("last_activity_at", { withTimezone: true }),
+    /** "I need a week more": once per assignment, pushes the release back 7 days. */
+    extendedAt: timestamp("extended_at", { withTimezone: true }),
     prUrl: text("pr_url"),
     /** The member who reviews the PR. */
     reviewerId: text("reviewer_id").references(() => members.id, { onDelete: "set null" }),
@@ -830,6 +832,39 @@ export const taskEvents = pgTable(
   (t) => [index("task_events_task_idx").on(t.taskId, t.id)],
 );
 
+/** "Report" on a post: one per contributor and post. Members see them in admin → Discussions. */
+export const postReports = pgTable(
+  "post_reports",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => taskPosts.id, { onDelete: "cascade" }),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    contributorId: uuid("contributor_id")
+      .notNull()
+      .references(() => contributors.id, { onDelete: "cascade" }),
+    /** Optional, up to 500 characters. Members only. */
+    reason: text("reason"),
+    createdAt: createdAt(),
+  },
+  (t) => [unique("post_reports_post_contributor_key").on(t.postId, t.contributorId), index("post_reports_task_idx").on(t.taskId)],
+);
+
+/**
+ * GitHub webhook deliveries (X-GitHub-Delivery), so a redelivery does nothing twice. A row
+ * without `handledAt` is in progress; one whose handling died (no `handledAt` after 5 minutes)
+ * can be claimed again by a redelivery. Kept 30 days (/cron/github-sync).
+ */
+export const githubDeliveries = pgTable("github_deliveries", {
+  id: text("id").primaryKey(),
+  event: text("event").notNull(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  handledAt: timestamp("handled_at", { withTimezone: true }),
+});
+
 /**
  * Werk: recognition for merged work, never money. Append-only: a merge adds one row per task
  * and PR (the unique key makes a second award fail), and a member's change is a new row with a
@@ -929,4 +964,5 @@ export type TaskPost = typeof taskPosts.$inferSelect;
 export type TaskVote = typeof taskVotes.$inferSelect;
 export type TaskEvent = typeof taskEvents.$inferSelect;
 export type WerkEntry = typeof werkLedger.$inferSelect;
+export type PostReport = typeof postReports.$inferSelect;
 export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert;

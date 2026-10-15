@@ -4,6 +4,8 @@ import type { Files } from "@nw/object-store";
 import type { CardFontLoader } from "@nw/promo/cards";
 import type { TeamNotification } from "@nw/email";
 
+import type { GitHubApi } from "@nw/github";
+
 import type { GitHubOAuth } from "./contributor-auth.js";
 
 /** Plain config values. Built from env in src/deps.ts; tests pass their own. */
@@ -30,6 +32,8 @@ export interface ApiConfig {
   webRevalidate?: { url: string; secret: string };
   /** Vercel Cron's bearer token for /cron/*. Unset: those routes answer 404. */
   cronSecret?: string;
+  /** GitHub's webhook signing secret. Unset: POST /webhooks/github answers 404. */
+  githubWebhookSecret?: string;
   /** Public origins of this API and of the website: the links in newsletter emails point there. */
   publicUrls: { apiUrl: string; webUrl: string };
 }
@@ -158,6 +162,11 @@ export interface AppDeps {
   inboundMail?: InboundMailOptions;
   /** Contributor sign-in with GitHub. Optional: without it /auth/contributor/github/* answer 503. */
   githubOAuth?: GitHubOAuth;
+  /**
+   * The GitHub App on our repository (comments, labels, the nightly reconcile). Optional: without
+   * it the webhook still moves tasks but says nothing on the PR, and the reconcile is skipped.
+   */
+  githubApi?: GitHubApi;
 }
 
 /** The signed-in member as the admin panel sees it. */

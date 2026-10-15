@@ -251,7 +251,7 @@ export async function deleteContributor(db: Database, contributorId: string, con
     if (held.length) {
       await tx
         .update(tasks)
-        .set({ status: "open", assigneeId: null, assignedAt: null, prUrl: null, lastActivityAt: null })
+        .set({ status: "open", assigneeId: null, assignedAt: null, prUrl: null, lastActivityAt: null, extendedAt: null })
         .where(inArray(tasks.id, held.map((t) => t.id)));
       await tx.insert(taskEvents).values(
         held.map((t) => ({

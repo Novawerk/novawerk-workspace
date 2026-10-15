@@ -11,6 +11,7 @@ import {
 } from "@nw/agent-harness";
 import { loadConfig, requiredVars } from "@nw/config";
 import { createDb } from "@nw/db";
+import { createGitHubApi } from "@nw/github";
 import { BlobFiles, type FileStoreConfig } from "@nw/object-store";
 import { notifyTeam, sendNewsletterConfirmation, sendSignInCode, type NotifyOptions } from "@nw/email";
 
@@ -72,6 +73,8 @@ export interface ResolvedEnv {
   inboundMail?: InboundMailOptions;
   /** The GitHub App contributors sign in with (GITHUB_APP_CLIENT_ID / _SECRET, via @nw/config). */
   githubApp?: { clientId: string; clientSecret: string };
+  /** The same App acting on our repository (GITHUB_APP_ID, _PRIVATE_KEY, _INSTALLATION_ID). */
+  githubAppAuth?: { appId: string; privateKey: string; installationId: string };
 }
 
 /**
@@ -202,6 +205,15 @@ export function readEnv(env: EnvSource): ResolvedEnv {
   const githubVars = requiredVars(["githubApp"]);
   const githubSet = githubVars.filter((key) => get(key));
   if (githubSet.length && githubSet.length < githubVars.length) problems.push(`Set all of ${githubVars.join(", ")}, or none`);
+  const appAuthVars = requiredVars(["githubAppAuth"]);
+  const appAuthSet = appAuthVars.filter((key) => get(key));
+  if (appAuthSet.length && appAuthSet.length < appAuthVars.length) problems.push(`Set all of ${appAuthVars.join(", ")}, or none`);
+  const installationId = get("GITHUB_APP_INSTALLATION_ID");
+  if (installationId && !/^\d+$/.test(installationId)) problems.push("GITHUB_APP_INSTALLATION_ID is a number");
+  const githubWebhookSecret = get("GITHUB_WEBHOOK_SECRET");
+  if (githubWebhookSecret && githubWebhookSecret.length < MIN_CRON_SECRET_LENGTH) {
+    problems.push(`GITHUB_WEBHOOK_SECRET must be at least ${MIN_CRON_SECRET_LENGTH} characters`);
+  }
   const contributorOrigins = get("CONTRIBUTOR_ORIGINS");
   if (problems.length) throw new Error(`@nw/api env: ${problems.join("; ")}`);
 
@@ -213,6 +225,7 @@ export function readEnv(env: EnvSource): ResolvedEnv {
       allowedOrigins: list(get("ALLOWED_ORIGINS") ?? ENV_DEFAULTS.ALLOWED_ORIGINS),
       adminOrigins: list(get("ADMIN_ORIGINS") ?? ENV_DEFAULTS.ADMIN_ORIGINS),
       ...(contributorOrigins ? { contributorOrigins: list(contributorOrigins) } : {}),
+      ...(githubWebhookSecret ? { githubWebhookSecret: loadConfig(["githubWebhook"], env).githubWebhook.secret.trim() } : {}),
       googleClientId,
       sessionSecret,
       ...(devLogin ? { devLogin } : {}),
@@ -249,12 +262,14 @@ export function readEnv(env: EnvSource): ResolvedEnv {
         }
       : {}),
     ...(githubSet.length ? { githubApp: loadConfig(["githubApp"], env).githubApp } : {}),
+    ...(appAuthSet.length ? { githubAppAuth: loadConfig(["githubAppAuth"], env).githubAppAuth } : {}),
   };
 }
 
 /** Production deps: a lazy node-postgres pool and `notifyTeam` via Resend (or console). */
 export function depsFromEnv(env: EnvSource): AppDeps {
-  const { databaseUrl, config, notify, outbox, files, anthropicApiKey, intakeChat, inboundMail, githubApp } = readEnv(env);
+  const { databaseUrl, config, notify, outbox, files, anthropicApiKey, intakeChat, inboundMail, githubApp, githubAppAuth } =
+    readEnv(env);
   const production = Boolean(env.VERCEL?.trim()) || env.NODE_ENV === "production";
   const db = createDb(databaseUrl);
   const agents = anthropicApiKey ? { db, claude: { apiKey: anthropicApiKey }, logger: console } : undefined;
@@ -298,5 +313,6 @@ export function depsFromEnv(env: EnvSource): AppDeps {
       : {}),
     ...(inboundMail ? { inboundMail } : {}),
     ...(githubApp ? { githubOAuth: createGitHubOAuth(githubApp) } : {}),
+    ...(githubAppAuth ? { githubApi: createGitHubApi(githubAppAuth) } : {}),
   };
 }

@@ -4,23 +4,29 @@
 //
 //   GET /public/tasks?area=web,api&size=S&status=active&skills=react&q=…&sort=updated&cursor=…
 //   GET /public/tasks/NW-42
-//   GET /public/contributors?sort=newest|az&area=web
+//   GET /public/contributors?sort=newest|az&area=web&cursor=…
 //   GET /public/contributors/:handle
+//   GET /public/blocks                  every merged task, oldest first (the builders scene)
+
+import { createHmac } from "node:crypto";
 
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 
 import { HANDLE_PATTERN, contributorListQuery, taskIdParam, taskListQuery } from "@nw/contracts";
-import { getPublicContributor, getPublicTask, listPublicContributors, listPublicTasks } from "@nw/tasks";
+import { getPublicContributor, getPublicTask, listPublicBlocks, listPublicContributors, listPublicTasks } from "@nw/tasks";
 
 import { notFound, notFoundIfInvalid, rejectInvalid } from "../http.js";
 import type { ApiEnv, AppDeps } from "../types.js";
 
 const handleParam = z.object({ handle: z.string().toLowerCase().max(40).regex(HANDLE_PATTERN) });
 
-export function boardRoutes({ db }: AppDeps) {
+export function boardRoutes({ db, env }: AppDeps) {
+  // Keys the anonymous handles on /public/blocks: stable, and not reversible without the secret.
+  const anonKey = createHmac("sha256", env.sessionSecret).update("nw-public-blocks").digest("hex");
   return new Hono<ApiEnv>()
+    .get("/blocks", async (c) => c.json(await listPublicBlocks(db, anonKey), 200))
     .get("/tasks", zValidator("query", taskListQuery, rejectInvalid), async (c) =>
       c.json(await listPublicTasks(db, c.req.valid("query")), 200),
     )

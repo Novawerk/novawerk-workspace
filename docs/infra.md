@@ -127,7 +127,7 @@ and production. "—" means unset.
 |----------|-------|------------|
 | `DATABASE_URL` | Docker | Neon |
 | `GOOGLE_CLIENT_ID` | any placeholder, or the real client | OAuth client |
-| `SESSION_SECRET` | any 32+ characters | its own, never reused |
+| `SESSION_SECRET` | any 32+ characters | its own, never reused. Also keys the anonymous names on `/public/blocks`: rotating it renames them. |
 | `DEV_LOGIN` | `true` | — (the API refuses to start with it on Vercel) |
 | `RESEND_API_KEY` | — | production key |
 | `ALLOWED_ORIGINS` | default | `https://novawerk.io,https://www.novawerk.io,https://admin.novawerk.io` |
@@ -141,11 +141,44 @@ and production. "—" means unset.
 | `RESEND_WEBHOOK_SECRET`, `RESEND_RECEIVING_API_KEY`, `SLACK_INBOX_WEBHOOK_URL` | — | set; see "info@ in Slack" |
 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` | the GitHub App's, or unset (email codes still work) | the GitHub App `novawerk-task-board` |
 | `CONTRIBUTOR_ORIGINS` | default | `https://novawerk.io,https://www.novawerk.io` |
+| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_INSTALLATION_ID` | — (the board moves tasks without replying on PRs) | the App's id `5317582`, its private key (PEM), installation `171409213` |
+| `GITHUB_WEBHOOK_SECRET` | — (`/webhooks/github` answers 404) | the App's webhook secret, 16+ characters |
 
 Contributors sign in through the GitHub App `novawerk-task-board` (user authorization only).
 Its callback URLs are `https://api.novawerk.io/auth/contributor/github/callback` and
 `http://localhost:8787/auth/contributor/github/callback`; the API builds the callback from
 `PUBLIC_API_URL`, so locally set that to `http://localhost:8787`.
+
+### The GitHub App and the webhook
+
+The App `novawerk-task-board` (App ID 5317582, installed only on `Novawerk/novawerk-workspace`,
+installation 171409213) does two jobs with two sets of variables: contributor sign-in (the
+client id and secret, above) and acting on our repository (`GITHUB_APP_ID`,
+`GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_INSTALLATION_ID`): it comments on pull requests and adds a
+`size:<S|M|L|XL>` label. Its permissions: pull requests write, checks write, metadata read, email
+addresses read. Events: `pull_request`, `pull_request_review`.
+
+Switch the webhook on:
+
+1. Generate a webhook secret (`openssl rand -hex 32`) and a private key (App settings →
+   Private keys → Generate). The key downloads as a `.pem` file.
+2. In Vercel (novawerk-api, Production) set `GITHUB_WEBHOOK_SECRET`, `GITHUB_APP_ID=5317582`,
+   `GITHUB_APP_INSTALLATION_ID=171409213` and `GITHUB_APP_PRIVATE_KEY` (paste the whole PEM;
+   a one-line value with `\n` works too). Redeploy. Then delete the downloaded `.pem`.
+3. App settings → Webhook: Active on, URL `https://api.novawerk.io/webhooks/github`, the same
+   secret, content type JSON. Save.
+4. Check: Advanced → Recent deliveries shows the `ping` with a 200 (`{"ignored":"ping"}`).
+
+`/cron/github-sync` (04:00 UTC) catches up on anything the webhook missed: it reads the last
+week's pull requests with the App, and also reminds and releases idle tasks. Without the App
+variables it only does the latter.
+
+The README's Contributors block is rewritten by `.github/workflows/contributors.yml` (nightly,
+"Run workflow", or a `contributors` repository_dispatch). It reads `GET /public/contributors`
+and commits only `README.md` with the workflow's own `GITHUB_TOKEN`. The API doesn't send the
+dispatch yet: that needs Contents write on the App, which it doesn't have; the nightly run covers it.
+The commit author's email is the repository variable `NOVAWERK_BOT_EMAIL` (falls back to the
+Actions bot).
 
 Set the origin lists explicitly in production. The built-in defaults include `localhost`,
 which is only meant for local development.

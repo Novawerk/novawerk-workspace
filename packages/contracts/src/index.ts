@@ -1719,6 +1719,10 @@ export const TASK_EVENT_KINDS = [
   "pr_closed",
   "merged",
   "closed",
+  /** No activity for 7 days: the assignee gets a reminder (邮件 sends it from this event). */
+  "inactivity_reminder",
+  /** "I need a week more". */
+  "extended",
 ] as const;
 export type TaskEventKind = (typeof TASK_EVENT_KINDS)[number];
 
@@ -1747,8 +1751,12 @@ export const TASK_LIMITS = {
   tasksInProgress: 1,
   /** …then up to two. */
   tasksInProgressAfterFirstMerge: 2,
-  /** Tasks go back on the board after this many days without activity. */
+  /** Tasks go back on the board after this many days without activity… */
   idleReleaseDays: 14,
+  /** …with a reminder this many days before… */
+  idleReminderDays: 7,
+  /** …and once per assignment, "I need a week more" adds this many days. */
+  extensionDays: 7,
 } as const;
 
 /** 42 → "NW-42". */
@@ -2111,3 +2119,47 @@ export type ProfileUpdateInput = z.infer<typeof profileUpdateInput>;
 /** DELETE /contrib/me: type your handle to confirm. */
 export const accountDeleteInput = z.object({ confirmHandle: z.string().trim().toLowerCase().min(1).max(40) });
 export type AccountDeleteInput = z.infer<typeof accountDeleteInput>;
+
+// ─── Task board: assignee actions, my tasks, blocks ──────────────────────────
+
+/** POST /contrib/tasks/:id/pr: link a pull request by hand when the webhook missed it. */
+export const prLinkInput = z.object({
+  url: z
+    .string()
+    .trim()
+    .regex(/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d{1,9}\/?$/, "A pull request link, e.g. https://github.com/Novawerk/novawerk-workspace/pull/212"),
+});
+export type PrLinkInput = z.infer<typeof prLinkInput>;
+
+/** POST /contrib/tasks/:id/release: give the task back. The reason shows on the timeline. */
+export const releaseInput = z.object({ reason: z.string().trim().max(300, "Keep it under 300 characters").optional() });
+export type ReleaseInput = z.infer<typeof releaseInput>;
+
+/** POST /contrib/posts/:id/report. The reason is for members only. */
+export const reportInput = z.object({ reason: z.string().trim().max(500, "Keep it under 500 characters").optional() });
+export type ReportInput = z.infer<typeof reportInput>;
+
+/** GET /contrib/tasks/:id/guide (the assignee only). */
+export interface TaskGuide {
+  taskId: string;
+  markdown: string;
+}
+
+/** GET /contrib/me/tasks: what I hold, and my proposals still waiting. */
+export interface MyTasks {
+  held: PublicTask[];
+  proposals: MyProposal[];
+}
+
+/**
+ * GET /public/blocks: every merged task, oldest first, for the builders scene. `handle` is the
+ * real handle only for a public profile; anyone else is a stable opaque `anon-<8 hex>`.
+ */
+export interface PublicBlock {
+  id: string;
+  title: string;
+  area: TaskArea | null;
+  size: TaskSize | null;
+  handle: string;
+  mergedAt: string;
+}

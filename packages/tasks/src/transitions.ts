@@ -18,6 +18,7 @@ import {
 
 import { canWork } from "./contributors.js";
 import { TaskRuleError } from "./errors.js";
+import { idleReleaseAt } from "./idle.js";
 import { IN_PROGRESS_STATUSES, planTransition, type Actor, type TaskAction } from "./state.js";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -39,6 +40,11 @@ export interface TransitionInput {
   accept?: { area?: TaskArea; size?: TaskSize; criteria?: string[] };
   /** `mark_duplicate`. */
   duplicateOf?: number;
+  /**
+   * `release` by the inactivity check: re-checked under the row lock, so a post or an extension
+   * that landed since the check keeps the task (invalid_state).
+   */
+  idleAt?: Date;
   now?: Date;
 }
 
@@ -110,7 +116,7 @@ async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
           throw new TaskRuleError("invalid", "Only the person who suggested it, and asked to do it, can get it directly");
         }
         await checkCanTake(tx, assigneeId, task.id);
-        Object.assign(patch, { assigneeId, assignedAt: now, lastActivityAt: now });
+        Object.assign(patch, { assigneeId, assignedAt: now, lastActivityAt: now, extendedAt: null });
       }
       break;
     }
@@ -128,11 +134,14 @@ async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
     case "choose":
       if (!input.assigneeId) throw new TaskRuleError("invalid", "Who gets it?");
       await checkCanTake(tx, input.assigneeId, task.id);
-      Object.assign(patch, { assigneeId: input.assigneeId, assignedAt: now, lastActivityAt: now });
+      Object.assign(patch, { assigneeId: input.assigneeId, assignedAt: now, lastActivityAt: now, extendedAt: null });
       break;
     case "release":
+      if (input.idleAt && input.idleAt < idleReleaseAt(task)) {
+        throw new TaskRuleError("invalid_state", "Not idle any more");
+      }
       // Pending proposals from before the assignment are not revived; people propose again.
-      Object.assign(patch, { assigneeId: null, assignedAt: null, lastActivityAt: null, prUrl: null });
+      Object.assign(patch, { assigneeId: null, assignedAt: null, lastActivityAt: null, prUrl: null, extendedAt: null });
       break;
     case "link_pr":
       if (!input.prUrl) throw new TaskRuleError("invalid", "Which pull request?", "prUrl");
@@ -146,14 +155,18 @@ async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task> {
       if (!pr) throw new TaskRuleError("invalid", "Which pull request merged?", "prUrl");
       Object.assign(patch, { prUrl: pr, doneAt: now });
       if (task.assigneeId && task.size) {
-        await tx.insert(werkLedger).values({
-          contributorId: task.assigneeId,
-          delta: TASK_SIZE_WERK[task.size],
-          reason: `Merged ${formatTaskId(task.id)}: ${task.title}`,
-          taskId: task.id,
-          pr,
-          createdAt: now,
-        });
+        // Once per task and PR: a re-run (after a reopen, say) never awards twice or fails.
+        await tx
+          .insert(werkLedger)
+          .values({
+            contributorId: task.assigneeId,
+            delta: TASK_SIZE_WERK[task.size],
+            reason: `Merged ${formatTaskId(task.id)}: ${task.title}`,
+            taskId: task.id,
+            pr,
+            createdAt: now,
+          })
+          .onConflictDoNothing({ target: [werkLedger.taskId, werkLedger.pr] });
       }
       break;
     }

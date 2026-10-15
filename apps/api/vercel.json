@@ -34,6 +34,10 @@
     {
       "path": "/cron/sign-in-cleanup",
       "schedule": "45 3 * * *"
+    },
+    {
+      "path": "/cron/github-sync",
+      "schedule": "0 4 * * *"
     }
   ]
 }

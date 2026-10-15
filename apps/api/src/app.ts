@@ -85,7 +85,7 @@ export function createApp(deps: AppDeps) {
     .route("/auth", authRoutes({ ...deps, logger, verifyGoogleToken }))
     .route("/contrib", contribRoutes(deps))
     .route("/admin", adminRoutes({ ...deps, logger }))
-    .route("/cron", cronRoutes(deps))
+    .route("/cron", cronRoutes({ ...deps, logger }))
     .route("/exports", postExportRoutes(deps))
     .route("/webhooks", webhookRoutes({ ...deps, logger }));
 

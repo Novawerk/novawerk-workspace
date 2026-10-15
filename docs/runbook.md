@@ -73,6 +73,32 @@ Secrets the agents use: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `JIRA_BASE_URL`, `J
 `JIRA_API_TOKEN`. `RESEND_API_KEY` and `EMAIL_FROM` belong to the API only — never add them to an
 agent workflow.
 
+## The task board and GitHub
+
+- **A PR didn't move its task.** Check that it names the task (`Task: NW-42` in the body, or
+  NW-42 in the title or branch), that the task is assigned, and that the PR's author is the
+  GitHub account the assignee linked. App settings → Advanced → Recent deliveries shows what
+  GitHub sent and what we answered (`{"result": …}`). GitHub doesn't retry a failed delivery by
+  itself: redeliver it from there. Each delivery id is handled once; one that failed is
+  forgotten so a redelivery runs, and one whose handling was cut off (a timeout) can be claimed
+  again after 5 minutes. The safety net is the nightly `/cron/github-sync`: it runs the last
+  week's PRs through the same rules and checks every task in review against its PR. Run it by
+  hand with `curl -H "Authorization: Bearer $CRON_SECRET" https://api.novawerk.io/cron/github-sync`;
+  its `errors` list names any GitHub call that failed.
+- **The assignee links a PR by hand** on the task page when the webhook missed it. The API reads
+  the PR from GitHub first: it must be open, from their linked account, and name the task.
+  Without the App variables linking by hand answers 503.
+- **A task sits in review on a PR that went away** (closed, deleted, retargeted to another task,
+  or not by the assignee): the nightly sync puts it back to assigned with a note on the timeline.
+- **Werk was wrong** (a revert, a PR that shouldn't have counted): add a member adjustment with a
+  reason. Never edit or delete a `werk_ledger` row.
+- **Idle tasks**: a reminder event after 7 quiet days, back on the board after 14 (21 with
+  "a week more", once). Both run in `/cron/github-sync`.
+- **Rotate the App's private key**: generate a new one in the App settings, set
+  `GITHUB_APP_PRIVATE_KEY` in Vercel, redeploy, then delete the old key in the App settings.
+  The webhook secret: set the new one in the App and in Vercel at the same time (deliveries in
+  between fail with 401; redeliver them).
+
 ## Backups
 
 One Postgres holds everything that changes, including pending outbox approvals. Neon keeps
