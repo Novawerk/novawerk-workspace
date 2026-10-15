@@ -61,6 +61,8 @@ export const STATUS_TONES = {
     duplicate: "muted",
   },
   proposal: {
+    /** An agent's proposal its person hasn't confirmed yet (never in the admin queue). */
+    draft: "muted",
     pending: "warning",
     chosen: "success",
     not_chosen: "muted",
