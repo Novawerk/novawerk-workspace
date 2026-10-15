@@ -55,3 +55,18 @@ export async function claimHandle(
   await lockHandle(tx, handle);
   if (!(await handleIsFree(tx, handle, self))) throw new TaskRuleError("conflict", "That handle is taken", field);
 }
+
+/**
+ * A new Member's id, which is also a handle in this namespace: not a contributor's handle, nor
+ * another member's id or profile handle. `exact` (an admin typed it): taken is a conflict on
+ * `field`; otherwise count up ("ada-2"…). Call inside a transaction: the id stays locked.
+ */
+export async function claimMemberId(tx: Database, wanted: string, opts: { exact: boolean; field: string }): Promise<string> {
+  for (let n = 1; n <= 1000; n++) {
+    const id = n === 1 ? wanted : `${wanted.slice(0, 35).replace(/-+$/, "")}-${n}`;
+    await lockHandle(tx, id);
+    if (await handleIsFree(tx, id)) return id;
+    if (opts.exact) throw new TaskRuleError("conflict", "That handle is taken", opts.field);
+  }
+  throw new TaskRuleError("conflict", "Couldn't find a free handle", opts.field);
+}

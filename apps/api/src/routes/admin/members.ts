@@ -8,6 +8,7 @@ import { Hono } from "hono";
 
 import { memberCreateInput, memberUpdateInput } from "@nw/contracts";
 import { members } from "@nw/db";
+import { TaskRuleError, claimMemberId } from "@nw/tasks";
 
 import { linkInitiatorProjects } from "../../admin/accept.js";
 import { requireAdmin } from "../../auth.js";
@@ -37,6 +38,11 @@ export function memberRoutes({ db }: AdminDeps) {
         if (sameEmail) return c.json(conflict("email", `${sameEmail.id} already uses this email`), 409);
         try {
           const member = await db.transaction(async (tx) => {
+            // A member's id is a handle too: not a contributor's (one namespace, locked until we commit).
+            await claimMemberId(tx, input.id, { exact: true, field: "id" }).catch((err: unknown) => {
+              if (err instanceof TaskRuleError) throw new TaskRuleError("conflict", "Another member or contributor already has this handle", "id");
+              throw err;
+            });
             const [row] = await tx
               .insert(members)
               .values({

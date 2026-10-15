@@ -3,7 +3,7 @@
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { members, projectMembers, projects, type Database } from "@nw/db";
+import { contributors, members, projectMembers, projects, type Database } from "@nw/db";
 
 import { TEST_MEMBERS, adminFetch, createTestDb, makeApp, resetDb } from "./helpers.js";
 
@@ -66,5 +66,16 @@ describe("website cache", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("member ids share the handle namespace", () => {
+  it("refuses a new member id a contributor already has, and counts up when accepting", async () => {
+    await db.insert(contributors).values({ handle: "lena-k", displayName: "Lena" });
+    const { app } = makeApp(db);
+    const clash = await adminFetch(app, "POST", "/admin/members", { id: "lena-k", displayName: "Lena Member", email: "lena@novawerk.io" });
+    expect(clash.status).toBe(409);
+    expect(((await clash.json()) as any).issues.id).toBeDefined();
+    expect((await adminFetch(app, "POST", "/admin/members", { id: "lena-m", displayName: "Lena Member", email: "lena@novawerk.io" })).status).toBe(201);
   });
 });

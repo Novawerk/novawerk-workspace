@@ -178,7 +178,7 @@ describe("POST /admin/applications/:id/accept", () => {
     const c = await insertApplication({ email: "c@example.org" });
     const clash = await adminFetch(app, "POST", `/admin/applications/${c.id}/accept`, { memberId: "ada" });
     expect(clash.status).toBe(409);
-    expect(await clash.json()).toMatchObject({ issues: { memberId: ["Another member already has this handle"] } });
+    expect(await clash.json()).toMatchObject({ issues: { memberId: ["Another member or contributor already has this handle"] } });
     const [row] = await db.select().from(memberApplications).where(eq(memberApplications.id, c.id));
     expect(row).toMatchObject({ status: "new", memberId: null });
   });
