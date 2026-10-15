@@ -1,0 +1,125 @@
+# Contributing to Novawerk
+
+Thanks for helping. This repo is the software Novawerk runs on: the website, the admin panel,
+the API and the agents. You can help build it, one task at a time.
+
+## What contributing means here
+
+- **You pick a task, we review your pull request.** That's the whole deal.
+- **Contributing is not membership.** Members are the core team. Contributors don't get admin
+  panel access, and there are no tiers or ranks among contributors either.
+- **We don't mentor whole projects.** We don't have the people for it. We write tasks small
+  enough to finish on your own, and we answer questions on the task.
+- **Merged work earns Werk.** Werk is recognition: it shows on your profile and the contributor
+  wall. It is never money, and it is never rank.
+
+## The task board
+
+Tasks live at [novawerk.io/tasks](https://novawerk.io/tasks). **The board launches soon.** We
+are building those pages now. Until then, watch this repo; please don't open pull requests for
+work that has no task.
+
+## How it works
+
+1. **Pick a task** at novawerk.io/tasks. Anyone can browse; no account needed.
+2. **Propose a plan.** Sign in (GitHub, so we can match your pull request) and say how you'd do
+   it and when. Several people may propose. A Member picks one person and assigns the task.
+3. **Fork this repo** and work on a branch in your fork.
+4. **Open a pull request** against `main`. Its body has the line `Task: NW-<n>` (the template
+   has it). Our GitHub App links the pull request to the task only if you are the assignee.
+5. **We review.** A Member approves the CI run first (fork pull requests don't run CI until
+   then), then reviews the code. Every merge needs a Member's review.
+6. **Merged → done.** The task closes and you earn its Werk.
+
+No time after all? Release the task from the board. It goes back to Open and nothing counts
+against you. A task with no activity for 14 days is released on its own; we remind you at 7.
+
+## Local setup
+
+You need Node 22+, pnpm 10 and Docker (or OrbStack) for the local Postgres.
+
+```bash
+nvm use                 # Node 22, from .nvmrc
+corepack enable         # pnpm 10, from package.json
+pnpm install
+pnpm db:up && pnpm db:migrate && pnpm db:seed:dev
+pnpm dev                # web on :3000, admin on :5173, api on :8787
+```
+
+Each app has a `.env.example`. Copy it to `apps/api/.env`, `apps/web/.env.local` and
+`apps/admin/.env.local`. Set `DEV_LOGIN=true` (API) and `VITE_DEV_LOGIN=true` (admin) to sign
+in to the admin panel locally without Google. You don't need any real keys for most tasks.
+
+## Before you open a pull request
+
+```bash
+pnpm typecheck && pnpm test && pnpm lint
+```
+
+All three must pass. CI runs the same checks. For UI changes, add screenshots (light and dark,
+desktop and phone) to the pull request.
+
+## Conventions
+
+- **Read [CLAUDE.md](CLAUDE.md).** It has the full rules. Most matter only for certain tasks.
+- **Squash merge.** One pull request becomes one commit on `main`, so its title becomes the
+  commit message. Write it like the log: `Area: what changed`, in plain words. For example:
+  `Agents: accept the private repo's workflows under ops/`.
+- **Validate input at both ends.** Form and API inputs use the zod schemas in
+  `packages/contracts`, in the browser and in the API.
+- **Schema changes:** edit `packages/db/src/schema.ts`, run `pnpm db:generate`, commit the
+  migration. Never edit files in `packages/db/migrations/` by hand.
+- **Env:** in shared packages only `packages/config` reads `process.env`. Apps read their env
+  at the edge and pass values in.
+- **Outbound email** to anyone outside Novawerk goes through the outbox and waits for a Member.
+  Don't add a path around it.
+- **Plain language** in copy and docs: short sentences, "we", present tense. No *leverage /
+  ecosystem / stakeholders / synergy / disrupt / transform*.
+- **Next.js 16** has breaking changes. Read `apps/web/node_modules/next/dist/docs/` before you
+  write Next code.
+
+## Sign off your commits (DCO)
+
+We use the [Developer Certificate of Origin](https://developercertificate.org/). There is no
+CLA. Signing off says you wrote the change, or have the right to submit it, under the repo's
+MIT licence.
+
+```bash
+git commit -s -m "Web: fix the footer link"
+```
+
+This adds `Signed-off-by: Your Name <you@example.com>` to the message. It must match the
+commit's author. A check on every pull request reads the commit messages and fails if a
+sign-off is missing. Forgot? `git rebase --signoff main`, then `git push --force-with-lease`.
+
+## What we review for
+
+- **It does what the task says**, and its "done when" holds.
+- **It follows the rules** in CLAUDE.md: contracts at both ends, schema through migrations,
+  the outbox gate, env read in one place.
+- **It is small and clear.** No unrelated changes. Names and comments read like the code
+  around them.
+- **It is tested** where the code has tests, and the checks pass.
+- **It is safe:** no secrets, no personal data in logs or analytics events, no new
+  dependencies without a reason in the pull request.
+- **Copy fits the voice.**
+
+We may ask for changes. That's normal. If we can't merge it, we say why.
+
+## What never goes in this repo
+
+- **Secrets.** Keys and tokens live in Vercel and GitHub Actions secrets, or your local `.env`
+  (ignored).
+- **Records and account details.** Minutes, decisions, finance and partner notes live in a
+  private repo. `records/` is gitignored here.
+- **Workflows that run fork code with secrets.** Never use `pull_request_target`.
+
+## Security
+
+Found a vulnerability? Don't open an issue, a task or a pull request. Email
+**security@novawerk.io**. See [SECURITY.md](SECURITY.md).
+
+## Using a coding agent?
+
+Point it at [AGENTS.md](AGENTS.md). You are still the author: you review what it writes, and
+you sign off the commits.
