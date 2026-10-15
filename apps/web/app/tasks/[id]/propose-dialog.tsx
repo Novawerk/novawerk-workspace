@@ -11,7 +11,7 @@ import {
   type PublicTask,
   type PublicTaskDetail,
 } from "@nw/contracts";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { Markdown } from "@/components/board/bits";
 import { Dialog, dialogButton, dialogButtonAccent, dialogField, Pills } from "@/components/board/dialog";
@@ -93,6 +93,11 @@ function ProposeForm({
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [askDiscard, setAskDiscard] = useState(false);
+  const keepEditingRef = useRef<HTMLButtonElement>(null);
+  // "Discard what you wrote?" takes focus, so a keyboard user hears it and can answer.
+  useEffect(() => {
+    if (askDiscard) keepEditingRef.current?.focus();
+  }, [askDiscard]);
   const criteriaRef = useRef<HTMLDetailsElement>(null);
   const approachId = useId();
   const testingId = useId();
@@ -190,7 +195,7 @@ function ProposeForm({
             <span role="alert" className="text-sm sm:mr-auto">
               Discard what you wrote?
             </span>
-            <button type="button" className={dialogButton} onClick={() => setAskDiscard(false)} autoFocus>
+            <button ref={keepEditingRef} type="button" className={dialogButton} onClick={() => setAskDiscard(false)}>
               Keep editing
             </button>
             <button type="button" className={`${dialogButton} text-danger hover:border-danger`} onClick={onClose}>
