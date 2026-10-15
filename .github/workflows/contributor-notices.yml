@@ -28,6 +28,9 @@ jobs:
             echo "CRON_SECRET isn't set on this repository; nothing to do."
             exit 0
           fi
-          curl --fail-with-body --silent --show-error --max-time 120 \
+          # The API function may run up to 300 s (maxDuration in apps/api/vercel.json); one run
+          # sends at most 200 notices of other kinds plus 200 reply batches (BATCH in
+          # apps/api/src/contributor-notices.ts). Wait as long as the function can run.
+          curl --fail-with-body --silent --show-error --max-time 310 \
             -H "Authorization: Bearer $CRON_SECRET" \
             https://api.novawerk.io/cron/contributor-notices
