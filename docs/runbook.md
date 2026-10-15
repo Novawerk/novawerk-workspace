@@ -167,12 +167,20 @@ in the outbox for a member's approval (switch them off in the dialog). **Invite 
 API's language model draft an invite from the pitch and the times you offer; you edit it and send it
 to the outbox.
 
-Accepting a pitch also makes the person who pitched a Member and the project's Initiator, in the
-same step: the member with the pitch's email (any case) if there is one, reactivated if they had
-left, otherwise a new Member (handle from their name, free across members and contributors; no
-admin access; joined today). They sign in with that email (an emailed code, or Google) and see
-their own projects only. A contributor account with the same email stays a separate account.
-Accepting again changes nothing; declining creates nothing.
+The first acceptance of a pitch also makes the person who pitched a Member and the project's
+Initiator, in the same step. The dialog says which before you click:
+
+- **A new Member** (no member has the email): handle from their name (or the email's local part
+  when the name gives fewer than 2 characters), free across members and contributors; no admin
+  access; joined today. They sign in with that email (an emailed code, or Google) and see their
+  own projects only.
+- **An existing Member** with the email (any case) is linked as they are; an admin stays an admin.
+- **A deactivated Member** with the email: accepting is refused. Reactivate them in Members first
+  if they should come back; a pitch never does that by itself.
+
+A contributor account with the same email stays a separate account. Accepting again leaves
+membership and the team alone; declining creates nothing. Then add the new Member to
+`records/people/roster.md` in the private repo, as for anyone who joins.
 
 ## Add a member
 

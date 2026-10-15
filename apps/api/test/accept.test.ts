@@ -8,6 +8,7 @@ import {
   contributors,
   memberApplications,
   members,
+  outbox,
   projectMembers,
   projectSubmissions,
   projects,
@@ -176,20 +177,89 @@ describe("accepting a pitch makes the pitcher a Member", () => {
     expect(await db.select().from(projectMembers)).toHaveLength(1);
   });
 
-  it("finds the Member by email for a second pitch, and reactivates one who had left", async () => {
+  it("links the active Member for a second pitch from the same address, as they are", async () => {
     const { app } = makeApp(db);
     const first = await insertPitch({ projectName: "First" });
     const second = await insertPitch({ name: "Lena H.", email: "LENA@example.org", projectName: "Second" });
     await adminJson(app, "POST", `/admin/submissions/${first.id}/accept`, {});
-    await db.update(members).set({ active: false }).where(eq(members.id, "lena-hoffmann"));
     const result = await adminJson(app, "POST", `/admin/submissions/${second.id}/accept`, {});
     expect(result).toMatchObject({
       memberCreated: false,
-      addedAsMember: true,
+      addedAsMember: false,
       initiator: { id: "lena-hoffmann", displayName: "Lena Hoffmann" },
     });
-    expect((await db.select().from(members).where(eq(members.id, "lena-hoffmann")))[0]?.active).toBe(true);
     expect(await db.select().from(projectMembers)).toHaveLength(2);
+  });
+
+  it("never reactivates a deactivated member, and never touches admin rights", async () => {
+    // linus (TEST_MEMBERS) is an admin who was deactivated.
+    const { app } = makeApp(db);
+    const { id } = await insertPitch({ name: "Linus", email: "LINUS@novawerk.io", projectName: "Takeover" });
+    const res = await adminFetch(app, "POST", `/admin/submissions/${id}/accept`, {});
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "Linus (linus) is deactivated. Reactivate them in Members first." });
+    expect((await db.select().from(members).where(eq(members.id, "linus")))[0]).toMatchObject({ active: false, canAdmin: true });
+    // Nothing else happened either: the whole accept rolled back.
+    expect(await db.select().from(projects)).toEqual([]);
+    expect((await db.select().from(projectSubmissions))[0]?.status).toBe("new");
+    // Their old session stays useless.
+    expect((await adminFetch(app, "GET", "/admin/submissions", undefined, "linus")).status).toBe(403);
+  });
+
+  it("re-accepting leaves membership and the team alone after a handover", async () => {
+    const { app } = makeApp(db);
+    const { id } = await insertPitch();
+    const first = await adminJson(app, "POST", `/admin/submissions/${id}/accept`, {});
+    // Lena hands over to Grace and leaves.
+    await db.delete(projectMembers);
+    await db.insert(projectMembers).values({ projectId: first.project.id, memberId: "grace", role: "Initiator" });
+    await db.update(members).set({ active: false }).where(eq(members.id, "lena-hoffmann"));
+    const again = await adminJson(app, "POST", `/admin/submissions/${id}/accept`, {});
+    expect(again).toMatchObject({ firstAcceptance: false, initiator: { id: "grace" }, emailQueued: false });
+    expect((await db.select().from(members).where(eq(members.id, "lena-hoffmann")))[0]?.active).toBe(false);
+    expect(await db.select().from(projectMembers)).toEqual([{ projectId: first.project.id, memberId: "grace", role: "Initiator" }]);
+  });
+
+  it("makes one Member and queues one note when two accepts race", async () => {
+    const { app } = makeApp(db);
+    const a = await insertPitch({ projectName: "A" });
+    const b = await insertPitch({ projectName: "B" });
+    const [ra, rb] = await Promise.all([
+      adminFetch(app, "POST", `/admin/submissions/${a.id}/accept`, {}),
+      adminFetch(app, "POST", `/admin/submissions/${b.id}/accept`, {}),
+    ]);
+    expect([ra.status, rb.status]).toEqual([200, 200]);
+    expect(await db.select().from(members).where(eq(members.email, "lena@example.org"))).toHaveLength(1);
+    // A double click on the same pitch: one acceptance note.
+    const c = await insertPitch({ projectName: "C" });
+    await Promise.all([1, 2].map(() => adminFetch(app, "POST", `/admin/submissions/${c.id}/accept`, {})));
+    expect(await db.select().from(outbox).where(eq(outbox.relatedId, c.id))).toHaveLength(1);
+  });
+
+  it("falls back to the email's local part when the name gives fewer than 2 characters", async () => {
+    const { app } = makeApp(db);
+    const zh = await insertPitch({ name: "林晨", email: "lin.chen@example.org", projectName: "血压记录" });
+    expect((await adminJson(app, "POST", `/admin/submissions/${zh.id}/accept`, {})).initiator.id).toBe("lin-chen");
+    const one = await insertPitch({ name: "A", email: "ab@example.org", projectName: "One letter" });
+    expect((await adminJson(app, "POST", `/admin/submissions/${one.id}/accept`, {})).initiator.id).toBe("ab");
+  });
+
+  it("says before accepting what will happen about the pitcher", async () => {
+    const { app } = makeApp(db);
+    const fresh = await insertPitch();
+    expect((await adminJson(app, "GET", `/admin/submissions/${fresh.id}`)).pitcher).toEqual({ kind: "create", handle: "lena-hoffmann" });
+    const known = await insertPitch({ email: "Grace@novawerk.io", projectName: "Known" });
+    expect((await adminJson(app, "GET", `/admin/submissions/${known.id}`)).pitcher).toEqual({
+      kind: "link",
+      member: { id: "grace", displayName: "Grace", active: true, canAdmin: false },
+    });
+    const gone = await insertPitch({ email: "linus@novawerk.io", projectName: "Gone" });
+    expect((await adminJson(app, "GET", `/admin/submissions/${gone.id}`)).pitcher).toMatchObject({
+      kind: "link",
+      member: { id: "linus", active: false, canAdmin: true },
+    });
+    // The preview writes nothing.
+    expect(await db.select().from(members).where(eq(members.id, "lena-hoffmann"))).toEqual([]);
   });
 
   it("takes a handle no contributor, member or reserved word has", async () => {

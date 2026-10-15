@@ -83,6 +83,7 @@ import type {
   ProjectInput,
   ProjectPatch,
   ProjectSaved,
+  PitcherPreview,
   ProjectSubmission,
   ProjectTeam,
   StatusChange,
@@ -406,6 +407,19 @@ function sortProjects(list: Project[]) {
   )
 }
 
+/** Like previewPitcher in the API: the member with this email, or the handle a new one would get. */
+function samplePitcher(pitch: { name: string; email: string }): PitcherPreview {
+  const member = [...store.members.values()].find((m) => m.email.toLowerCase() === pitch.email.toLowerCase())
+  if (member) {
+    return { kind: "link", member: { id: member.id, displayName: member.displayName, active: member.active, canAdmin: member.canAdmin } }
+  }
+  const fromName = toHandle(pitch.name, 39)
+  const fromEmail = toHandle(pitch.email.split("@")[0] ?? "", 39)
+  const base = fromName.length >= 2 ? fromName : fromEmail.length >= 2 ? fromEmail : "member"
+  const wanted = isReservedHandle(base) ? `member-${base}` : base
+  return { kind: "create", handle: freeHandle(wanted, (h) => store.members.has(h) || isReservedHandle(h)) }
+}
+
 const sampleSource: AdminDataSource = {
   isSample: true,
   me: async () => SAMPLE_ME,
@@ -486,7 +500,8 @@ const sampleSource: AdminDataSource = {
   },
   getSubmission: async (id) => {
     await delay(150)
-    return { ...(store.submissions.get(id) ?? notFound("Pitch")) }
+    const row = store.submissions.get(id) ?? notFound("Pitch")
+    return { ...row, pitcher: row.status === "accepted" ? null : samplePitcher(row) }
   },
   updateSubmission: async (id, patch) => {
     await delay()
@@ -519,31 +534,38 @@ const sampleSource: AdminDataSource = {
       }
       store.projects.set(project.id, project)
     }
-    // Like the API: the pitcher becomes a Member (or is found by email) and the Initiator.
+    // Like the API: on the first acceptance only, the pitcher becomes a Member (or the active one
+    // with their email is linked) and the Initiator; a deactivated one is refused.
+    const firstAcceptance = current.status !== "accepted"
     let initiator = [...store.members.values()].find((m) => m.email.toLowerCase() === current.email.toLowerCase())
-    const memberCreated = !initiator
-    const addedAsMember = memberCreated || !initiator?.active
-    if (!initiator) {
-      const id = freeHandle(toHandle(current.name, 39) || "member", (h) => store.members.has(h))
-      initiator = {
-        ...[...store.members.values()][1]!,
-        id,
-        displayName: current.name,
-        email: current.email.toLowerCase(),
-        canAdmin: false,
-        active: true,
-        joinedOn: nowIso().slice(0, 10),
-        publicProfile: false,
-        profileHandle: null,
-        profileBio: null,
+    let memberCreated = false
+    if (firstAcceptance) {
+      if (initiator && !initiator.active) {
+        refuse(`${initiator.displayName} (${initiator.id}) is deactivated. Reactivate them in Members first.`, undefined, 409)
       }
-      store.members.set(id, initiator)
-    } else if (!initiator.active) {
-      initiator.active = true
+      if (!initiator) {
+        const preview = samplePitcher(current)
+        const id = preview.kind === "create" ? preview.handle : preview.member.id
+        initiator = {
+          ...[...store.members.values()][1]!,
+          id,
+          displayName: current.name,
+          email: current.email.toLowerCase(),
+          canAdmin: false,
+          active: true,
+          joinedOn: nowIso().slice(0, 10),
+          publicProfile: false,
+          profileHandle: null,
+          profileBio: null,
+        }
+        store.members.set(id, initiator)
+        memberCreated = true
+      }
+      if (!project.team.some((t) => t.memberId === initiator!.id)) {
+        project.team.push({ memberId: initiator.id, displayName: initiator.displayName, role: "Initiator" })
+      }
     }
-    if (!project.team.some((t) => t.memberId === initiator.id)) {
-      project.team.push({ memberId: initiator.id, displayName: initiator.displayName, role: "Initiator" })
-    }
+    const lead = project.team.find((t) => t.role.toLowerCase() === "initiator")
     const submission = { ...current, status: "accepted" as const, projectId: project.id, updatedAt: nowIso() }
     store.submissions.set(id, submission)
     const { team: _, ...projectRow } = project
@@ -551,9 +573,10 @@ const sampleSource: AdminDataSource = {
       submission,
       project: projectRow,
       projectCreated,
-      initiator: { id: initiator.id, displayName: initiator.displayName },
+      firstAcceptance,
+      initiator: lead ? { id: lead.memberId, displayName: lead.displayName } : null,
       memberCreated,
-      addedAsMember,
+      addedAsMember: memberCreated,
       // Sample mode has no outbox to write to.
       emailQueued: false,
     }

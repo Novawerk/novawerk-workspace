@@ -1,16 +1,21 @@
 // Accepting a pitch or an application. Each one is a single transaction: the status change and
 // the record it creates land together or not at all.
 //
-// The Initiator rule. Whoever pitched a project becomes its Initiator, and accepting the pitch
-// makes them a Member in the same transaction:
-//   - a member with the pitch's email (case-insensitive) is linked, and reactivated if they had
-//     left;
+// The Initiator rule. Whoever pitched a project becomes its Initiator, and the FIRST acceptance
+// of the pitch makes them a Member in the same transaction:
+//   - an active member with the pitch's email (case-insensitive) is linked as they are (an admin
+//     stays an admin; nothing about them changes);
+//   - a deactivated one is refused (409): reactivating is a decision for the Members page, never
+//     a side effect of a pitch;
 //   - otherwise a Member is created: id from the shared handle namespace (claimMemberId in
 //     @nw/tasks handles.ts, locked until we commit; a reserved-looking name gets "member-" in
-//     front), name and email from the pitch, no admin rights. They sign in with that email and
-//     see their own projects;
+//     front; a name that gives fewer than 2 characters falls back to the email's local part),
+//     name and email from the pitch, no admin rights. They sign in with that email and see their
+//     own projects;
 //   - a contributor account with the same email stays separate: two identities, never merged.
-// Accepting twice changes nothing more; declining creates nothing.
+// Accepting again leaves membership and the team alone (an Initiator may have handed over).
+// Declining creates nothing. Two pitches from one email accepted at once take turns (an advisory
+// lock on the address), so they make one Member, not two.
 
 import { and, eq, like, or, sql } from "drizzle-orm";
 
@@ -174,18 +179,57 @@ export async function acceptApplication(
   });
 }
 
+/** What accepting would do about the pitcher, for the accept dialog (GET /admin/submissions/:id). */
+export type PitcherPreview =
+  | { kind: "create"; handle: string }
+  | { kind: "link"; member: Pick<Member, "id" | "displayName" | "active" | "canAdmin"> };
+
+/** A Member id for someone with this name and email: from the name, else the email's local part. */
+function wantedId(name: string, email: string): string {
+  const fromName = toHandle(name, 39);
+  if (fromName.length >= 2) return fromName;
+  const fromEmail = toHandle(email.split("@")[0] ?? "", 39);
+  return fromEmail.length >= 2 ? fromEmail : "member";
+}
+
+/** Two accepts for the same address run one after the other until the first one commits. */
+async function lockEmail(tx: Database, email: string) {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`nw-member-email:${email.trim().toLowerCase()}`}))`);
+}
+
+/**
+ * Who accepting this pitch would make its Initiator: the member with its email, or a new Member
+ * with this handle (free right now; the accept claims it under a lock and may count on).
+ */
+export async function previewPitcher(db: Database, submission: Pick<ProjectSubmission, "name" | "email">): Promise<PitcherPreview> {
+  const member = await memberByEmail(db, submission.email);
+  if (member) {
+    return { kind: "link", member: { id: member.id, displayName: member.displayName, active: member.active, canAdmin: member.canAdmin } };
+  }
+  // A read-only transaction: the handle's lock ends with it; nothing is written.
+  const handle = await db.transaction((tx) =>
+    claimMemberId(tx, wantedId(submission.name, submission.email), { exact: false, field: "_form" }),
+  );
+  return { kind: "create", handle };
+}
+
 export interface AcceptedSubmission {
   submission: ProjectSubmission;
   project: Project;
   /** False when the pitch already had a project (accepted before); we reuse it. */
   projectCreated: boolean;
-  /** The member linked as Initiator: the pitcher, who is a Member from now on. */
-  initiator: Pick<Member, "id" | "displayName">;
+  /** True on the first acceptance: only then are a Member and the Initiator set, and the note sent. */
+  firstAcceptance: boolean;
+  /**
+   * The project's Initiator now. On a first acceptance, the pitcher; on a re-accept, whoever holds
+   * the role (or null after a handover that left none).
+   */
+  initiator: Pick<Member, "id" | "displayName"> | null;
   /** True when accepting created that Member (first acceptance, no member had the email). */
   memberCreated: boolean;
   /**
-   * True when accepting made them a Member: created, or reactivated after they had left. False
-   * when they already were an active Member. The acceptance email says which.
+   * True when accepting made them a Member (created now). False when they already were an active
+   * Member. The acceptance email says which.
    */
   addedAsMember: boolean;
 }
@@ -201,8 +245,17 @@ export async function acceptSubmission(
   input: SubmissionAcceptInput,
   /** The member accepting it: the first line of the project's timeline. */
   acceptedBy?: string,
+  /**
+   * Runs inside the transaction, on the first acceptance only (the acceptance note): a double
+   * click can't queue it twice.
+   */
+  onFirstAcceptance?: (tx: Database, result: AcceptedSubmission) => Promise<void>,
 ): Promise<AcceptedSubmission> {
   return db.transaction(async (tx) => {
+    const [peek] = await tx.select({ email: projectSubmissions.email }).from(projectSubmissions).where(eq(projectSubmissions.id, submissionId));
+    if (!peek) throw new AcceptError(404, "Not found");
+    // The address first, then the pitch: two pitches from one person can't both create a Member.
+    await lockEmail(tx, peek.email);
     const [submission] = await tx
       .select()
       .from(projectSubmissions)
@@ -237,22 +290,34 @@ export async function acceptSubmission(
         .values({ projectId: project!.id, fromStatus: null, toStatus: "draft", changedBy: acceptedBy ?? null });
     }
 
-    const [updated] = await tx
-      .update(projectSubmissions)
-      .set({ status: "accepted" })
-      .where(eq(projectSubmissions.id, submissionId))
-      .returning();
+    const firstAcceptance = submission.status !== "accepted";
+    if (!firstAcceptance) {
+      // Membership and the team stay as they are: the Initiator may have handed over.
+      const [initiator] = await tx
+        .select({ id: members.id, displayName: members.displayName })
+        .from(projectMembers)
+        .innerJoin(members, eq(members.id, projectMembers.memberId))
+        .where(and(eq(projectMembers.projectId, project!.id), sql`lower(${projectMembers.role}) = 'initiator'`))
+        .limit(1);
+      return {
+        submission,
+        project: project!,
+        projectCreated,
+        firstAcceptance,
+        initiator: initiator ?? null,
+        memberCreated: false,
+        addedAsMember: false,
+      };
+    }
 
     let member = await memberByEmail(tx, submission.email);
-    let memberCreated = false;
-    let reactivated = false;
     if (member && !member.active) {
-      [member] = await tx.update(members).set({ active: true }).where(eq(members.id, member.id)).returning();
-      reactivated = true;
+      throw new AcceptError(409, `${member.displayName} (${member.id}) is deactivated. Reactivate them in Members first.`);
     }
+    let memberCreated = false;
     if (!member) {
       // One handle namespace with contributors, locked until we commit.
-      const id = await claimMemberId(tx, toHandle(submission.name, 39) || "member", { exact: false, field: "_form" });
+      const id = await claimMemberId(tx, wantedId(submission.name, submission.email), { exact: false, field: "_form" });
       [member] = await tx
         .insert(members)
         .values({
@@ -270,14 +335,22 @@ export async function acceptSubmission(
       .insert(projectMembers)
       .values({ projectId: project!.id, memberId: member!.id, role: INITIATOR_ROLE })
       .onConflictDoNothing();
-    return {
+    const [updated] = await tx
+      .update(projectSubmissions)
+      .set({ status: "accepted" })
+      .where(eq(projectSubmissions.id, submissionId))
+      .returning();
+    const result: AcceptedSubmission = {
       submission: updated!,
       project: project!,
       projectCreated,
+      firstAcceptance,
       initiator: { id: member!.id, displayName: member!.displayName },
       memberCreated,
-      addedAsMember: memberCreated || reactivated,
+      addedAsMember: memberCreated,
     };
+    await onFirstAcceptance?.(tx, result);
+    return result;
   });
 }
 

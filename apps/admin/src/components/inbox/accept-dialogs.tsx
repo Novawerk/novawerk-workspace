@@ -35,6 +35,7 @@ export function AcceptSubmissionDialog({ submission }: { submission: ProjectSubm
   const [slug, setSlug] = React.useState("")
   const [email, setEmail] = React.useState(true)
   const accepted = submission.status === "accepted"
+  const deactivated = submission.pitcher?.kind === "link" && !submission.pitcher.member.active
 
   const onOpenChange = (next: boolean) => {
     if (next) {
@@ -54,9 +55,11 @@ export function AcceptSubmissionDialog({ submission }: { submission: ProjectSubm
           setOpen(false)
           toast.success(result.projectCreated ? "Pitch accepted. We started the project." : "Pitch accepted again.", {
             description: [
-              result.memberCreated
-                ? `${result.initiator.displayName} is a Member now (handle ${result.initiator.id}) and its Initiator.`
-                : `${result.initiator.displayName} is its Initiator.`,
+              !result.initiator
+                ? ""
+                : result.memberCreated
+                  ? `${result.initiator.displayName} is a Member now (handle ${result.initiator.id}) and its Initiator.`
+                  : `${result.initiator.displayName} is its Initiator.`,
               result.emailQueued ? `The email to ${firstName(submission.name)} waits in the Outbox for approval.` : "",
             ]
               .filter(Boolean)
@@ -106,11 +109,7 @@ export function AcceptSubmissionDialog({ submission }: { submission: ProjectSubm
                 className="font-mono"
               />
             </FormField>
-            <p className="text-xs text-muted-foreground">
-              {firstName(submission.name)} pitched it, so they become a Member and the project's Initiator, and can
-              sign in with this email ({submission.email}). They see their own projects, not the rest of the admin
-              panel.
-            </p>
+            <PitcherNote submission={submission} />
             <SwitchRow
               label={`Email ${firstName(submission.name)}`}
               htmlFor="accept-email"
@@ -123,13 +122,42 @@ export function AcceptSubmissionDialog({ submission }: { submission: ProjectSubm
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={accept.isPending}>
+            <Button type="submit" disabled={accept.isPending || deactivated}>
               {accept.isPending ? "Accepting…" : "Accept"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** What accepting does about the person who pitched, said before anyone clicks. */
+function PitcherNote({ submission }: { submission: ProjectSubmission }) {
+  const who = firstName(submission.name)
+  const p = submission.pitcher
+  if (!p) return null
+  if (p.kind === "create") {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {who} becomes a new Member (handle <code className="font-mono">{p.handle}</code>) and the project's Initiator. They
+        sign in with {submission.email} and see their own projects, not the rest of the admin panel.
+      </p>
+    )
+  }
+  if (!p.member.active) {
+    return (
+      <p role="alert" className="text-xs text-destructive">
+        {submission.email} belongs to {p.member.displayName} ({p.member.id}), who is deactivated. Reactivate them in
+        Members first if they should come back; accepting won't do it.
+      </p>
+    )
+  }
+  return (
+    <p className="text-xs text-muted-foreground">
+      {submission.email} is {p.member.displayName} ({p.member.id}), already a Member: we link them as the project's
+      Initiator.{p.member.canAdmin ? " They are an admin and stay one." : ""}
+    </p>
   )
 }
 
