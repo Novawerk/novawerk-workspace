@@ -1,8 +1,15 @@
+<%# Novawerk Chat: a room row; its level opens the same "Notify me about" menu as the room's bell. %>
 <li class="nw-rooms__row membership-item">
   <%= image_tag(membership.room.direct? ? "messages.svg" : (membership.room.is_a?(Rooms::Closed) ? "lock.svg" : "hash.svg"), class: "nw-muted") %>
   <%= link_to room_display_name(membership.room), room_path(membership.room), class: "nw-rooms__name" %>
 
-  <%= turbo_frame_tag dom_id(membership.room, :involvement) do %>
-    <%= button_to_change_involvement(membership.room, membership.involvement) %>
-  <% end %>
+  <details class="nw-hdr-menu nw-rooms__level" data-controller="popup" data-action="keydown.esc->popup#close toggle->popup#toggle click@document->popup#closeOnClickOutside" data-popup-orientation-top-class="popup-orientation-top">
+    <summary class="btn nw-btn-sm nw-rooms__level-btn">
+      <span><%= { "everything" => "All messages", "mentions" => "Mentions only", "nothing" => "Nothing", "invisible" => "Hidden" }[membership.involvement] %></span>
+      <%= image_tag "chevron-down.svg", size: 12, class: "involvement-chevron" %>
+    </summary>
+    <div class="nw-menu nw-hdr-menu__menu nw-hdr-menu__menu--wide" data-popup-target="menu">
+      <%= render "rooms/involvements/levels", room: membership.room, involvement: membership.involvement, return_to: :profile %>
+    </div>
+  </details>
 </li>

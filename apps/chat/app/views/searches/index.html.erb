@@ -49,7 +49,7 @@
         </div>
       <% end %>
       <div id="message-area" class="message-area nw-search__results <%= "nw-hidden" if @messages.none? %>"
-           data-controller="nw-highlight" data-nw-highlight-query-value="<%= @query %>">
+           data-controller="nw-highlight" data-nw-highlight-query-value="<%= @query %>" data-action="click->nw-highlight#open">
         <%= search_results_tag do %>
           <%= render partial: "messages/message", collection: @messages, cached: ->(message) { message_fragment_cache_key(message) } %>
         <% end %>

@@ -12,7 +12,8 @@ class Rooms::ClosedsController < RoomsController
   end
 
   def new
-    @room  = Rooms::Closed.new(name: DEFAULT_ROOM_NAME)
+    # Novawerk Chat: switching Open/Closed on the form keeps the name typed so far.
+    @room  = Rooms::Closed.new(name: params[:name].presence || DEFAULT_ROOM_NAME)
     @users = User.active.ordered
   end
 
@@ -20,7 +21,7 @@ class Rooms::ClosedsController < RoomsController
     room = Rooms::Closed.create_for(room_params, users: grantees)
 
     broadcast_create_room(room)
-    redirect_to room_url(room)
+    redirect_to room_url(room), notice: "##{room.name} created"
   end
 
   def edit
@@ -33,7 +34,7 @@ class Rooms::ClosedsController < RoomsController
     @room.memberships.revise(granted: grantees, revoked: revokees)
 
     broadcast_update_room
-    redirect_to room_url(@room)
+    redirect_to room_url(@room), notice: "Saved"
   end
 
   private

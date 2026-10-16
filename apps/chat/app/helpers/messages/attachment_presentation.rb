@@ -84,11 +84,19 @@ class Messages::AttachmentPresentation
       end
     end
 
+    # Novawerk Chat: a file card (36px icon square, name, "TXT · 1.8 KB", a ghost download button).
     def render_link
-      tag.div class: "flex-inline align-center gap-half" do
-        broadcast_image_tag("common-file-text.svg", size: 22, class: "colorize--black", aria: { hidden: "true" }) +
-          tag.span(filename) + download_link + share_button
+      tag.div class: "nw-file-card" do
+        tag.span(broadcast_image_tag("common-file-text.svg", size: 18, aria: { hidden: "true" }), class: "nw-file-card__icon") +
+          tag.span(class: "nw-file-card__text") do
+            tag.span(filename, class: "nw-file-card__name") + tag.span(file_details, class: "nw-file-card__meta")
+          end +
+          download_link + share_button
       end
+    end
+
+    def file_details
+      [ message.attachment.filename.extension.presence&.upcase, ActiveSupport::NumberHelper.number_to_human_size(message.attachment.byte_size) ].compact.join(" · ")
     end
 
     def lightbox_link(&)

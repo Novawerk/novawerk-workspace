@@ -1,5 +1,5 @@
 <% @page_title = "Edit settings for #{room.name}" %>
-<% page_header "Settings", crumb: (room.direct? ? room_display_name(room) : "##{room.name}") %>
+<% page_header "Settings", crumb: room_display_name(room), crumb_icon: (room.direct? ? nil : (room.is_a?(Rooms::Closed) ? "lock" : "hash")) %>
 <% content_for :head do %><meta name="current-room-id" content="<%= room.id %>"><% end %>
 
 <div class="nw-page">

@@ -5,7 +5,7 @@ class Accounts::LogosController < ApplicationController
   before_action :ensure_can_administer, only: :destroy
 
   def show
-    if stale?(etag: Current.account)
+    if stale?(etag: [ Current.account, "nova" ])
       expires_in 5.minutes, public: true, stale_while_revalidate: 1.week
 
       if (logo_variant = Current.account&.logo_variant(logo_size))

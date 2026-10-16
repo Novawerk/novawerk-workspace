@@ -1,0 +1,52 @@
+<% @page_title = "Members of #{@room.name}" %>
+<% page_header "Members", crumb: @room.name, crumb_icon: (@room.is_a?(Rooms::Closed) ? "lock" : "hash") %>
+<% content_for :head do %><meta name="current-room-id" content="<%= @room.id %>"><% end %>
+
+<div class="nw-page">
+  <div class="nw-page__narrow">
+    <div class="nw-page__intro">
+      <h2 class="nw-h1">Members of <%= @room.is_a?(Rooms::Closed) ? "" : "#" %><%= @room.name %></h2>
+      <p class="nw-lead"><%= @room.is_a?(Rooms::Open) ? "Everyone with a Novawerk account is in this room." : "Only these people can see this room." %></p>
+    </div>
+
+    <div class="nw-card" data-controller="nw-filter" data-nw-filter-noun-value="<%= @users.size == 1 ? "member" : "members" %>">
+      <div class="nw-card__head nw-room-members__head">
+        <h3 class="nw-card__title" data-nw-filter-target="count"><%= pluralize(@users.size, "member") %></h3>
+        <label class="input nw-input-group nw-room-members__search">
+          <%= image_tag "search.svg", class: "nw-muted" %>
+          <input type="search" placeholder="Find a member" aria-label="Find a member" data-action="input->nw-filter#filter">
+        </label>
+        <% if @room.is_a?(Rooms::Closed) && Current.user.can_administer?(@room) %>
+          <%= link_to edit_rooms_closed_path(@room), class: "btn nw-btn-outline nw-btn-sm" do %>
+            <%= image_tag "users.svg" %><span>Add or remove</span>
+          <% end %>
+        <% end %>
+      </div>
+
+      <ul class="nw-room-members">
+        <% @users.each do |user| %>
+          <li class="nw-card__row nw-room-members__row" data-nw-filter-target="item" data-nw-filter-text="<%= [ user.name, user.novawerk_handle ].compact.join(" ").downcase %>">
+            <%= link_to user_path(user), class: "nw-room-members__person" do %>
+              <span class="avatar"><%= image_tag fresh_user_avatar_path(user), alt: "", size: 32 %></span>
+              <span class="nw-stack">
+                <strong><%= user.name %><%= " (you)" if user == Current.user %></strong>
+                <% if user.novawerk_handle.present? %><span class="nw-small nw-muted">@<%= user.novawerk_handle %></span><% end %>
+              </span>
+            <% end %>
+            <% if user.bot? %>
+              <span class="nw-badge">Bot</span>
+            <% elsif user.administrator? %>
+              <span class="nw-badge nw-badge--soft">Maintainer</span>
+            <% end %>
+            <% if user != Current.user && !user.bot? %>
+              <%= button_to rooms_directs_path(user_ids: [ user.id ]), class: "btn nw-btn-outline nw-btn-sm", title: "Message #{user.name}", form_class: "nw-room-members__message" do %>
+                <%= image_tag "messages.svg" %><span class="nw-room-members__label">Message</span>
+              <% end %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+      <p class="nw-room-members__none nw-muted" data-nw-filter-target="none" hidden>No one matches “<span data-nw-filter-target="query"></span>”.</p>
+    </div>
+  </div>
+</div>

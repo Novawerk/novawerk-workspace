@@ -2,5 +2,5 @@
   <% if Current.user.can_administer?(room) %>
     <%= render "rooms/access_choice", current_kind: :open, type_change_path: type_change_path %>
   <% end %>
-  <p class="nw-note nw-note--info"><%= image_tag "users.svg", class: "nw-muted" %><span>All <%= User.active.without_bots.count %> members will see <b>#<%= room.name.presence || "this-room" %></b> in their sidebar.</span></p>
+  <p class="nw-note nw-note--info"><%= image_tag "users.svg", class: "nw-muted" %><span>All <%= pluralize(User.active.without_bots.count, "person", plural: "people") %> will see <b>#<%= room.name.presence || "this-room" %></b> in their sidebar.</span></p>
 <% end %>

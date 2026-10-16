@@ -12,12 +12,39 @@
       <% end %>
     </p>
     <div class="nw-intro__actions">
-      <%= link_to [ :edit, room ], class: "btn nw-btn-outline nw-btn-sm" do %>
+      <%= link_to room_members_path(room), class: "btn nw-btn-outline nw-btn-sm" do %>
         <%= image_tag "users.svg" %><span>Members</span>
       <% end %>
       <%= link_to user_profile_path, class: "btn nw-btn-outline nw-btn-sm" do %>
         <%= image_tag "notification-bell-everything.svg" %><span>Notifications</span>
       <% end %>
     </div>
+  </div>
+<% end %>
+
+<%# A direct message starts with the people in it, like a room starts with its intro. %>
+<% if room.direct? && !room.messages.paged? %>
+  <% others = room.users.without(Current.user).active.ordered.to_a %>
+  <div id="system_welcome" class="nw-intro nw-intro--direct">
+    <span class="nw-intro__avatars">
+      <% (others.presence || [ Current.user ]).first(3).each do |user| %>
+        <span class="avatar"><%= image_tag fresh_user_avatar_path(user), alt: "", size: 48 %></span>
+      <% end %>
+    </span>
+    <p class="nw-intro__title"><%= room_display_name(room) %></p>
+    <p class="nw-intro__text">
+      <% if others.empty? %>
+        This is your own space. Jot down notes or drafts; nobody else sees them.
+      <% else %>
+        This is the start of your conversation with <%= others.map(&:name).to_sentence %>. Only you<%= others.one? ? " two" : "" %> can see it.
+      <% end %>
+    </p>
+    <% if others.one? %>
+      <div class="nw-intro__actions">
+        <%= link_to user_path(others.first), class: "btn nw-btn-outline nw-btn-sm" do %>
+          <%= image_tag "person.svg" %><span>View profile</span>
+        <% end %>
+      </div>
+    <% end %>
   </div>
 <% end %>

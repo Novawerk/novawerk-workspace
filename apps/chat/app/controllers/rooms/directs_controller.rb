@@ -26,6 +26,11 @@ class Rooms::DirectsController < RoomsController
     def broadcast_create_room(room)
       room.memberships.each do |membership|
         membership.broadcast_prepend_to membership.user, :rooms, target: :direct_rooms, partial: "users/sidebars/rooms/direct"
+        # Novawerk Chat: the "start a DM" placeholder for the other person goes, so they aren't listed twice.
+        if room.users.size == 2
+          other = room.users.find { |user| user != membership.user }
+          membership.broadcast_remove_to membership.user, :rooms, target: "direct_placeholder_#{other.id}" if other
+        end
       end
     end
 

@@ -6,9 +6,14 @@
       <%= composer_form_tag(room) do |form| %>
         <fieldset data-composer-target="fields" contents>
           <div class="flex flex-column">
-            <div class="composer__filelist flex flex--align-center gap flex-wrap" data-composer-target="fileList"></div>
+            <div class="nw-reply-bar" data-composer-target="replyBar" hidden>
+              <%= image_tag "reply.svg" %><span>Replying to <strong data-composer-target="replyName"></strong></span>
+              <button type="button" class="nw-reply-bar__cancel" data-action="composer#cancelReply" title="Cancel reply" aria-label="Cancel reply"><%= image_tag "remove.svg" %></button>
+            </div>
 
             <div class="composer__input nw-composer">
+              <%# Novawerk Chat: picked files are chips inside the composer (RoomStates · G). %>
+              <div class="nw-composer__files" data-composer-target="fileList"></div>
               <div class="nw-composer__editor">
                 <%= form.rich_text_area :body,
                       rows: 1,
@@ -42,19 +47,26 @@
                     <%= image_tag "smile-plus.svg" %>
                     <span class="for-screen-reader">Emoji</span>
                   </summary>
-                  <div class="nw-emoji__menu" data-popup-target="menu">
-                    <% EmojiHelper::REACTIONS.each do |character, title| %>
-                      <button type="button" class="nw-emoji__btn" title="<%= title %>" data-action="nw-insert#insert popup#close" data-nw-insert-text-param="<%= character %>"><%= character %></button>
-                    <% end %>
+                  <div class="nw-emoji__menu nw-menu" data-popup-target="menu" data-controller="nw-filter">
+                    <label class="input nw-input-group nw-emoji__search">
+                      <%= image_tag "search.svg", class: "nw-muted" %>
+                      <input type="search" placeholder="Search emoji" aria-label="Search emoji" autocomplete="off" data-action="input->nw-filter#filter">
+                    </label>
+                    <div class="nw-emoji__grid">
+                      <% EmojiHelper::PICKER.each do |character, words| %>
+                        <button type="button" class="nw-emoji__btn" title="<%= words.split.first %>" data-nw-filter-target="item" data-nw-filter-text="<%= "#{words} #{character}".downcase %>"
+                            data-action="nw-insert#insert popup#close" data-nw-insert-text-param="<%= character %>"><%= character %></button>
+                      <% end %>
+                    </div>
                   </div>
                 </details>
 
-                <button class="btn btn--borderless composer__rich-text-btn" type="button" title="Formatting" data-action="composer#toggleToolbar">
+                <button class="btn btn--borderless composer__rich-text-btn" type="button" title="Formatting" aria-pressed="false" data-action="composer#toggleToolbar">
                   <%= image_tag "text-options.svg" %>
                   <span class="for-screen-reader">Formatting</span>
                 </button>
 
-                <span class="nw-composer__hint">Enter to send · Shift+Enter for a new line</span>
+                <span class="nw-composer__hint"><span class="nw-composer__hint-plain">Enter to send · Shift+Enter for a new line</span><span class="nw-composer__hint-block">⌘Enter to send · Enter for a new line</span></span>
 
                 <%= form.button name: "send", type: "submit", data: { action: "composer#submit" }, class: "btn nw-composer__send", title: "Send message" do %>
                   <%= image_tag "arrow-up.svg" %>

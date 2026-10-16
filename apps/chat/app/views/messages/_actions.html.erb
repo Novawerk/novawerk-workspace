@@ -1,14 +1,15 @@
 <%# Be sure to check/update messages/_template.html.erb when changing this file %>
-<%# Novawerk Chat: a hover toolbar (react · reply · copy link · edit · more), as in the design. "React" and
-    "More" open the same menu: quick reactions on top, then the actions with words. On phones a long
-    press on the message opens it (nw-long-press). %>
+<%# Novawerk Chat: a hover toolbar (react · reply · copy link · edit · more), as in the design. "React"
+    opens the reaction picker; "More" opens quick reactions on top, then the actions with words. On
+    phones a long press on the message opens the menu (nw-long-press). %>
 
 <%= cache_message_actions(message) do %>
-<div class="message__actions" data-controller="soft-keyboard nw-menu">
+<div class="message__actions" data-controller="soft-keyboard">
   <div class="nw-toolbar" role="toolbar" aria-label="Message actions">
-    <button type="button" class="nw-toolbar__btn" title="Add reaction" data-action="nw-menu#open">
+    <%= link_to new_message_boost_path(message), class: "nw-toolbar__btn message__boost-btn", title: "Add reaction",
+          data: { turbo_frame: dom_id(message, :new_boost) } do %>
       <%= image_tag "boost.svg" %><span class="for-screen-reader">Add reaction</span>
-    </button>
+    <% end %>
     <% unless message.attachment? %>
       <button type="button" class="nw-toolbar__btn" title="Reply" data-action="reply#reply">
         <%= image_tag "reply.svg" %><span class="for-screen-reader">Reply</span>
@@ -25,12 +26,12 @@
     <% end %>
 
     <%= tag.details class: "nw-toolbar__more",
-        data: { nw_menu_target: "details", controller: "popup", action: "keydown.esc->popup#close toggle->popup#toggle click@document->popup#closeOnClickOutside", popup_orientation_top_class: "popup-orientation-top" } do %>
+        data: { controller: "popup", action: "keydown.esc@document->popup#close toggle->popup#toggle click@document->popup#closeOnClickOutside", popup_orientation_top_class: "popup-orientation-top" } do %>
       <summary class="nw-toolbar__btn message__options-btn" title="More">
         <%= image_tag "menu-dots-horizontal.svg" %><span class="for-screen-reader">Message options</span>
       </summary>
 
-      <div class="message__actions-menu nw-menu" data-popup-target="menu">
+      <div class="message__actions-menu nw-menu" data-popup-target="menu" data-controller="nw-sheet" data-action="touchstart->nw-sheet#start touchend->nw-sheet#end">
         <div class="quick-boosts nw-menu__reactions">
           <% boost_path = message_boosts_path(message) %>
           <% boost_frame = dom_id(message, :boosting) %>
@@ -76,7 +77,7 @@
         <div class="nw-menu__sep message__edit-btn"></div>
         <%= button_to room_message_path(message.room, message), method: :delete, class: "nw-menu__item nw-menu__item--danger btn--negative",
               form_class: "message__edit-btn nw-menu__form",
-              data: { turbo_confirm: "Delete this message? This can't be undone.", confirm_label: "Delete message" } do %>
+              data: { turbo_confirm: "Delete this message? This can't be undone.", confirm_label: "Delete message", nw_toast: "Message deleted" } do %>
           <%= image_tag "trash.svg" %><span>Delete message</span>
         <% end %>
       </div>

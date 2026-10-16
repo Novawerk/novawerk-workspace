@@ -11,6 +11,8 @@ export default class extends Controller {
     try {
       await navigator.clipboard.writeText(this.contentValue)
       this.element.classList.add(this.successClass)
+      // Novawerk Chat: say so in a toast too.
+      window.nwToast?.(this.element.dataset.nwToast || "Copied")
     } catch {}
   }
 

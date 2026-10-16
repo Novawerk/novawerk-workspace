@@ -5,7 +5,7 @@ import { escapeHTML } from "helpers/string_helpers"
 
 export default class extends Controller {
   static classes = ["toolbar"]
-  static targets = [ "clientid", "fields", "fileList", "text" ]
+  static targets = [ "clientid", "fields", "fileList", "text", "replyBar", "replyName" ]
   static values = { roomId: Number }
   static outlets = [ "messages" ]
 
@@ -13,10 +13,52 @@ export default class extends Controller {
 
   connect() {
     this.#restoreDraft()
+    document.addEventListener("selectionchange", this.#markBlockSelection)
+    this.#keepLatestInView()
 
     if (!this.#usingTouchDevice) {
       onNextEventLoopTick(() => this.textTarget.focus())
     }
+  }
+
+  disconnect() {
+    document.removeEventListener("selectionchange", this.#markBlockSelection)
+    this.resizeObserver?.disconnect()
+  }
+
+  // Novawerk Chat: when the composer grows (formatting toolbar, chips, long text), the message list
+  // shrinks; if it was showing the latest message, it keeps showing it.
+  get #latestInView() {
+    const area = document.querySelector("#message-area .messages")
+    return !area || area.scrollHeight - area.scrollTop - area.clientHeight < 48
+  }
+
+  #scrollToLatest() {
+    const area = document.querySelector("#message-area .messages")
+    if (area) area.scrollTop = area.scrollHeight
+  }
+
+  #keepLatestInView() {
+    const area = document.querySelector("#message-area .messages")
+    if (!area || !window.ResizeObserver) return
+
+    const box = this.element.closest(".composer") || this.element
+    let previous = box.offsetHeight
+    this.resizeObserver = new ResizeObserver(() => {
+      const grew = box.offsetHeight - previous
+      previous = box.offsetHeight
+      const distanceFromBottom = area.scrollHeight - area.scrollTop - area.clientHeight
+      if (grew > 0 && distanceFromBottom <= grew + 48) area.scrollTop = area.scrollHeight
+    })
+    this.resizeObserver.observe(box)
+  }
+
+  // Novawerk Chat: in a quote, list or code block Enter adds a line, so the hint says ⌘Enter sends.
+  #markBlockSelection = () => {
+    const node = window.getSelection()?.anchorNode
+    const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement
+    const inBlock = !!(element && this.textTarget.contains(element) && element.closest("blockquote, pre, code, li"))
+    this.element.classList.toggle("composer--in-block", inBlock)
   }
 
   saveDraft() {
@@ -33,7 +75,8 @@ export default class extends Controller {
     if (!this.fieldsTarget.disabled) {
       this.#submitFiles()
       this.#submitMessage()
-      this.collapseToolbar()
+      // Novawerk Chat: the formatting toolbar stays as the writer left it; a sent reply ends the reply.
+      this.#hideReplyBar()
       this.textTarget.focus()
     }
   }
@@ -44,8 +87,11 @@ export default class extends Controller {
     }
   }
 
-  toggleToolbar() {
-    this.element.classList.toggle(this.toolbarClass)
+  toggleToolbar(event) {
+    const pinned = this.#latestInView
+    const on = this.element.classList.toggle(this.toolbarClass)
+    if (pinned) this.#scrollToLatest()
+    event?.currentTarget?.setAttribute?.("aria-pressed", on)
     this.textTarget.focus()
   }
 
@@ -53,10 +99,27 @@ export default class extends Controller {
     this.element.classList.remove(this.toolbarClass)
   }
 
-  replaceMessageContent(content) {
+  replaceMessageContent(content, { replyingTo } = {}) {
     this.textTarget.value = content
     this.textTarget.focus()
     this.textTarget.selection.placeCursorAtTheEnd()
+
+    if (replyingTo && this.hasReplyBarTarget) {
+      this.replyNameTarget.textContent = replyingTo
+      this.replyBarTarget.hidden = false
+    }
+  }
+
+  // Novawerk Chat: "Replying to Lena ×" above the composer; × takes the quote out again.
+  cancelReply() {
+    this.textTarget.value = ""
+    this.#hideReplyBar()
+    this.saveDraft()
+    this.textTarget.focus()
+  }
+
+  #hideReplyBar() {
+    if (this.hasReplyBarTarget) this.replyBarTarget.hidden = true
   }
 
   submitByKeyboard(event) {
@@ -187,23 +250,30 @@ export default class extends Controller {
   #updateFileList() {
     this.#files.sort((a, b) => a.name.localeCompare(b.name))
 
+    // Novawerk Chat: a chip per file (icon or thumbnail, name, size, ×), as on board RoomStates · G.
     const fileNodes = this.#files.map((file, index) => {
-      const filename = file.name.split(".").slice(0, -1).join(".")
-      const extension = file.name.split(".").pop()
+      const node = document.createElement("div")
+      node.className = "nw-file-chip"
 
-      const node = document.createElement("button")
-      node.setAttribute("type","button")
-      node.setAttribute("style","gap: 0")
-      node.dataset.action = "composer#fileUnpicked"
-      node.dataset.composerIndexParam = index
-      node.className = "btn btn--plain composer__file txt-normal position-relative unpad flex-column"
-      node.innerHTML = file.type.match(/^image\/.*/) ? `<img role="presentation" class="flex-item-no-shrink composer__file-thumbnail" src="${URL.createObjectURL(file)}">` : `<span class="composer__file-thumbnail composer__file-thumbnail--common colorize--black"></span>`
-      node.innerHTML += `<span class="pad-inline txt-small flex align-center max-width composer__file-caption"><span class="overflow-ellipsis">${escapeHTML(filename)}.</span><span class="flex-item-no-shrink">${escapeHTML(extension)}</span></span>`
+      const icon = file.type.match(/^image\/.*/)
+        ? `<img role="presentation" class="nw-file-chip__thumb" src="${URL.createObjectURL(file)}">`
+        : `<span class="nw-file-chip__icon" aria-hidden="true"></span>`
+      node.innerHTML = `${icon}
+        <span class="nw-file-chip__text"><span class="nw-file-chip__name">${escapeHTML(file.name)}</span><span class="nw-file-chip__size">${this.#humanSize(file.size)}</span></span>
+        <button type="button" class="nw-file-chip__remove" data-action="composer#fileUnpicked" data-composer-index-param="${index}" title="Remove ${escapeHTML(file.name)}" aria-label="Remove ${escapeHTML(file.name)}"></button>`
 
       return node
     })
 
+    const pinned = this.#latestInView
     this.fileListTarget.replaceChildren(...fileNodes)
+    if (pinned) this.#scrollToLatest()
+  }
+
+  #humanSize(bytes) {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`
   }
 
   #pendingUploadProgress(filename, percent=0) {
