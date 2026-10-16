@@ -9,10 +9,16 @@
           </div>
           <p>
             <strong>Welcome to Novawerk Chat</strong><br>
-            To invite people to chat, share the join link below.
+            <% if NovawerkSso.configured? %>
+              Everyone with a Novawerk account can sign in here. Invite people to sign up on novawerk.io.
+            <% else %>
+              To invite people to chat, share the join link below.
+            <% end %>
           </p>
         </div>
-        <%= render "accounts/invite" %>
+        <% unless NovawerkSso.configured? %>
+          <%= render "accounts/invite" %>
+        <% end %>
       </div>
     </div>
   </div>

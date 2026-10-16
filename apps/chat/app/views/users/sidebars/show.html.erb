@@ -68,7 +68,11 @@
       </span>
       <span class="sidebar__me-text">
         <span class="sidebar__me-name"><%= Current.user.name %></span>
-        <span class="sidebar__me-email"><%= Current.user.email_address %></span>
+        <% if Current.user.novawerk_handle.present? %>
+          <span class="sidebar__me-email"><%= novawerk_handle_tag Current.user %></span>
+        <% else %>
+          <span class="sidebar__me-email"><%= Current.user.email_address %></span>
+        <% end %>
       </span>
       <span class="for-screen-reader">My Settings</span>
     <% end %>
