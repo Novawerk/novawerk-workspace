@@ -46,7 +46,7 @@ import {
   taskReasonInput,
   werkAdjustInput,
 } from "@nw/contracts";
-import { taskProposals, type Database } from "@nw/db";
+import { members, taskProposals, type Database } from "@nw/db";
 import {
   TaskRuleError,
   acceptSuggestion,
@@ -74,11 +74,12 @@ import {
   pendingScreenshot,
 } from "@nw/tasks";
 
+import { tellChat } from "../../chat-sso.js";
 import { notFound, notFoundIfInvalid, rejectInvalid } from "../../http.js";
 import { dropSuggestionScreenshot as dropScreenshotOf, publishSuggestionScreenshot as publishScreenshotOf } from "../../screenshots.js";
 import { revalidateWeb } from "../../revalidate.js";
 import type { ApiEnv } from "../../types.js";
-import type { AdminDeps } from "./shared.js";
+import { textIdParam, type AdminDeps } from "./shared.js";
 
 const uuidParam = z.object({ id: z.uuid() });
 const taskFilterQuery = z.object({ filter: z.enum(ADMIN_TASK_FILTERS).default("all") });
@@ -335,7 +336,8 @@ export function boardAdminRoutes({ db, env, files, logger }: AdminDeps) {
   const contributorsApp = new Hono<ApiEnv>()
     .get("/", async (c) => c.json(await listAdminContributors(db), 200))
 
-    .get("/:id/moderation", zValidator("param", uuidParam, notFoundIfInvalid), async (c) => {
+    // Account ids are text: older ones are handles, newer ones uuids (NB-ADR-0014).
+    .get("/:id/moderation", zValidator("param", textIdParam, notFoundIfInvalid), async (c) => {
       const { id } = c.req.valid("param");
       await contributor(id);
       return c.json(await moderationHistory(db, id), 200);
@@ -343,11 +345,14 @@ export function boardAdminRoutes({ db, env, files, logger }: AdminDeps) {
 
     .post(
       "/:id/suspend",
-      zValidator("param", uuidParam, notFoundIfInvalid),
+      zValidator("param", textIdParam, notFoundIfInvalid),
       zValidator("json", moderationInput, rejectInvalid),
       async (c) => {
         const { id } = c.req.valid("param");
         await setContributorSuspended(db, c.get("member").id, id, true, c.req.valid("json").reason);
+        // A suspended account loses the chat too (NB-ADR-0014).
+        const [suspended] = await db.select().from(members).where(eq(members.id, id)).limit(1);
+        if (suspended) await tellChat(env.chatSso, logger, suspended, "closed");
         // A suspended person leaves the wall and their profile; back again when lifted.
         void revalidateWeb(env.webRevalidate, logger, ["contributors"]);
         return c.json(await contributor(id), 200);
@@ -356,7 +361,7 @@ export function boardAdminRoutes({ db, env, files, logger }: AdminDeps) {
 
     .post(
       "/:id/unsuspend",
-      zValidator("param", uuidParam, notFoundIfInvalid),
+      zValidator("param", textIdParam, notFoundIfInvalid),
       zValidator("json", moderationInput, rejectInvalid),
       async (c) => {
         const { id } = c.req.valid("param");

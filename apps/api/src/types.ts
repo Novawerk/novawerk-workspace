@@ -35,6 +35,12 @@ export interface ApiConfig {
    * readEnv refuses to turn it on when running on Vercel.
    */
   devLogin?: boolean;
+  /**
+   * Novawerk Chat (apps/chat, NB-ADR-0014): GET /auth/chat hands a signed-in account to the chat
+   * with a 60-second ticket signed with `secret` (CHAT_SSO_SECRET, the chat has the same one).
+   * Unset: /auth/chat answers 404.
+   */
+  chatSso?: { url: string; secret: string };
   /** Ping apps/web to revalidate after portfolio edits (POST with `x-revalidate-secret`). */
   webRevalidate?: { url: string; secret: string };
   /** Vercel Cron's bearer token for /cron/*. Unset: those routes answer 404. */

@@ -97,6 +97,7 @@ import {
 } from "@nw/tasks";
 
 import { SESSION_COOKIE, currentAccount, sessionCookieOptions } from "../auth.js";
+import { tellChat } from "../chat-sso.js";
 import { FixedWindowLimiter } from "../intake-chat/rate-limit.js";
 import { issuesFrom, notFoundIfInvalid, rejectInvalid, validationFailed } from "../http.js";
 import { revalidateWeb } from "../revalidate.js";
@@ -298,6 +299,8 @@ export function contribRoutes({ db, env, githubApi, files, logger = console }: A
       .delete("/me", sessionOnly, zValidator("json", accountDeleteInput, rejectInvalid), async (c) => {
         const me = c.get("contributor");
         await deleteContributor(db, me.id, c.req.valid("json").confirmHandle);
+        // The chat goes with the account (NB-ADR-0014).
+        await tellChat(env.chatSso, logger, me, "deleted");
         // Their screenshots go too (best effort: the nightly cleanup catches the rest). The account
         // is already gone, so nothing here may stop the cookie being cleared.
         if (files?.ready.private) {

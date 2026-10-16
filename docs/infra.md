@@ -143,6 +143,7 @@ and production. "—" means unset.
 | `RESEND_WEBHOOK_SECRET`, `RESEND_RECEIVING_API_KEY`, `SLACK_INBOX_WEBHOOK_URL` | — | set; see "info@ in Slack" |
 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` | the GitHub App's, or unset (email codes still work) | the GitHub App `novawerk-task-board` |
 | `CONTRIBUTOR_ORIGINS` | default | `https://novawerk.io,https://www.novawerk.io` |
+| `CHAT_URL`, `CHAT_SSO_SECRET` | — (`/auth/chat` answers 404) | `https://chat.novawerk.io` and 32+ random characters, the same as the chat's `CHAT_SSO_SECRET` (NB-ADR-0014). Rotate both together |
 | `WEB_READ_KEY` | — | 32+ random characters, the same on the web (`WEB_READ_KEY`): the website's server reads the task board without the anonymous 600/h limit |
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_INSTALLATION_ID` | — (the board moves tasks without replying on PRs) | the App's id `5317582`, its private key (PEM), installation `171409213` |
 | `GITHUB_WEBHOOK_SECRET` | — (`/webhooks/github` answers 404) | the App's webhook secret, 16+ characters |
