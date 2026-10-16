@@ -76,10 +76,10 @@ The schema is `webEventInput` in `@nw/contracts`; the API stores nothing else.
 | `vote` | `on` | a +1 given (`on: true`) or taken back |
 | `suggestion_sent` | `kind` improvement/bug | a task suggested |
 | `sign_in_open` | `placement` page/dialog | the sign-in page or dialog shown |
-| `sign_in_start` | `method` github/email | "Continue with GitHub" or "Send code" pressed |
-| `sign_in_done` | `method`, `firstRun` | an email sign-in finished (GitHub returns through the API) |
+| `sign_in_start` | `method` github/google/email | "Continue with GitHub", Google's button or "Send code" pressed |
+| `sign_in_done` | `method`, `firstRun` | a Google or email sign-in finished (GitHub returns through the API) |
 | `profile_saved` | — | the profile editor saved |
-| `account_deleted` | — | a contributor deleted their account |
+| `account_deleted` | — | a member deleted their account |
 
 ## Server events (`source = api`)
 

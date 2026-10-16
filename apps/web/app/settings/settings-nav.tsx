@@ -13,7 +13,7 @@ export function SettingsNav({ side = false }: { side?: boolean }) {
   if (!side) {
     return (
       <div className="pt-7">
-        <p className={eyebrow}>{me ? `@${me.handle}` : "Contributors"}</p>
+        <p className={eyebrow}>{me ? `@${me.handle}` : "Your account"}</p>
         <h1 className="mt-1.5 text-3xl font-semibold tracking-tight">Settings</h1>
       </div>
     );

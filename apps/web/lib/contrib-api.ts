@@ -1,5 +1,6 @@
-// The browser's side of the task board API. /auth/contributor and /contrib carry the contributor
-// cookie (httpOnly, on the API's domain), so they go with credentials; /public goes without.
+// The browser's side of the API for signed-in pages. /auth and /contrib carry the session cookie
+// (httpOnly, on the API's domain; one for everyone, NB-ADR-0014), so they go with credentials;
+// /public goes without.
 // Never throws: every failure comes back as a result the page can show.
 
 import type { ApiError } from "@nw/contracts";
@@ -20,11 +21,11 @@ export function apiBase(): string | null {
 
 const UNREACHABLE = "We couldn't reach the task board. Check your connection and try again.";
 
-/** Fired on window when a /contrib call answers 401: the session provider resets to signed out. */
+/** Fired on window when a /contrib call (or /auth/me) answers 401: the session provider resets to signed out. */
 export const SIGNED_OUT_EVENT = "nw:contributor-signed-out";
 
 export async function api<T>(
-  path: `/${"public" | "contrib" | "auth/contributor"}${string}`,
+  path: `/${"public" | "contrib" | "auth"}${string}`,
   { method = "GET", body }: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } = {},
 ): Promise<ApiResult<T>> {
   const base = apiBase();
@@ -43,7 +44,7 @@ export async function api<T>(
   }
   const json = (await res.json().catch(() => null)) as unknown;
   if (res.ok) return { ok: true, data: json as T };
-  if (res.status === 401 && path.startsWith("/contrib") && typeof window !== "undefined") {
+  if (res.status === 401 && (path.startsWith("/contrib") || path === "/auth/me") && typeof window !== "undefined") {
     window.dispatchEvent(new Event(SIGNED_OUT_EVENT));
   }
   const err = (json ?? {}) as Partial<ApiError> & { error?: string };
@@ -88,5 +89,5 @@ export function safeReturnPath(value: string | null | undefined, fallback = "/ta
 export function githubStartUrl(returnTo: string): string | null {
   const base = apiBase();
   if (!base) return null;
-  return `${base}/auth/contributor/github/start?returnTo=${encodeURIComponent(safeReturnPath(returnTo))}`;
+  return `${base}/auth/github/start?returnTo=${encodeURIComponent(safeReturnPath(returnTo))}`;
 }

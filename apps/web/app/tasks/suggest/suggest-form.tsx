@@ -23,7 +23,7 @@ import { useSession, useToast } from "@/lib/session";
 
 const SECURITY_EMAIL = "security@novawerk.io";
 
-/** An improvement or a bug in our own tools. Suggesting needs a contributor account. */
+/** An improvement or a bug in our own tools. Suggesting needs a Novawerk account. */
 export function SuggestForm() {
   const { session } = useSession();
   const me = session.status === "signed-in" ? session.me : null;
@@ -37,7 +37,7 @@ export function SuggestForm() {
         <div className="grid max-w-[60ch] gap-3">
           <p className={eyebrow}>Suggest a task</p>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Sign in to suggest a task</h1>
-          <p className="text-lg text-muted">Anyone can read the board. Suggesting needs a contributor account.</p>
+          <p className="text-lg text-muted">Anyone can read the board. Suggesting needs a Novawerk account.</p>
           <Boundaries />
         </div>
         <div className="border border-line bg-paper p-6">
