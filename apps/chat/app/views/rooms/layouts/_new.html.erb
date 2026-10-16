@@ -1,11 +1,12 @@
-<% @page_title = "New chat room" %>
-
-<% content_for :nav do %>
-  <div class="flex-item-justify-start">
-    <%= link_back_to_last_room_visited %>
-  </div>
+<% @page_title = "New room" %>
+<% page_header "New room" do %>
+  <%= link_back_to_last_room_visited %>
 <% end %>
 
-<section class="panel txt-align-center" style="view-transition-name: <%= local_assigns[:view_transition_name] || "new-room" %>">
-  <%= yield %>
-</section>
+<div class="nw-page">
+  <div class="nw-page__narrow">
+    <div class="nw-card nw-room-form" style="view-transition-name: <%= local_assigns[:view_transition_name] || "new-room" %>">
+      <%= yield %>
+    </div>
+  </div>
+</div>

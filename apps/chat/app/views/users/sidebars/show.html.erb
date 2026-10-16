@@ -16,8 +16,18 @@
       </span>
     <% end %>
 
+    <%= link_to searches_path, class: "sidebar__search", data: { turbo_frame: "_top" } do %>
+      <%= image_tag "search.svg", size: 14 %>
+      <span>Search messages</span>
+    <% end %>
+
     <turbo-frame id="direct_rooms_control" target="_top">
-      <h2 class="sidebar__section-title">Direct messages</h2>
+      <h2 class="sidebar__section-title">
+        Direct messages
+        <%= link_to new_rooms_direct_path, class: "sidebar__section-add", title: "New direct message", data: { turbo_frame: "_self" } do %>
+          <%= image_tag "add.svg", size: 14, alt: "New direct message" %>
+        <% end %>
+      </h2>
       <div class="directs gap overflow-x overflow-hide-scrollbar">
         <%= link_to new_rooms_direct_path, class: "direct direct__new", data: { turbo_frame: "_self" } do %>
           <span class="avatar avatar--icon">
@@ -41,7 +51,14 @@
     </turbo-frame>
 
     <div class="rooms position-relative flex flex-column gap">
-      <h2 class="sidebar__section-title">Channels</h2>
+      <h2 class="sidebar__section-title">
+        Channels
+        <% if Current.user.administrator? || !Current.account.settings.restrict_room_creation_to_administrators? %>
+          <%= link_to new_rooms_open_path, class: "sidebar__section-add", title: "New room", data: { turbo_frame: "_top" } do %>
+            <%= image_tag "add.svg", size: 14, alt: "New room" %>
+          <% end %>
+        <% end %>
+      </h2>
       <div id="shared_rooms" contents data-controller="sorted-list">
         <% @other_memberships.each do |membership| %>
           <%= render "users/sidebars/rooms/shared", room: membership.room, unread: membership.unread? %>

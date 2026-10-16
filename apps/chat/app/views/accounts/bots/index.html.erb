@@ -1,10 +1,7 @@
 <% @page_title = "Chat bots" %>
 
-<% content_for :nav do %>
-  <div class="flex-item-justify-start">
-    <%= link_back_to edit_account_path %>
-  </div>
-<% end %>
+<% page_header "Account settings" %>
+<%= render "accounts/tabs", current: :bots %>
 
 <section class="panel panel--wide txt-align-center flex flex-column position-relative" style="view-transition-name: chat-bots">
   <div class="flex align-center gap">
@@ -15,9 +12,8 @@
       <h1 class="margin-none">Chat bots</h1>
       <p class="margin-none-block-start">With Chat bots, other sites and services can post updates directly to Novawerk Chat.</p>
 
-      <%= link_to new_account_bot_path, class: "btn btn--reversed txt-large", aria: { label: "Add a chat bot" } do %>
-        <%= image_tag "bot.svg", aria: { hidden: "true" }, size: 20 %>
-        <%= image_tag "add.svg", aria: { hidden: "true" }, size: 20 %>
+      <%= link_to new_account_bot_path, class: "btn btn--reversed" do %>
+        <%= image_tag "add.svg" %><span>New bot</span>
       <% end %>
     </div>
   </div>

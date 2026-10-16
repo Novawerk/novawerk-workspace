@@ -19,7 +19,19 @@ module ApplicationHelper
   end
 
   def body_classes
-    [ @body_class, admin_body_class, account_logo_body_class ].compact.join(" ")
+    [ @body_class, novawerk_shell_body_class, admin_body_class, account_logo_body_class ].compact.join(" ")
+  end
+
+  # Novawerk Chat: every signed-in page sits in the app shell (sidebar on the left), not only rooms.
+  def novawerk_shell_body_class
+    "sidebar" if Current.user && !@body_class.to_s.split.include?("sidebar")
+  end
+
+  # Novawerk Chat: the header of a page that isn't a room: a title, then actions on the right.
+  def page_header(title, &actions)
+    content_for :nav do
+      tag.h1(title, class: "nw-hdr-title") + (actions ? tag.div(class: "nw-hdr-actions", &actions) : "".html_safe)
+    end
   end
 
   def link_back
@@ -29,9 +41,8 @@ module ApplicationHelper
   end
 
   def link_back_to(destination)
-    link_to destination, class: "btn" do
-      image_tag("arrow-left.svg", aria: { hidden: "true" }, size: 20) +
-      tag.span("Go Back", class: "for-screen-reader")
+    link_to destination, class: "btn btn--plain" do
+      image_tag("arrow-left.svg") + tag.span("Back")
     end
   end
 

@@ -1,17 +1,22 @@
 <% @page_title = "Edit settings for #{room.name}" %>
+<% page_header "Room settings" do %>
+  <%= link_back_to_last_room_visited %>
+<% end %>
 
-<% content_for :nav do %>
-  <div class="flex-item-justify-start">
-    <%= link_back_to_last_room_visited %>
+<div class="nw-page">
+  <div class="nw-page__narrow">
+    <div class="nw-card nw-room-form" style="view-transition-name: edit-room-<%= room.id %>">
+      <%= yield %>
+    </div>
+
+    <% if Current.user.can_administer?(@room) %>
+      <div class="nw-card nw-card--rows nw-card--danger">
+        <div class="nw-card__row">
+          <span class="nw-card__icon nw-card__icon--danger"><%= image_tag "trash.svg" %></span>
+          <div class="nw-card__text"><strong>Delete this room</strong><span>Deletes the room and all its messages for everyone. This can't be undone.</span></div>
+          <%= button_to_delete_room room %>
+        </div>
+      </div>
+    <% end %>
   </div>
-<% end %>
-
-<section class="panel txt-align-center" style="view-transition-name: edit-room-<%= room.id %>">
-  <%= yield %>
-</section>
-
-<% if Current.user.can_administer?(@room) %>
-  <section class="panel txt-align-center">
-    <%= button_to_delete_room room %>
-  </section>
-<% end %>
+</div>

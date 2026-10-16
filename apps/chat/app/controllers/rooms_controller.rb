@@ -26,6 +26,9 @@ class RoomsController < ApplicationController
       end.first
       if room
         @room = room
+      elsif request.get? && request.format.html?
+        # Novawerk Chat: say so in the app shell instead of quietly showing another room.
+        render "rooms/not_found", status: :not_found
       else
         redirect_to root_url, alert: "Room not found or inaccessible"
       end

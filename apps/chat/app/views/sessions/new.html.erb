@@ -1,52 +1,41 @@
 <% @page_title = "Sign in" %>
 <% turbo_page_requires_reload %>
 
-<section class="txt-align-center">
-  <div class="panel <%= "shake" if flash[:alert] %>">
-    <% if Current.account %>
-      <%= account_logo_tag style: "center margin-block-end txt-xx-large" %>
-    <% end %>
+<section class="nw-signin">
+  <div class="nw-card nw-signin__card <%= "shake" if flash[:alert] %>">
+    <span class="nw-signin__logo"><%= image_tag fresh_account_logo_path, alt: "", size: 32 %></span>
 
     <% if NovawerkSso.configured? %>
-      <div class="flex flex-column gap center-block upad">
-        <p class="txt-large"><strong>Novawerk Chat</strong></p>
-        <% if params[:problem] == "banned" %>
-          <p role="alert">This account can't use the chat.</p>
-        <% elsif params[:problem] %>
-          <p role="alert">That sign-in didn't work. Please try again.</p>
-        <% elsif params[:signed_out] %>
-          <p>You signed out of the chat.</p>
-        <% end %>
-        <p class="txt-small">One Novawerk account for the site, the admin panel and the chat.</p>
-        <%= link_to "Sign in with Novawerk", NovawerkSso.sign_in_url, class: "btn btn--reversed center txt-large" %>
+      <div class="nw-signin__text">
+        <h1 class="nw-signin__title">Sign in to Novawerk Chat</h1>
+        <p class="nw-muted">One Novawerk account for the site, the admin panel and the chat.</p>
       </div>
+
+      <% if params[:problem] == "banned" %>
+        <p class="nw-alert nw-alert--danger" role="alert"><%= image_tag "cancel.svg" %><span>This account can't use the chat.</span></p>
+      <% elsif params[:problem] %>
+        <p class="nw-alert nw-alert--danger" role="alert"><%= image_tag "alert.svg" %><span>That sign-in didn't work. Please try again.</span></p>
+      <% elsif params[:signed_out] %>
+        <p class="nw-alert"><%= image_tag "circle-check.svg" %><span>You signed out of the chat.</span></p>
+      <% end %>
+
+      <%= link_to NovawerkSso.sign_in_url, class: "btn btn--reversed nw-btn-block" do %>
+        <%= image_tag "star.svg" %><span>Sign in with Novawerk</span>
+      <% end %>
+      <p class="nw-small nw-muted">No account yet? <%= link_to "Join on novawerk.io", NovawerkSso.web_url %></p>
     <% else %>
-    <%= form_with url: session_url, class: "flex flex-column gap" do |form| %>
-      <fieldset class="flex flex-column gap center-block upad">
-        <legend class="txt-large txt-align-center"><strong><%= Current.account.name %></strong></legend>
-
-        <div class="flex align-center gap">
-          <%= translation_button(:email_address) %>
-          <label class="flex align-center gap input input--actor txt-large">
-            <%= form.email_field :email_address, required: true, class: "input", autofocus: true, autocomplete: "username", placeholder: "Enter your email address", value: params[:email_address] %>
-            <%= image_tag "email.svg", aria: { hidden: "true" }, size: 24, class: "colorize--black" %>
-          </label>
+      <h1 class="nw-signin__title"><%= Current.account&.name || "Novawerk" %></h1>
+      <%= form_with url: session_url, class: "nw-form" do |form| %>
+        <div class="nw-field">
+          <%= form.label :email_address, "Email", class: "nw-label" %>
+          <%= form.email_field :email_address, required: true, class: "input", autofocus: true, autocomplete: "username", placeholder: "you@example.com", value: params[:email_address] %>
         </div>
-
-        <div class="flex align-center gap">
-          <%= translation_button(:password) %>
-          <label class="flex align-center gap input input--actor txt-large">
-            <%= form.password_field :password, required: true, class: "input", autocomplete: "current-password", placeholder: "Enter your password", maxlength: 72 %>
-            <%= image_tag "password.svg", aria: { hidden: "true" }, size: 24, class: "colorize--black" %>
-          </label>
+        <div class="nw-field">
+          <%= form.label :password, "Password", class: "nw-label" %>
+          <%= form.password_field :password, required: true, class: "input", autocomplete: "current-password", maxlength: 72 %>
         </div>
-
-        <%= form.button class: "btn btn--reversed center txt-large", type: "submit", name: "log_in" do %>
-          <%= image_tag "arrow-right.svg", aria: { hidden: "true" } %>
-          <span class="for-screen-reader">Go</span>
-        <% end %>
-      </fieldset>
-    <% end %>
+        <%= form.button "Sign in", class: "btn btn--reversed nw-btn-block", type: "submit", name: "log_in" %>
+      <% end %>
     <% end %>
   </div>
 

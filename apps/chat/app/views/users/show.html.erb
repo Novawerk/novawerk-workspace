@@ -1,71 +1,75 @@
 <% @page_title = @user.name %>
-
-<% content_for :nav do %>
-  <div class="flex-item-justify-start">
-    <%= link_back %>
-  </div>
-
-  <div class="flex align-center gap flex-item-justify-end">
-    <% if Current.user == @user %>
-      <%= link_to user_profile_path, class: "btn" do %>
-        <%= image_tag "pencil.svg", aria: { hidden: "true" } %>
-        <span class="for-screen-reader">Edit my profile</span>
-      <% end %>
+<% page_header @user.name do %>
+  <% if Current.user == @user %>
+    <%= link_to user_profile_path, class: "btn btn--plain" do %>
+      <%= image_tag "pencil.svg" %><span>My profile</span>
     <% end %>
-  </div>
+  <% end %>
 <% end %>
 
-<section class="panel txt-align-center">
-  <div class="flex flex-column gap <%= "banned" if @user.banned? %>">
-    <div class="avatar txt-xx-large center" style="background: white">
-      <%= image_tag fresh_user_avatar_path(@user), alt: "Profile avatar", class: "avatar" %>
-    </div>
+<div class="nw-page">
+  <div class="nw-page__narrow <%= "banned" if @user.banned? %>">
+    <div class="nw-profile">
+      <span class="avatar nw-profile__avatar"><%= image_tag fresh_user_avatar_path(@user), alt: "", size: 88 %></span>
 
-    <% if @user.bot? %>
-      <div class="pad-double--inline push--inline push--block-start">
-        <% if @user.active? %>
-          <%= button_to_direct_room_with @user%>
+      <div class="nw-profile__body">
+        <div class="nw-row">
+          <h2 class="nw-h1"><%= @user.name %></h2>
+          <% if @user.bot? %>
+            <span class="nw-badge">Bot</span>
+          <% elsif @user.administrator? %>
+            <span class="nw-badge nw-badge--soft">Maintainer</span>
+          <% else %>
+            <span class="nw-badge">Member</span>
+          <% end %>
+          <% if @user.banned? %><span class="nw-badge nw-badge--danger">Banned</span><% end %>
+        </div>
+
+        <% if @user.deactivated? %>
+          <p class="nw-muted"><%= @user.name %> is no longer on this account.</p>
         <% else %>
-          <div><%= @user.name %> is no longer on this account</div>
+          <%= novawerk_handle_tag @user %>
+          <% if @user.bio.present? %><p class="nw-profile__bio"><%= @user.bio %></p><% end %>
+          <%= novawerk_public_profile_tag @user %>
+
+          <% if @user.active? && Current.user != @user %>
+            <div class="nw-row nw-profile__actions">
+              <%= button_to rooms_directs_path(user_ids: [ @user.id ]), class: "btn btn--reversed" do %>
+                <%= image_tag "messages.svg" %><span>Message</span>
+              <% end %>
+            </div>
+          <% end %>
         <% end %>
       </div>
-    <% else %>
-      <% unless @user.deactivated? %>
-        <div class="flex flex-column gap" style="--row-gap: calc(var(--block-space) / 3)">
-          <h1 class="txt-x-large txt-tight-lines margin-none"><%= @user.name %></h1>
-          <%= novawerk_handle_tag @user %>
-          <% if Current.user.can_administer? %>
-            <div><%= mail_to @user.email_address %></div>
-          <% end %>
-          <div><%= @user.bio %></div>
-          <%= novawerk_public_profile_tag @user %>
+    </div>
+
+    <% if Current.user.can_administer? && !@user.bot? && !@user.deactivated? %>
+      <div class="nw-divider-label"><span>Maintainer only</span></div>
+
+      <div class="nw-card nw-card--rows">
+        <div class="nw-card__row">
+          <span class="nw-card__icon"><%= image_tag "email.svg" %></span>
+          <div class="nw-card__text"><strong>Email</strong><span><%= mail_to @user.email_address %></span></div>
+          <%= button_to_copy_to_clipboard(@user.email_address) do %><span>Copy</span><% end %>
         </div>
 
         <% if @user.active? %>
-          <div class="pad-inline-double margin-inline margin-block-start">
-            <%= button_to rooms_directs_path(user_ids: [ @user.id ]), class: "btn btn--reversed full-width txt-large" do %>
-              <%= image_tag "messages.svg", aria: { hidden: "true", label: "Ping #{@user.name}" } %>
-            <% end %>
-          </div>
-
-          <% if Current.user.can_administer? %>
-            <hr class="margin-block-start borderless">
-
-            <%= render "users/profiles/transfer", user: @user %>
-          <% end %>
+          <%= render "users/profiles/transfer", user: @user %>
         <% end %>
 
-        <% if Current.user.can_administer? && Current.user != @user %>
-          <div class="margin-block-start">
+        <% if Current.user != @user %>
+          <div class="nw-card__row">
+            <span class="nw-card__icon nw-card__icon--danger"><%= image_tag "cancel.svg" %></span>
+            <div class="nw-card__text">
+              <strong><%= @user.banned? ? "Banned from the chat" : "Ban from the chat" %></strong>
+              <span><%= @user.banned? ? "Lift the ban to let #{@user.name} back in." : "Signs #{@user.name} out, deletes their messages and blocks their IP addresses." %></span>
+            </div>
             <%= render "users/ban_button", user: @user %>
           </div>
         <% end %>
-      <% else %>
-        <div>
-          <h1 class="txt-x-large margin-none"><%= @user.name %></h1>
-          <div><%= @user.name %> is no longer on this account</div>
-        </div>
-      <% end %>
+      </div>
+
+      <p class="nw-hint nw-row"><%= image_tag "lock.svg" %>Roles (Maintainer, Member) come from the Novawerk account. Change them in the admin panel.</p>
     <% end %>
   </div>
-</section>
+</div>

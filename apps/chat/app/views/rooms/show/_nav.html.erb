@@ -11,6 +11,10 @@
     </h1>
   <% end %>
 
+  <span class="nw-hdr-sub">
+    <%= room.direct? ? "Direct message" : (room.is_a?(Rooms::Closed) ? "Closed room · #{pluralize(room.users.size, "member")}" : "Open room · everyone in #{Current.account.name}") %>
+  </span>
+
   <%= link_to_edit_room(room) do %>
     <%= image_tag "menu-dots-horizontal.svg", size: 20, aria: { hidden: "true" } %>
     <span class="for-screen-reader">Settings for this <%= room.direct? ? "Ping" : "room" %></span>
