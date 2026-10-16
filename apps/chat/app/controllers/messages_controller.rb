@@ -80,8 +80,14 @@ class MessagesController < ApplicationController
     end
 
 
+    # Novawerk Chat: empty paragraphs at the end of a message (a trailing Enter) are dropped, so an
+    # edit doesn't start on a blank line.
+    TRAILING_EMPTY_PARAGRAPHS = %r{(?:\s*<p>\s*(?:<br\s*/?>)?\s*</p>)+\s*\z}
+
     def message_params
-      params.require(:message).permit(:body, :attachment, :client_message_id)
+      params.require(:message).permit(:body, :attachment, :client_message_id).tap do |permitted|
+        permitted[:body] = permitted[:body].sub(TRAILING_EMPTY_PARAGRAPHS, "") if permitted[:body].is_a?(String) && permitted[:body].sub(TRAILING_EMPTY_PARAGRAPHS, "").strip.present?
+      end
     end
 
 

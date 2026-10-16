@@ -5,6 +5,12 @@ import { Controller } from "@hotwired/stimulus"
 export default class extends Controller {
   static targets = [ "item", "none", "search", "close" ]
 
+  // Opens upward when there's no room above the composer (the last messages in a room).
+  connect() {
+    const limit = document.querySelector(".composer")?.getBoundingClientRect().top ?? window.innerHeight
+    if (this.element.getBoundingClientRect().bottom > limit - 8) this.element.classList.add("nw-boost-picker--up")
+  }
+
   filter() {
     const query = this.searchTarget.value.trim().toLowerCase()
     let shown = 0

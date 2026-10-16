@@ -23,7 +23,10 @@ export default class extends Controller {
 
   #orient() {
     // Novawerk Chat: menus without an orientation class (bell, emoji, row menus) just skip it.
-    if (this.hasOrientationTopClass) this.element.classList.toggle(this.orientationTopClass, this.#distanceToBottom < BOTTOM_THRESHOLD)
+    if (this.hasOrientationTopClass) {
+      this.element.classList.remove(this.orientationTopClass)
+      this.element.classList.toggle(this.orientationTopClass, this.#distanceToBottom < BOTTOM_THRESHOLD)
+    }
     this.menuTarget.style.setProperty("--max-width", this.#maxWidth + "px")
   }
 

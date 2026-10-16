@@ -33,7 +33,8 @@ export default class extends Controller {
   }
 
   loaded() {
-    this.read({ detail: { roomId: Current.room.id } })
+    // Novawerk Chat: pages that aren't a room (members, search, settings) have no current room.
+    if (Current.room) this.read({ detail: { roomId: Current.room.id } })
   }
 
   read({ detail: { roomId, at } }) {

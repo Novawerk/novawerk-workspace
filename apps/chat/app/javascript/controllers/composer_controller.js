@@ -14,6 +14,7 @@ export default class extends Controller {
   connect() {
     this.#restoreDraft()
     document.addEventListener("selectionchange", this.#markBlockSelection)
+    this.#keepLatestInView()
 
     if (!this.#usingTouchDevice) {
       onNextEventLoopTick(() => this.textTarget.focus())
@@ -22,6 +23,34 @@ export default class extends Controller {
 
   disconnect() {
     document.removeEventListener("selectionchange", this.#markBlockSelection)
+    this.resizeObserver?.disconnect()
+  }
+
+  // Novawerk Chat: when the composer grows (formatting toolbar, chips, long text), the message list
+  // shrinks; if it was showing the latest message, it keeps showing it.
+  get #latestInView() {
+    const area = document.querySelector("#message-area .messages")
+    return !area || area.scrollHeight - area.scrollTop - area.clientHeight < 48
+  }
+
+  #scrollToLatest() {
+    const area = document.querySelector("#message-area .messages")
+    if (area) area.scrollTop = area.scrollHeight
+  }
+
+  #keepLatestInView() {
+    const area = document.querySelector("#message-area .messages")
+    if (!area || !window.ResizeObserver) return
+
+    const box = this.element.closest(".composer") || this.element
+    let previous = box.offsetHeight
+    this.resizeObserver = new ResizeObserver(() => {
+      const grew = box.offsetHeight - previous
+      previous = box.offsetHeight
+      const distanceFromBottom = area.scrollHeight - area.scrollTop - area.clientHeight
+      if (grew > 0 && distanceFromBottom <= grew + 48) area.scrollTop = area.scrollHeight
+    })
+    this.resizeObserver.observe(box)
   }
 
   // Novawerk Chat: in a quote, list or code block Enter adds a line, so the hint says ⌘Enter sends.
@@ -59,7 +88,9 @@ export default class extends Controller {
   }
 
   toggleToolbar(event) {
+    const pinned = this.#latestInView
     const on = this.element.classList.toggle(this.toolbarClass)
+    if (pinned) this.#scrollToLatest()
     event?.currentTarget?.setAttribute?.("aria-pressed", on)
     this.textTarget.focus()
   }
@@ -234,7 +265,9 @@ export default class extends Controller {
       return node
     })
 
+    const pinned = this.#latestInView
     this.fileListTarget.replaceChildren(...fileNodes)
+    if (pinned) this.#scrollToLatest()
   }
 
   #humanSize(bytes) {

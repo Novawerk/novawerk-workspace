@@ -2567,3 +2567,15 @@ svg[hidden] { display: none; }
   .nw-composer__actions .nw-emoji { position: static; }
   .nw-emoji__menu.nw-menu { bottom: calc(100% + 8px); left: 8px; }
 }
+
+/* --- Round 4 fixes ------------------------------------------------------------ */
+@media (min-width: 100ch) { .nw-boost-picker--up { inset: auto auto 100% 0; margin: 0 0 6px; } }
+/* Toasts sit above everything, under the header on the right, clear of the composer. */
+.nw-toast { inset: 68px 20px auto auto; z-index: 60; }
+@media (max-width: 100ch) { .nw-toast { inset: 64px 12px auto 12px; } }
+/* My profile's level menu opens upward near the bottom of the screen. */
+.nw-rooms__level.popup-orientation-top .nw-hdr-menu__menu { bottom: 30px; top: auto; }
+.message-area:not(:has(.message)) .messages { inline-size: 100%; justify-self: stretch; margin-inline: 0; }
+#system_welcome.nw-intro { display: flex; }
+@media (max-width: 100ch) { .popup-orientation-top .message__actions-menu.nw-menu { bottom: 0 !important; inset-block-end: 0 !important; } }
+.message-area:not(:has(.message)) .messages { align-content: start; justify-content: stretch; }
