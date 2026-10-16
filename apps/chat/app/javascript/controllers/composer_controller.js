@@ -187,23 +187,28 @@ export default class extends Controller {
   #updateFileList() {
     this.#files.sort((a, b) => a.name.localeCompare(b.name))
 
+    // Novawerk Chat: a chip per file (icon or thumbnail, name, size, ×), as on board RoomStates · G.
     const fileNodes = this.#files.map((file, index) => {
-      const filename = file.name.split(".").slice(0, -1).join(".")
-      const extension = file.name.split(".").pop()
+      const node = document.createElement("div")
+      node.className = "nw-file-chip"
 
-      const node = document.createElement("button")
-      node.setAttribute("type","button")
-      node.setAttribute("style","gap: 0")
-      node.dataset.action = "composer#fileUnpicked"
-      node.dataset.composerIndexParam = index
-      node.className = "btn btn--plain composer__file txt-normal position-relative unpad flex-column"
-      node.innerHTML = file.type.match(/^image\/.*/) ? `<img role="presentation" class="flex-item-no-shrink composer__file-thumbnail" src="${URL.createObjectURL(file)}">` : `<span class="composer__file-thumbnail composer__file-thumbnail--common colorize--black"></span>`
-      node.innerHTML += `<span class="pad-inline txt-small flex align-center max-width composer__file-caption"><span class="overflow-ellipsis">${escapeHTML(filename)}.</span><span class="flex-item-no-shrink">${escapeHTML(extension)}</span></span>`
+      const icon = file.type.match(/^image\/.*/)
+        ? `<img role="presentation" class="nw-file-chip__thumb" src="${URL.createObjectURL(file)}">`
+        : `<span class="nw-file-chip__icon" aria-hidden="true"></span>`
+      node.innerHTML = `${icon}
+        <span class="nw-file-chip__text"><span class="nw-file-chip__name">${escapeHTML(file.name)}</span><span class="nw-file-chip__size">${this.#humanSize(file.size)}</span></span>
+        <button type="button" class="nw-file-chip__remove" data-action="composer#fileUnpicked" data-composer-index-param="${index}" title="Remove ${escapeHTML(file.name)}" aria-label="Remove ${escapeHTML(file.name)}"></button>`
 
       return node
     })
 
     this.fileListTarget.replaceChildren(...fileNodes)
+  }
+
+  #humanSize(bytes) {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`
   }
 
   #pendingUploadProgress(filename, percent=0) {

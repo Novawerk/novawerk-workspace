@@ -51,7 +51,7 @@
       </footer>
     </main>
 
-    <aside id="sidebar" data-controller="toggle-class" data-toggle-class-toggle-class="open">
+    <aside id="sidebar" data-controller="toggle-class" data-toggle-class-toggle-class="open" data-action="click@document->toggle-class#closeOnClickOutside keydown.esc@document->toggle-class#close">
       <%= content_for?(:sidebar) ? yield(:sidebar) : (sidebar_turbo_frame_tag(src: user_sidebar_path) if Current.user) %>
     </aside>
 

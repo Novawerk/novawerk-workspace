@@ -148,8 +148,8 @@
       <p class="nw-card__desc">Open the chat on your phone and sign in with Novawerk, or scan a one-time link.</p>
     </div>
     <div class="nw-card__body nw-card__body--tight">
-      <%= link_to_zoom_qr_code(session_transfer_url(@user.transfer_id)) do %>
-        <%= image_tag "mobile-phone.svg" %><span>Show QR code…</span>
+      <%= render layout: "users/profiles/sign_in_link_dialog", locals: { user: @user } do %>
+        <button type="button" class="btn nw-btn-outline nw-btn-sm" data-action="nw-dialog#open"><%= image_tag "mobile-phone.svg" %><span>Show QR code…</span></button>
       <% end %>
     </div>
   </div>

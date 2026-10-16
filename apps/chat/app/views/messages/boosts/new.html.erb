@@ -1,26 +1,32 @@
+<%# Novawerk Chat: the reaction picker with a text boost (RoomStates · I). An emoji or the short
+    text posts a boost; the picker closes by reloading the boosts row. %>
 <%= turbo_frame_tag dom_id(@message, :new_boost) do %>
-  <div class="boost flex-inline postion--relative max-width fill-white" style="--column-gap: var(--inline-space-half)">
-    <%= form_with model: [ @message, Boost.new ], class: "boost__form flex align-center gap expanded",
-          data: { controller: "form scroll-into-view", turbo_frame: dom_id(@message, :boosting), action: "keydown.esc->form#cancel" } do |form| %>
-      <label class="boost__form-label flex gap" style="--column-gap: 0.7ch;" role="button" tabindex="0" aria-label="Add a boost">
-        <figure class="avatar boost__avatar flex-item-no-shrink">
-          <%= avatar_tag Current.user %>
-          <span class="for-screen-reader"><%= Current.user.name %></span>
-        </figure>
+  <div class="nw-boost-picker nw-menu" role="dialog" aria-label="Add a reaction"
+      data-controller="nw-boost-picker" data-action="keydown.esc@document->nw-boost-picker#close click@document->nw-boost-picker#closeOnClickOutside">
+    <label class="input nw-input-group nw-boost-picker__search">
+      <%= image_tag "boost.svg", class: "nw-muted" %>
+      <input type="search" placeholder="Search emoji" aria-label="Search emoji" autocomplete="off" autofocus
+          data-action="input->nw-boost-picker#filter" data-nw-boost-picker-target="search">
+    </label>
 
-        <%= form.text_field :content, id: nil, autofocus: true, autocomplete: "off", autocorrect: "off", maxlength: 16,
-              required: true, pattern: /\S+.*/, data: { boost_form_target: "input" }, class: "input input--boost txt-small" %>
-      </label>
-
-      <%= form.button class: "btn btn--reversed", type: "submit" do %>
-        <%= image_tag "check.svg", aria: { hidden: "true" } %>
-        <span class="for-screen-reader">Submit</span>
+    <div class="nw-boost-picker__grid">
+      <% EmojiHelper::PICKER.each do |character, words| %>
+        <%= form_with model: [ @message, Boost.new ], class: "nw-boost-picker__item", data: { turbo_frame: dom_id(@message, :boosting), nw_boost_picker_target: "item", words: "#{words} #{character}".downcase } do |form| %>
+          <%= form.hidden_field :content, value: character, id: nil %>
+          <button type="submit" class="nw-menu__emoji" title="<%= words.split.first %>"><%= character %></button>
+        <% end %>
       <% end %>
+    </div>
+    <p class="nw-small nw-muted nw-boost-picker__none" data-nw-boost-picker-target="none" hidden>No emoji match.</p>
 
-      <%= link_to message_boosts_path(@message), data: { turbo_frame: dom_id(@message, :boosts), form_target: "cancel" }, class: "btn btn--negative" do %>
-        <%= image_tag "minus.svg", aria: { hidden: "true" } %>
-        <span class="for-screen-reader">Cancel</span>
-      <% end %>
+    <div class="nw-menu__sep"></div>
+
+    <%= form_with model: [ @message, Boost.new ], class: "nw-row nw-boost-picker__text", data: { turbo_frame: dom_id(@message, :boosting) } do |form| %>
+      <%= form.text_field :content, id: nil, autocomplete: "off", maxlength: 16, required: true, pattern: /\S+.*/,
+            class: "input", placeholder: "Or write a short boost", aria: { label: "Write a boost" } %>
+      <%= form.button "Boost", class: "btn btn--reversed nw-btn-sm", type: "submit" %>
     <% end %>
+
+    <%= link_to "Close", message_boosts_path(@message), class: "for-screen-reader", data: { turbo_frame: dom_id(@message, :boosting), nw_boost_picker_target: "close" } %>
   </div>
 <% end %>

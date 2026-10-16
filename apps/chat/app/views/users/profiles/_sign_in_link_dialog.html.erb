@@ -1,0 +1,39 @@
+<%# Novawerk Chat: the one-time sign-in link in a dialog (States · "Sign-in link"): a QR code, Copy and
+    Share. The link itself is never printed on the page. Locals: user, and the trigger as the block. %>
+<% url = session_transfer_url(user.transfer_id) %>
+<% mine = Current.user == user %>
+<% first_name = user.name.split.first %>
+
+<span data-controller="nw-dialog">
+  <%= yield %>
+
+  <dialog class="nw-dialog nw-link-dialog" data-nw-dialog-target="dialog" data-action="click->nw-dialog#closeOnBackdrop"
+      aria-labelledby="sign_in_link_title_<%= user.id %>">
+    <div class="nw-link-dialog__head">
+      <span class="nw-link-dialog__icon"><%= image_tag "key.svg" %></span>
+      <div class="nw-stack">
+        <h2 class="nw-link-dialog__title" id="sign_in_link_title_<%= user.id %>"><%= mine ? "Sign in on another device" : "Sign-in link for #{first_name}" %></h2>
+        <p class="nw-small nw-muted"><%= mine ? "Scan it with your phone, or copy the link. Don't share it." : "Signs #{first_name} in on another device. Share it only with #{first_name}." %></p>
+      </div>
+    </div>
+
+    <div class="nw-link-dialog__body">
+      <%= image_tag qr_code_path(Base64.urlsafe_encode64(url)), alt: "QR code for the sign-in link", class: "nw-link-dialog__qr", size: 120 %>
+      <div class="nw-link-dialog__actions">
+        <%= button_to_copy_to_clipboard(url) do %>
+          <%= image_tag "copy-paste.svg" %><span>Copy link</span>
+        <% end %>
+        <%= web_share_session_button(url, mine ? "Your sign-in link" : "Sign-in link for #{first_name}",
+              mine ? "Your own private sign-in link. Don't share it." : "Your private sign-in link for Novawerk Chat. Don't share it.") do %>
+          <%= image_tag "share.svg" %><span>Share…</span>
+        <% end %>
+      </div>
+    </div>
+
+    <p class="nw-small nw-muted">Anyone with this link can sign in as <%= mine ? "you" : first_name %>. It works once.</p>
+
+    <form method="dialog" class="nw-dialog__actions">
+      <button class="btn nw-btn-outline nw-btn-sm">Done</button>
+    </form>
+  </dialog>
+</span>

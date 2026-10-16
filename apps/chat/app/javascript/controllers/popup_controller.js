@@ -14,8 +14,9 @@ export default class extends Controller {
     this.#orient()
   }
 
+  // Novawerk Chat: a click on the details element itself is its phone backdrop (::before), so it closes too.
   closeOnClickOutside({ target }) {
-    if (!this.element.contains(target)) this.close()
+    if (!this.element.contains(target) || target === this.element) this.close()
   }
 
   #orient() {

@@ -2382,3 +2382,74 @@ suggestion-option[selected]:not(.flashing-off) .autocomplete__btn { background: 
   .nw-room-members__row { padding: 10px 16px; }
   .nw-card:has(.nw-room-members) .nw-card__head--split { flex-direction: column; align-items: stretch; }
 }
+
+/* --- Composer attachment chips (RoomStates · G) ------------------------------ */
+.nw-composer__files { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 10px 0; }
+.nw-composer__files:empty { display: none; }
+.nw-file-chip { align-items: center; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; display: flex; gap: 8px; max-inline-size: 260px; padding: 6px 6px 6px 8px; }
+.nw-file-chip__thumb, .nw-file-chip__icon { border-radius: 6px; flex: none; height: 28px; object-fit: cover; width: 28px; }
+.nw-file-chip__icon { background: #f5f5f5; position: relative; }
+.nw-file-chip__icon::before { background: #525252; content: ""; inset: 6px; position: absolute;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z'/%3E%3Cpath d='M14 2v4a2 2 0 0 0 2 2h4'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z'/%3E%3Cpath d='M14 2v4a2 2 0 0 0 2 2h4'/%3E%3C/svg%3E") center / contain no-repeat; }
+.nw-file-chip__text { display: flex; flex-direction: column; line-height: 1.2; min-inline-size: 0; }
+.nw-file-chip__name { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nw-file-chip__size { color: #737373; font-size: 12px; }
+.nw-file-chip__remove { background: transparent; border: 0; border-radius: 6px; cursor: pointer; flex: none; height: 24px; position: relative; width: 24px; }
+.nw-file-chip__remove:hover { background: #f5f5f5; }
+.nw-file-chip__remove::before { background: #525252; content: ""; inset: 5px; position: absolute;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18'/%3E%3Cpath d='m6 6 12 12'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18'/%3E%3Cpath d='m6 6 12 12'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+/* --- Reaction picker (RoomStates · I) --------------------------------------- */
+turbo-frame[id^="new_boost_"] { position: relative; }
+.nw-boost-picker { inset: 100% auto auto 0; margin-top: 6px; padding: 8px; position: absolute; width: 300px; z-index: 6; }
+.nw-boost-picker__search { height: 32px; }
+.nw-boost-picker__grid { display: grid; gap: 2px; grid-template-columns: repeat(8, minmax(0, 1fr)); max-height: 176px; overflow-y: auto; padding: 8px 0; }
+.nw-boost-picker__item { margin: 0; }
+.nw-boost-picker__item[hidden] { display: none; }
+.nw-boost-picker__item .nw-menu__emoji { font-size: 18px; height: 32px; width: 100%; }
+.nw-boost-picker__none { padding: 8px 4px; }
+.nw-boost-picker .nw-menu__sep { margin: 0 -8px 8px; }
+.nw-boost-picker__text { gap: 6px; }
+.nw-boost-picker__text .input { flex: 1; height: 32px; min-inline-size: 0; }
+@media (max-width: 100ch) {
+  .nw-boost-picker { border-radius: 16px 16px 0 0; inset: auto 0 0 0; padding: 12px 12px 24px; position: fixed; width: auto; z-index: 21; }
+}
+
+/* --- Sign-in link dialog (States · "Sign-in link") -------------------------- */
+.nw-card .nw-transfer, .nw-transfer { display: flex; padding: 0.875rem 1.25rem; }
+.nw-link-dialog { display: none; flex-direction: column; gap: 14px; inline-size: min(26rem, calc(100vw - 2rem)); padding: 20px; }
+.nw-link-dialog[open] { display: flex; }
+.nw-link-dialog__head { align-items: flex-start; display: flex; gap: 12px; }
+.nw-link-dialog__icon { align-items: center; background: #f5f5f5; border-radius: 10px; display: flex; flex: none; height: 40px; justify-content: center; width: 40px; }
+.nw-link-dialog__title { font-size: 16px; font-weight: 600; line-height: 24px; margin: 0; }
+.nw-link-dialog p { margin: 0; }
+.nw-link-dialog__body { align-items: center; display: flex; gap: 14px; }
+.nw-link-dialog__qr { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; flex: none; height: 120px; padding: 6px; width: 120px; }
+.nw-link-dialog__actions { display: flex; flex: 1; flex-direction: column; gap: 8px; }
+.nw-link-dialog__actions .btn { block-size: 32px; border: 1px solid #e5e5e5; font-size: 14px; gap: 6px; justify-content: center; }
+.nw-link-dialog__actions .btn[hidden] { display: none; }
+@media (max-width: 100ch) { .nw-card .nw-transfer, .nw-transfer { padding: 12px 16px; } }
+.nw-dialog__text { gap: 6px; }
+.nw-dialog__text .nw-dialog__title { font-size: 16px; font-weight: 600; line-height: 24px; }
+.nw-dialog__desc { color: #737373; font-size: 14px; line-height: 20px; margin: 0; }
+.nw-dialog__desc[hidden] { display: none; }
+.nw-intro__avatars { display: flex; }
+.nw-intro__avatars .avatar + .avatar { margin-left: -12px; }
+.nw-intro__avatars img { border: 2px solid #fff; border-radius: 999px; height: 48px; width: 48px; }
+/* Search results: the whole row opens the message. */
+.nw-search__results .message { cursor: pointer; }
+/* Phones: the formatting toolbar gets the editor's full width (the Aa and emoji buttons sit on the
+   text line), so lexxy never moves a button into its hidden overflow menu; 28px buttons fit 360px.
+   The message menu sheet spans the screen (the popup's --max-width doesn't apply to it). */
+@media (max-width: 100ch) {
+  .nw-composer__editor { padding-right: 0; }
+  .nw-composer__editor [contenteditable], .nw-composer__editor .lexxy-editor__content { padding-right: 64px; }
+  .composer--rich-text .nw-composer__editor { border-radius: 12px; }
+  .composer--rich-text .nw-composer__editor lexxy-toolbar { gap: 0; padding: 4px; }
+  .nw-composer__editor lexxy-toolbar .lexxy-editor__toolbar-button { flex: none; height: 30px; width: 28px; }
+  .composer--rich-text .nw-composer__actions > * { align-self: end; margin-bottom: 2px; }
+  .message__actions-menu.nw-menu { inline-size: auto !important; left: 0 !important; max-inline-size: none !important; right: 0 !important; width: auto !important; }
+}
+.message:has(.nw-boost-picker) { position: relative; z-index: 7; }

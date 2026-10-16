@@ -1,6 +1,8 @@
 import { Controller } from "@hotwired/stimulus"
+import { Turbo } from "@hotwired/turbo-rails"
 
-// Novawerk Chat: marks the search words in each result (Search board).
+// Novawerk Chat: marks the search words in each result (Search board), and a click anywhere on a
+// result opens the message, not only its time and room badge.
 export default class extends Controller {
   static values = { query: String }
 
@@ -13,6 +15,14 @@ export default class extends Controller {
     const alternatives = [ words.map(escape).join("[\\s-]+"), ...words.filter(word => word.length > 2).map(escape) ]
     const pattern = new RegExp(`(${alternatives.join("|")})`, "gi")
     this.element.querySelectorAll(".message__body-content").forEach(body => this.#mark(body, pattern))
+  }
+
+  open(event) {
+    if (event.target.closest("a, button, summary, input, details, .message__actions")) return
+    if (window.getSelection()?.toString()) return
+
+    const link = event.target.closest(".message")?.querySelector(".message__permalink")
+    if (link) Turbo.visit(link.href)
   }
 
   #mark(root, pattern) {

@@ -82,7 +82,7 @@ module MessagesHelper
     return capture(&block) unless controller.perform_caching && !message.attachment?
 
     key = fragment_name_with_digest([
-      "message-actions-v2-novawerk", request.base_url, request.script_name, I18n.locale, message.id, message.room_id
+      "message-actions-v3-novawerk", request.base_url, request.script_name, I18n.locale, message.id, message.room_id
     ], nil)
     FragmentCache.store.fetch(key) { capture(&block) }
   end

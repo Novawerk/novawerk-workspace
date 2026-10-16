@@ -19,7 +19,7 @@
             <span class="nw-badge nw-badge--outline">Editing</span>
           </div>
           <%= form_with model: @message, url: room_message_path(@room, @message), id: dom_id(@message, :form), data: {
-                controller: "form", action: "lexxy:file-accept->form#preventAttachment keydown.esc->form#cancel keydown.enter->form#submit:prevent keydown.ctrl+enter->form#submit:prevent keydown.meta+enter->form#submit:prevent" } do |form| %>
+                controller: "form nw-edit", action: "lexxy:file-accept->form#preventAttachment keydown.esc->form#cancel keydown->nw-edit#submitOnEnter:capture" } do |form| %>
             <div class="nw-composer nw-composer--edit">
               <div class="nw-composer__editor">
                 <%= form.rich_text_area :body,
@@ -29,7 +29,7 @@
                       aria: { multiline: "true", label: "Edit message" },
                       autofocus: true,
                       "permitted-attachment-types": "application/vnd.campfire.mention application/vnd.actiontext.opengraph-embed",
-                      data: { action: rich_text_data_actions } do %>
+                      data: { nw_edit_target: "editor" } do %>
                   <%= mention_prompt_tag @room %>
                 <% end %>
               </div>

@@ -1,34 +1,13 @@
-<% url = session_transfer_url(user.transfer_id) %>
 <% mine = Current.user == user %>
 
-<details class="nw-card__row nw-transfer">
-  <summary class="nw-transfer__summary">
-    <span class="nw-card__icon"><%= image_tag "key.svg" %></span>
-    <span class="nw-card__text">
-      <strong><%= mine ? "Sign in on another device" : "Sign-in link" %></strong>
-      <span class="nw-desktop-only"><%= mine ? "A private one-time link or QR code. Don't share it." : "A private link that signs #{user.name} in on another device. Share it only with them." %></span>
-      <span class="nw-phone-only">For <%= mine ? "your" : "#{user.name.split.first}'s" %> other devices</span>
-    </span>
-    <span class="btn nw-desktop-only"><%= mine ? "Show link…" : "Get link…" %></span>
-    <%= image_tag "chevron-right.svg", class: "nw-phone-only nw-muted" %>
-  </summary>
-
-  <div class="nw-transfer__body">
-    <label for="session_transfer_url_<%= user.id %>" class="for-screen-reader">Sign-in link</label>
-    <input type="text" class="input" value="<%= url %>" id="session_transfer_url_<%= user.id %>" readonly>
-
-    <div class="nw-row">
-      <%= link_to_zoom_qr_code(url) do %>
-        <%= image_tag "qr-code.svg" %><span>QR code</span>
-      <% end %>
-
-      <%= button_to_copy_to_clipboard(url) do %>
-        <%= image_tag "copy-paste.svg" %><span>Copy</span>
-      <% end %>
-
-      <%= web_share_session_button(url, "Your sign-in link", "This is your own private sign-in URL, DO NOT SHARE IT. Use it to sign-in on another device or if you get locked out.") do %>
-        <%= image_tag "share.svg" %><span>Share</span>
-      <% end %>
-    </div>
-  </div>
-</details>
+<div class="nw-card__row nw-transfer">
+  <span class="nw-card__icon"><%= image_tag "key.svg" %></span>
+  <span class="nw-card__text">
+    <strong><%= mine ? "Sign in on another device" : "Sign-in link" %></strong>
+    <span class="nw-desktop-only"><%= mine ? "A private one-time link or QR code. Don't share it." : "A private link that signs #{user.name} in on another device. Share it only with them." %></span>
+    <span class="nw-phone-only">For <%= mine ? "your" : "#{user.name.split.first}'s" %> other devices</span>
+  </span>
+  <%= render layout: "users/profiles/sign_in_link_dialog", locals: { user: user } do %>
+    <button type="button" class="btn nw-btn-outline nw-btn-sm" data-action="nw-dialog#open"><%= mine ? "Show link…" : "Get link…" %></button>
+  <% end %>
+</div>

@@ -6,9 +6,9 @@
       <%= composer_form_tag(room) do |form| %>
         <fieldset data-composer-target="fields" contents>
           <div class="flex flex-column">
-            <div class="composer__filelist flex flex--align-center gap flex-wrap" data-composer-target="fileList"></div>
-
             <div class="composer__input nw-composer">
+              <%# Novawerk Chat: picked files are chips inside the composer (RoomStates · G). %>
+              <div class="nw-composer__files" data-composer-target="fileList"></div>
               <div class="nw-composer__editor">
                 <%= form.rich_text_area :body,
                       rows: 1,
