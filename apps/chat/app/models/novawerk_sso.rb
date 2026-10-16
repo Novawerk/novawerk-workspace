@@ -9,6 +9,10 @@
 module NovawerkSso
   ISSUER = "nw-api"
   AUDIENCE = "novawerk-chat"
+  # Events about accounts (deleted, suspended or closed, a new role) come with their own audience,
+  # so a ticket is never an event and an event never signs anyone in.
+  EVENT_AUDIENCE = "novawerk-chat-events"
+  EVENT_KINDS = %w[ deleted closed role ].freeze
   LEEWAY = 5.seconds
   MAX_AGE = 2.minutes
 
@@ -36,11 +40,11 @@ module NovawerkSso
       ENV.fetch("NOVAWERK_WEB_URL", "https://novawerk.io").chomp("/")
     end
 
-    # The ticket's claims, or InvalidTicket. Each ticket works once (its `jti`).
-    def verify!(ticket, now: Time.current)
+    # The ticket's (or event's) claims, or InvalidTicket. Each works once (its `jti`).
+    def verify!(ticket, now: Time.current, audience: AUDIENCE)
       claims = Ticket.decode!(ticket.to_s, secret)
       raise InvalidTicket, "wrong issuer" unless claims["iss"] == ISSUER
-      raise InvalidTicket, "wrong audience" unless Array(claims["aud"]).include?(AUDIENCE)
+      raise InvalidTicket, "wrong audience" unless Array(claims["aud"]) == [ audience ]
       raise InvalidTicket, "expired" unless claims["exp"].is_a?(Integer) && now.to_i <= claims["exp"] + LEEWAY.to_i
       raise InvalidTicket, "too old" unless claims["iat"].is_a?(Integer) && claims["iat"] >= (now - MAX_AGE).to_i && claims["iat"] <= (now + LEEWAY).to_i
       raise InvalidTicket, "no subject" if claims["sub"].blank? || claims["jti"].blank?
@@ -71,6 +75,27 @@ module NovawerkSso
       ensure_first_room(user)
       AvatarJob.perform_later(user, claims["avatar"].presence)
       user
+    end
+
+    # What the API tells us about an account: deleted (out of the chat, messages stay), closed
+    # (suspended or inactive: their sessions end; the API refuses their next ticket), or a new role.
+    def apply_event(claims)
+      raise InvalidTicket, "unknown event" unless EVENT_KINDS.include?(claims["kind"])
+
+      user = User.active.where("lower(email_address) = ?", claims["email"].to_s.strip.downcase).first
+      return unless user && !user.bot?
+
+      case claims["kind"]
+      when "deleted"
+        user.deactivate
+      when "closed"
+        user.sessions.destroy_all
+        user.reset_remote_connections
+      when "role"
+        was_administrator = user.administrator?
+        user.update!(role: claims["role"] == "maintainer" ? :administrator : :member)
+        RoomAccess.sync(user, was_administrator: was_administrator)
+      end
     end
 
     private

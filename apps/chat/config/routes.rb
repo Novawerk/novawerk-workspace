@@ -5,6 +5,7 @@ Rails.application.routes.draw do
 
   # Novawerk sign-in (NovawerkSso, NB-ADR-0014).
   get "sso/novawerk", to: "novawerk_sso#create", as: :novawerk_sso
+  post "sso/novawerk/events", to: "novawerk_sso#events", as: :novawerk_sso_events
 
   resource :session do
     scope module: "sessions" do

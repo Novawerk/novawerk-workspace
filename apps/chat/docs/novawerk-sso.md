@@ -34,8 +34,21 @@ and no join links; the profile is edited on novawerk.io/settings and copied here
 
 The API needs `CHAT_URL=https://chat.novawerk.io` and the same `CHAT_SSO_SECRET`.
 
+## Events
+
+When an account is deleted, suspended or marked inactive, or its role changes, the API POSTs to
+`/sso/novawerk/events` with `Authorization: Bearer <event>`: the same kind of JWT, with audience
+`novawerk-chat-events` and a `kind`.
+
+| `kind` | Here |
+|--------|------|
+| `deleted` | The user is deactivated: out of every room, their messages stay |
+| `closed` | Their chat sessions end; the API refuses their next ticket |
+| `role` | The role (and with it the rooms) follows at once |
+
+A chat that is down misses the event; the next ticket brings the role, and a closed account gets
+none.
+
 ## Not yet
 
-- A chat session lives on after the Novawerk account is deleted or suspended, until the person
-  signs out or an administrator deactivates them here. The next sign-in is refused.
 - Someone whose email changes on novawerk.io gets a new chat user.
