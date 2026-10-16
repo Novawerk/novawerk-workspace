@@ -11,7 +11,7 @@ import type { FileAccess, Files, ListedFile, OpenedFile, StoredFile, TicketReque
 import { createApp } from "../src/app.js";
 import { SESSION_COOKIE, signSession } from "../src/auth.js";
 import type { ContributorNoticeSender } from "../src/contributor-notices.js";
-import { CONTRIBUTOR_COOKIE, signContributorSession, type GitHubOAuth } from "../src/contributor-auth.js";
+import type { GitHubOAuth } from "../src/github-auth.js";
 import type {
   AdminChatDeps,
   ApiConfig,
@@ -62,7 +62,6 @@ export function makeApp(
     sendNewsletterConfirmation?: NewsletterConfirmationSender;
     inboundMail?: InboundMailOptions;
     githubOAuth?: GitHubOAuth;
-    sendContributorSignInCode?: SignInCodeSender;
     githubApi?: GitHubApi;
     sendContributorNotice?: ContributorNoticeSender;
   } = {},
@@ -94,7 +93,6 @@ export function makeApp(
     ...(opts.sendNewsletterConfirmation ? { sendNewsletterConfirmation: opts.sendNewsletterConfirmation } : {}),
     ...(opts.inboundMail ? { inboundMail: opts.inboundMail } : {}),
     ...(opts.githubOAuth ? { githubOAuth: opts.githubOAuth } : {}),
-    ...(opts.sendContributorSignInCode ? { sendContributorSignInCode: opts.sendContributorSignInCode } : {}),
     ...(opts.githubApi ? { githubApi: opts.githubApi } : {}),
     ...(opts.sendContributorNotice ? { sendContributorNotice: opts.sendContributorNotice } : {}),
   });
@@ -165,9 +163,9 @@ export async function sessionCookie(memberId: string, secret = TEST_SECRET): Pro
   return `${SESSION_COOKIE}=${await signSession(memberId, secret)}`;
 }
 
-/** The contributor session cookie for a contributor id. */
+/** The session cookie for an account id (one cookie for everyone, NB-ADR-0014). */
 export async function contributorCookie(contributorId: string, secret = TEST_SECRET): Promise<string> {
-  return `${CONTRIBUTOR_COOKIE}=${await signContributorSession(contributorId, secret)}`;
+  return sessionCookie(contributorId, secret);
 }
 
 const long = (label: string) => `${label}: ${Array(6).fill("detail").join(" ")}`;

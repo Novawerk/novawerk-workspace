@@ -163,12 +163,12 @@ describe("session guard on /admin/*", () => {
     });
   });
 
-  it("answers 403 once the member is no longer active, and says who is not an admin", async () => {
+  it("signs out a member who is no longer active, and says who is not an admin", async () => {
     const { app } = makeApp(db);
     const grace = await get(app, "/admin/me", "grace");
     expect(grace.status).toBe(200);
     expect(await grace.json()).toMatchObject({ id: "grace", canAdmin: false });
-    expect((await get(app, "/admin/me", "linus")).status).toBe(403);
+    expect((await get(app, "/admin/me", "linus")).status).toBe(401);
     expect((await get(app, "/admin/me", "nobody")).status).toBe(401);
   });
 });
@@ -178,13 +178,13 @@ describe("POST /auth/google", () => {
     const { app } = makeApp(db);
     const res = await app.request("/auth/google", postJson({ credential: "google:ada@novawerk.io" }));
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ id: "ada", canAdmin: true });
+    expect(await res.json()).toMatchObject({ id: "ada", role: "maintainer", adminPanel: true });
 
     const cookie = res.headers.get("set-cookie")!;
     expect(cookie).toMatch(/^nw_session=[\w-]+\.[\w-]+\.[\w-]+;/);
     expect(cookie).toContain("HttpOnly");
     expect(cookie).toContain("SameSite=Lax");
-    expect(cookie).toContain("Max-Age=604800");
+    expect(cookie).toContain("Max-Age=2592000");
     expect(cookie).not.toContain("Secure"); // plain-http localhost
 
     const me = await app.request("/admin/me", { headers: { Cookie: cookie.split(";")[0]! } });
@@ -203,24 +203,29 @@ describe("POST /auth/google", () => {
   it("signs in members without admin rights too, when they are on a project's team", async () => {
     const res = await makeApp(db).app.request("/auth/google", postJson({ credential: "google:grace@novawerk.io" }));
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ id: "grace", role: "member", canAdmin: false });
+    expect(await res.json()).toMatchObject({ id: "grace", role: "member", adminPanel: true });
   });
 
   it("keeps members on no project's team out of the admin panel (NB-ADR-0014)", async () => {
     const { app } = makeApp(db);
     await db.insert(members).values({ id: "lena", handle: "lena", displayName: "Lena", email: "lena@example.org" });
-    expect((await app.request("/auth/google", postJson({ credential: "google:lena@example.org" }))).status).toBe(403);
+    const signIn = await app.request("/auth/google", postJson({ credential: "google:lena@example.org" }));
+    expect(await signIn.json()).toMatchObject({ id: "lena", adminPanel: false });
+    const cookie = { headers: { Cookie: signIn.headers.get("set-cookie")!.split(";")[0]! } };
+    expect((await app.request("/admin/me", cookie)).status).toBe(403);
     expect((await get(app, "/admin/me", "lena")).status).toBe(403);
     expect((await get(app, "/admin/members", "lena")).status).toBe(403);
   });
 
-  it("answers 403 to inactive members and strangers", async () => {
+  it("answers 403 to inactive members; a stranger gets a new account, without the admin panel", async () => {
     const { app } = makeApp(db);
-    for (const email of ["linus@novawerk.io", "someone@gmail.com"]) {
-      const res = await app.request("/auth/google", postJson({ credential: `google:${email}` }));
-      expect(res.status, email).toBe(403);
-      expect(res.headers.get("set-cookie")).toBeNull();
-    }
+    const linus = await app.request("/auth/google", postJson({ credential: "google:linus@novawerk.io" }));
+    expect(linus.status).toBe(403);
+    expect(linus.headers.get("set-cookie")).toBeNull();
+    const stranger = await app.request("/auth/google", postJson({ credential: "google:someone@gmail.com" }));
+    expect(await stranger.json()).toMatchObject({ role: "member", email: "someone@gmail.com", adminPanel: false });
+    const cookie = { headers: { Cookie: stranger.headers.get("set-cookie")!.split(";")[0]! } };
+    expect((await app.request("/admin/me", cookie)).status).toBe(403);
   });
 
   it("answers 403 when Google rejects the token, 400 when it is missing", async () => {

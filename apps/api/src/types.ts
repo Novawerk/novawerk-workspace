@@ -7,23 +7,28 @@ import type { TeamNotification } from "@nw/email";
 import type { GitHubApi } from "@nw/github";
 import type { TokenContext } from "@nw/tasks";
 
-import type { GitHubOAuth } from "./contributor-auth.js";
+import type { GitHubOAuth } from "./github-auth.js";
 import type { ContributorNoticeSender } from "./contributor-notices.js";
 
 /** Plain config values. Built from env in src/deps.ts; tests pass their own. */
 export interface ApiConfig {
   /** Browser origins allowed to call the public routes (/health, /public/*). */
   allowedOrigins: string[];
-  /** Browser origins allowed to call /auth/* and /admin/* with the session cookie. */
+  /** The admin panel's origins: they call /auth/* and /admin/* with the session cookie. */
   adminOrigins: string[];
   /**
-   * Browser origins allowed to call /auth/contributor/* and /contrib/* with the contributor
-   * cookie: the website. Defaults to the web origins in `allowedOrigins`.
+   * The website's origins: they call /auth/* and /contrib/* with the session cookie. Defaults to
+   * the web origins in `allowedOrigins`.
    */
   contributorOrigins?: string[];
+  /**
+   * Other apps of ours a sign-in may send people back to (`returnTo`), e.g. the chat. The admin
+   * panel's origins always may.
+   */
+  returnOrigins?: string[];
   /** OAuth client id of the admin panel's Google Identity Services button. */
   googleClientId: string;
-  /** HS256 key for the `nw_session` cookie. */
+  /** HS256 key for the `nw_session` cookie (one session for everyone, NB-ADR-0014). */
   sessionSecret: string;
   /**
    * Local development only: enables POST /auth/dev (sign in as an admin by email, no Google).
@@ -159,12 +164,10 @@ export interface AppDeps {
   adminChat?: AdminChatDeps;
   /** Vercel Blob. Optional: without a store's token, uploads to it answer 503. */
   files?: Files;
-  /** Signing in by email. Optional: without it /auth/email/* answer 503 (Google still works). */
+  /** Signing in by email. Optional: without it /auth/email/* answer 503 (GitHub and Google still work). */
   sendSignInCode?: SignInCodeSender;
   /** Emails to contributors about their own tasks (src/contributor-notices.ts). Optional: without it the cron queues but sends nothing. */
   sendContributorNotice?: ContributorNoticeSender;
-  /** Contributors' codes: the task board wording. Optional: without it /auth/contributor/email/* answer 503. */
-  sendContributorSignInCode?: SignInCodeSender;
   /** Double opt-in emails. Optional: without it POST /public/subscribe answers 503. */
   sendNewsletterConfirmation?: NewsletterConfirmationSender;
   /** Optional: without it POST /webhooks/resend answers 404. */
@@ -216,8 +219,8 @@ export const toMemberRow = (m: Member) => ({
 /** Hono env for every router in this app. */
 export interface ApiEnv {
   /**
-   * `member` on /admin (src/auth.ts), `contributor` on /contrib (src/contributor-auth.ts). Never
-   * both. `token` is set when the contributor came with a personal access token (src/token-gate.ts).
+   * `member` on /admin, `contributor` on /contrib: the same account (src/auth.ts), seen by each.
+   * `token` is set when it came with a personal access token (src/token-gate.ts), never on /admin.
    */
   Variables: { member: AdminMember; contributor: Member; token: TokenContext | undefined };
 }

@@ -65,7 +65,7 @@ describe("signing in with an emailed code", () => {
 
     const ok = await app.request("/auth/email/verify", postJson({ email: "mara@qq.example", code: sent[0]!.code }));
     expect(ok.status).toBe(200);
-    expect(await ok.json()).toMatchObject({ id: "mara", canAdmin: false });
+    expect(await ok.json()).toMatchObject({ id: "mara", role: "member", adminPanel: true });
     expect(ok.headers.get("set-cookie")).toMatch(/^nw_session=/);
 
     const again = await app.request("/auth/email/verify", postJson({ email: "mara@qq.example", code: sent[0]!.code }));
@@ -75,14 +75,14 @@ describe("signing in with an emailed code", () => {
     expect(row!.codeHash).not.toContain(sent[0]!.code);
   });
 
-  it("answers the same for strangers and inactive members, and sends them nothing", async () => {
+  it("answers the same for strangers and inactive members; only a stranger gets a code, to sign up", async () => {
     const { app, sent } = codeApp();
     for (const email of ["nobody@example.org", "linus@novawerk.io"]) {
       const res = await app.request("/auth/email/start", postJson({ email }));
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ ok: true });
     }
-    expect(sent).toEqual([]);
+    expect(sent.map((s) => s.to)).toEqual(["nobody@example.org"]);
   });
 
   it("locks a code after five wrong tries, and limits how many codes an address gets", async () => {

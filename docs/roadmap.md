@@ -38,8 +38,10 @@ agents do the repetitive work around it; anything that leaves Novawerk waits for
 - Project lifecycle and posts (NB-ADR-0007): status history, launch date, deliverables; posts
   planned from them, drafted by `promo` in both languages, reviewed and posted by hand in the
   admin panel; pictures assembled from templates by `POST /admin/cards`.
-- Member sign-in (NB-ADR-0008): every member signs in with Google or an emailed code; a
-  project's team edits its content, deliverables, posts and files; admins keep the rest.
+- Member sign-in (NB-ADR-0008): a project's team edits its content, deliverables, posts and
+  files; maintainers keep the rest.
+- One account (NB-ADR-0014): one `members` table, one sign-in (GitHub, Google, emailed code;
+  linkable) and one session cookie; `role = maintainer` replaces `can_admin`.
 - One workflow per agent (in the private repo); least-secret env; records committed as
   `novawerk-bot`.
 - The code moved to this public repo; records and agent workflows stayed private (NB-ADR-0012).

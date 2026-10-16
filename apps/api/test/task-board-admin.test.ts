@@ -69,9 +69,9 @@ describe("who may call it", () => {
     }
   });
 
-  it("doesn't open with a contributor's cookie", async () => {
+  it("doesn't open for a member on no project's team", async () => {
     const res = await app.request("/admin/tasks", { headers: { Cookie: await contributorCookie(lena.id) } });
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 });
 

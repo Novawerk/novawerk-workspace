@@ -179,24 +179,54 @@ export function maskEmail(email: string): string {
  */
 export const neutralHandle = () => `contributor-${randomBytes(2).toString("hex")}`;
 
-/** Sign in with an emailed code (already checked): the contributor with this address, or a new one. */
-export async function signInWithEmail(db: Database, email: string, now = new Date()): Promise<Member> {
+/**
+ * Sign in with an address someone just proved is theirs: an emailed code, or a Google account
+ * (`name` then seeds a new account's handle). The account with this address, or a new one.
+ *
+ * With `linkTo` (a signed-in account adding a way in, NB-ADR-0014) the address goes on that
+ * account instead. An account has one address: a different one already there, or this one on
+ * another account, is a conflict. Earlier sessions end, as when GitHub is linked.
+ */
+export async function signInWithVerifiedEmail(
+  db: Database,
+  email: string,
+  opts: { name?: string | null; linkTo?: string } = {},
+  now = new Date(),
+): Promise<Member> {
   const address = email.trim().toLowerCase();
-  const [existing] = await db.select().from(members).where(eq(members.email, address)).limit(1);
-  if (existing) {
-    const [updated] = await db
+  // Addresses are stored lower-cased; an older row may not be.
+  const [existing] = await db.select().from(members).where(sql`lower(${members.email}) = ${address}`).limit(1);
+  if (opts.linkTo) {
+    if (existing && existing.id !== opts.linkTo) {
+      throw new TaskRuleError("conflict", "That address belongs to another account", "email");
+    }
+    const target = await getContributor(db, opts.linkTo);
+    if (!target) throw new TaskRuleError("not_found", "Not signed in");
+    if (target.email !== null && target.email.toLowerCase() !== address) {
+      throw new TaskRuleError("conflict", "This account already signs in with another address", "email");
+    }
+    const [linked] = await db
       .update(members)
-      .set({ lastSignInAt: now })
-      .where(eq(members.id, existing.id))
-      .returning();
+      .set({ email: address, lastSignInAt: now, ...(target.email === null ? { sessionsRevokedAt: now } : {}) })
+      .where(eq(members.id, opts.linkTo))
+      .returning()
+      .catch((err: unknown) => {
+        if (isUniqueViolation(err)) throw new TaskRuleError("conflict", "That address belongs to another account", "email");
+        throw err;
+      });
+    return linked!;
+  }
+  if (existing) {
+    const [updated] = await db.update(members).set({ lastSignInAt: now }).where(eq(members.id, existing.id)).returning();
     return updated!;
   }
+  const name = opts.name?.trim();
   try {
     return await insertWithFreeHandle(
       db,
-      neutralHandle(),
-      (handle) => ({ handle, displayName: handle, email: address, lastSignInAt: now }),
-      { neutral: true },
+      name || neutralHandle(),
+      (handle) => ({ handle, displayName: name || handle, email: address, lastSignInAt: now }),
+      { neutral: !name },
     );
   } catch (err) {
     const [raced] = isUniqueViolation(err) ? await db.select().from(members).where(eq(members.email, address)) : [];
@@ -205,6 +235,9 @@ export async function signInWithEmail(db: Database, email: string, now = new Dat
   }
 }
 
+/** Sign in with an emailed code (already checked): the account with this address, or a new one. */
+export const signInWithEmail = (db: Database, email: string, now = new Date()) => signInWithVerifiedEmail(db, email, {}, now);
+
 /** May propose and work on tasks: GitHub linked (to match pull requests), not suspended. */
 export const canWork = (c: Member) => c.githubId !== null && c.suspendedAt === null;
 
@@ -212,6 +245,7 @@ export const canWork = (c: Member) => c.githubId !== null && c.suspendedAt === n
 export function toContributorMe(c: Member): ContributorMe {
   return {
     id: c.id,
+    role: c.role,
     handle: c.handle,
     displayName: c.displayName,
     email: c.email,

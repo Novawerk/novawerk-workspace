@@ -9,7 +9,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { members, signInCodes, tasks, type Database } from "@nw/db";
 
-import { createGitHubOAuth, type GitHubOAuth } from "../src/contributor-auth.js";
+import { createGitHubOAuth, type GitHubOAuth } from "../src/github-auth.js";
 import { readEnv } from "../src/deps.js";
 import { issueCode } from "../src/sign-in-codes.js";
 import {
@@ -18,7 +18,7 @@ import {
   TEST_SECRET,
   WEB_ORIGIN,
   contributorCookie,
-  createTestDb, joinATeam,
+  createTestDb,
   makeApp,
   postJson,
   resetDb,
@@ -71,7 +71,7 @@ async function signInWithGitHub(app: TestApp, code: string, opts: { cookie?: str
   const callback = await app.request(`/auth/contributor/github/callback?code=${encodeURIComponent(code)}&state=${state}`, {
     headers: { Cookie: stateCookie },
   });
-  return { callback, cookie: cookieOf(callback, "nw_contributor") };
+  return { callback, cookie: cookieOf(callback, "nw_session") };
 }
 
 async function json(app: TestApp, method: string, path: string, cookie: string | null, body?: unknown) {
@@ -125,9 +125,13 @@ describe("signing in with GitHub", () => {
       headers: { Cookie: cookieOf(start, "nw_github_state")! },
     });
     expect(callback.headers.get("location")).toBe(`${WEB_ORIGIN}/sign-in?error=github`);
-    expect(cookieOf(callback, "nw_contributor")).toBeUndefined();
+    expect(cookieOf(callback, "nw_session")).toBeUndefined();
     expect((await app.request("/auth/contributor/github/start?returnTo=//evil.example")).status).toBe(400);
-    expect((await app.request("/auth/contributor/github/start?returnTo=https://evil.example")).status).toBe(400);
+    // An address elsewhere goes back to the board; the admin panel is one of ours.
+    const evil = await signInWithGitHub(app, "gh:5:eve", { returnTo: "https://evil.example/x" });
+    expect(evil.callback.headers.get("location")).toBe(`${WEB_ORIGIN}/tasks`);
+    const admin = await signInWithGitHub(app, "gh:5:eve", { returnTo: `${ADMIN_ORIGIN}/projects` });
+    expect(admin.callback.headers.get("location")).toBe(`${ADMIN_ORIGIN}/projects`);
   });
 
   it("links GitHub to an account made by email", async () => {
@@ -169,37 +173,31 @@ describe("signing in with GitHub", () => {
 describe("signing in with an emailed code", () => {
   function codeApp() {
     const sent: { to: string; code: string }[] = [];
-    const memberCodes: string[] = [];
-    const { app } = makeApp(db, {
-      sendContributorSignInCode: async (to, code) => void sent.push({ to, code }),
-      sendSignInCode: async (_to, code) => void memberCodes.push(code),
-    });
-    return { app, sent, memberCodes };
+    const { app } = makeApp(db, { sendSignInCode: async (to, code) => void sent.push({ to, code }) });
+    return { app, sent };
   }
 
   it("emails a code to any address and creates the account on first use", async () => {
-    const { app, sent, memberCodes } = codeApp();
+    const { app, sent } = codeApp();
     const start = await app.request("/auth/contributor/email/start", postJson({ email: "New@Example.com" }));
     expect(await start.json()).toEqual({ ok: true });
-    expect(memberCodes).toEqual([]); // the task board wording, not the admin panel's
     const verify = await app.request("/auth/contributor/email/verify", postJson({ email: "new@example.com", code: sent[0]!.code }));
     expect(verify.status).toBe(200);
     const me = (await verify.json()) as { handle: string };
     expect(me).toMatchObject({ email: "new@example.com", canWork: false, defaultHandle: true });
     expect(me.handle).toMatch(/^contributor-[0-9a-f]{4}$/);
-    expect(cookieOf(verify, "nw_contributor")).toBeDefined();
-    expect(cookieOf(verify, "nw_session")).toBeUndefined();
+    expect(cookieOf(verify, "nw_session")).toBeDefined();
     // Used up.
     expect((await app.request("/auth/contributor/email/verify", postJson({ email: "new@example.com", code: sent[0]!.code }))).status).toBe(400);
   });
 
-  it("stores only a hash, and a member's code never signs in a contributor", async () => {
+  it("stores only a hash, and a code from the two-account days doesn't work", async () => {
     const { app } = codeApp();
-    const memberCode = await issueCode(db, "grace@novawerk.io", TEST_SECRET);
-    const res = await app.request("/auth/contributor/email/verify", postJson({ email: "grace@novawerk.io", code: memberCode }));
+    const oldCode = await issueCode(db, "grace@novawerk.io", TEST_SECRET, new Date(), "contributor");
+    const res = await app.request("/auth/email/verify", postJson({ email: "grace@novawerk.io", code: oldCode }));
     expect(res.status).toBe(400);
     const rows = await db.select().from(signInCodes);
-    expect(rows.every((r) => !r.codeHash.includes(memberCode!))).toBe(true);
+    expect(rows.every((r) => !r.codeHash.includes(oldCode!))).toBe(true);
   });
 
   it("answers the same when an address asks too often, and sends nothing more", async () => {
@@ -221,14 +219,13 @@ describe("signing in with an emailed code", () => {
   });
 
   it("counts every try, even when guesses arrive together", async () => {
-    await joinATeam(db, "grace");
     for (const [startPath, verifyPath, email] of [
       ["/auth/contributor/email/start", "/auth/contributor/email/verify", "t@example.com"],
       ["/auth/email/start", "/auth/email/verify", "grace@novawerk.io"],
     ] as const) {
-      const { app, sent, memberCodes } = codeApp();
+      const { app, sent } = codeApp();
       await app.request(startPath, postJson({ email }));
-      const real = sent[0]?.code ?? memberCodes[0]!;
+      const real = sent[0]!.code;
       const wrong = real === "000000" ? "111111" : "000000";
       const guesses = await Promise.all(
         Array.from({ length: 40 }, (_, i) =>
@@ -243,15 +240,14 @@ describe("signing in with an emailed code", () => {
     }
   });
 
-  it("limits code checks per network on both verify routes", async () => {
+  it("limits code checks per network, on the old path and the new one together", async () => {
     const { app } = codeApp();
     const from = { "x-forwarded-for": "203.0.113.7" };
-    for (const path of ["/auth/contributor/email/verify", "/auth/email/verify"]) {
-      for (let i = 0; i < 30; i++) {
-        expect((await app.request(path, postJson({ email: `v${i}@example.com`, code: "123456" }, from))).status).toBe(400);
-      }
-      expect((await app.request(path, postJson({ email: "v@example.com", code: "123456" }, from))).status).toBe(429);
+    for (let i = 0; i < 30; i++) {
+      const path = i % 2 ? "/auth/contributor/email/verify" : "/auth/email/verify";
+      expect((await app.request(path, postJson({ email: `v${i}@example.com`, code: "123456" }, from))).status).toBe(400);
     }
+    expect((await app.request("/auth/email/verify", postJson({ email: "v@example.com", code: "123456" }, from))).status).toBe(429);
   });
 
   it("allows five tries per code", async () => {
@@ -264,17 +260,19 @@ describe("signing in with an emailed code", () => {
 });
 
 describe("who may call what", () => {
-  it("keeps contributor and member sessions apart", async () => {
+  it("one session opens the board for everyone, and the admin panel only for maintainers and teams", async () => {
     const { app } = makeApp(db);
     const lena = await contributor({ handle: "lena", githubId: 1 });
     const task = await openTask();
-    const memberCookie = await sessionCookie("ada");
+    const adaCookie = await sessionCookie("ada");
 
     expect((await json(app, "POST", `/contrib/tasks/NW-${task.id}/proposals`, null, plan)).status).toBe(401);
-    expect((await json(app, "POST", `/contrib/tasks/NW-${task.id}/proposals`, memberCookie, plan)).status).toBe(401);
-    expect((await json(app, "GET", "/auth/contributor/me", memberCookie)).status).toBe(401);
-    expect((await json(app, "GET", "/admin/me", lena.cookie)).status).toBe(401);
+    expect((await json(app, "GET", "/auth/me", adaCookie)).body).toMatchObject({ id: "ada", role: "maintainer", adminPanel: true });
+    expect((await json(app, "GET", "/auth/me", lena.cookie)).body).toMatchObject({ role: "member", adminPanel: false });
+    expect((await json(app, "GET", "/admin/me", lena.cookie)).status).toBe(403);
     expect((await json(app, "POST", `/contrib/tasks/NW-${task.id}/proposals`, lena.cookie, plan)).status).toBe(201);
+    // Ada has no GitHub linked: a maintainer works on tasks under the same rules.
+    expect((await json(app, "POST", `/contrib/tasks/NW-${task.id}/proposals`, adaCookie, plan)).status).toBe(403);
   });
 
   it("signing out ends every session, including a copied cookie", async () => {
@@ -282,7 +280,7 @@ describe("who may call what", () => {
     const lena = await contributor({ handle: "lena", githubId: 1 });
     expect((await json(app, "GET", "/auth/contributor/me", lena.cookie)).status).toBe(200);
     const out = await json(app, "POST", "/auth/contributor/logout", lena.cookie);
-    expect(out.res.headers.get("set-cookie")).toMatch(/nw_contributor=;/);
+    expect(out.res.headers.get("set-cookie")).toMatch(/nw_session=;/);
     expect((await json(app, "GET", "/auth/contributor/me", lena.cookie)).status).toBe(401);
     expect((await json(app, "POST", "/contrib/suggestions", lena.cookie, {})).status).toBe(401);
     // Signing in again afterwards works.
@@ -303,7 +301,7 @@ describe("who may call what", () => {
     expect((await json(app, "DELETE", "/contrib/me", lena.cookie, { confirmHandle: "lenna" })).status).toBe(400);
     const gone = await json(app, "DELETE", "/contrib/me", lena.cookie, { confirmHandle: "Lena" });
     expect(gone.status).toBe(200);
-    expect(gone.res.headers.get("set-cookie")).toMatch(/nw_contributor=;/);
+    expect(gone.res.headers.get("set-cookie")).toMatch(/nw_session=;/);
     expect((await json(app, "GET", "/auth/contributor/me", lena.cookie)).status).toBe(401);
   });
 
@@ -417,16 +415,18 @@ describe("CORS", () => {
   const preflight = (app: TestApp, path: string, origin: string) =>
     app.request(path, { method: "OPTIONS", headers: { Origin: origin, "Access-Control-Request-Method": "POST" } });
 
-  it("lets the website call contributor routes with credentials, and not the admin panel", async () => {
+  it("lets the website call /contrib with credentials, not the admin panel; both sign in at /auth", async () => {
     const { app } = makeApp(db);
     const web = await preflight(app, "/contrib/suggestions", WEB_ORIGIN);
     expect(web.headers.get("access-control-allow-origin")).toBe(WEB_ORIGIN);
     expect(web.headers.get("access-control-allow-credentials")).toBe("true");
     expect((await preflight(app, "/contrib/suggestions", ADMIN_ORIGIN)).headers.get("access-control-allow-origin")).toBeNull();
     expect((await preflight(app, "/auth/contributor/email/start", WEB_ORIGIN)).headers.get("access-control-allow-origin")).toBe(WEB_ORIGIN);
-    // Member sign-in stays the admin panel's.
+    // One sign-in (NB-ADR-0014).
     expect((await preflight(app, "/auth/email/start", ADMIN_ORIGIN)).headers.get("access-control-allow-origin")).toBe(ADMIN_ORIGIN);
-    expect((await preflight(app, "/auth/email/start", WEB_ORIGIN)).headers.get("access-control-allow-origin")).toBeNull();
+    expect((await preflight(app, "/auth/email/start", WEB_ORIGIN)).headers.get("access-control-allow-origin")).toBe(WEB_ORIGIN);
+    // /admin stays the admin panel's.
+    expect((await preflight(app, "/admin/me", WEB_ORIGIN)).headers.get("access-control-allow-origin")).toBeNull();
   });
 });
 

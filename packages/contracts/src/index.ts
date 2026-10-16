@@ -2128,6 +2128,8 @@ export interface PublicContributorProfile {
 /** The signed-in contributor, for themselves only (GET /auth/contributor/me). */
 export interface ContributorMe {
   id: string;
+  /** `maintainer` runs Novawerk; everyone else is a `member` (NB-ADR-0014). */
+  role: "member" | "maintainer";
   handle: string;
   displayName: string;
   /** Their own address; the settings page masks it. Never in a public response. */
@@ -2159,6 +2161,12 @@ export interface ContributorMe {
   createdAt: string;
 }
 
+/** GET /auth/me and every sign-in: your own account (NB-ADR-0014). */
+export interface AccountMe extends ContributorMe {
+  /** A maintainer, or on a project's team: the admin panel opens for them. */
+  adminPanel: boolean;
+}
+
 /**
  * The answer to writing a proposal (POST, PATCH, confirm): your own view, so a draft says so.
  */
@@ -2181,23 +2189,41 @@ export interface MyProposal extends PublicProposal {
 
 const contributorEmail = z.string().trim().toLowerCase().max(200).pipe(z.email("That doesn't look like an email address"));
 
-/** POST /auth/contributor/email/start */
-export const contributorEmailStartInput = z.object({ email: contributorEmail });
-export type ContributorEmailStartInput = z.infer<typeof contributorEmailStartInput>;
+/** POST /auth/email/start */
+export const emailStartInput = z.object({ email: contributorEmail });
+export type EmailStartInput = z.infer<typeof emailStartInput>;
 
-/** POST /auth/contributor/email/verify */
-export const contributorEmailVerifyInput = z.object({
+/**
+ * POST /auth/email/verify. `link`: add this address to the signed-in account instead of signing
+ * in to the account that has it (NB-ADR-0014: one account, several ways in).
+ */
+export const emailVerifyInput = z.object({
   email: contributorEmail,
   code: z.string().trim().regex(/^\d{6}$/, "Six digits"),
+  link: z.boolean().optional(),
 });
-export type ContributorEmailVerifyInput = z.infer<typeof contributorEmailVerifyInput>;
+export type EmailVerifyInput = z.infer<typeof emailVerifyInput>;
 
-/** `returnTo` on GET /auth/contributor/github/start: a path on the website, never another site. */
+/** POST /auth/google: a Google Identity Services credential. `link` as on emailVerifyInput. */
+export const googleSignInInput = z.object({ credential: z.string().min(1).max(8192), link: z.boolean().optional() });
+export type GoogleSignInInput = z.infer<typeof googleSignInInput>;
+
+/** @deprecated The names before NB-ADR-0014. */
+export const contributorEmailStartInput = emailStartInput;
+export type ContributorEmailStartInput = EmailStartInput;
+/** @deprecated The names before NB-ADR-0014. */
+export const contributorEmailVerifyInput = emailVerifyInput;
+export type ContributorEmailVerifyInput = EmailVerifyInput;
+
+/**
+ * `returnTo` on GET /auth/github/start: a path on the website, or an address on one of our own
+ * apps (the admin panel, the chat) that the API knows. Never another site.
+ */
 export const githubStartQuery = z.object({
   returnTo: z
     .string()
     .max(300)
-    .regex(/^\/(?![/\\])[^\s]*$/, "A path on novawerk.io")
+    .regex(/^(?:\/(?![/\\])|https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/|$)|http:\/\/localhost:\d+(?:\/|$))[^\s]*$/, "A path on novawerk.io")
     .optional(),
 });
 
