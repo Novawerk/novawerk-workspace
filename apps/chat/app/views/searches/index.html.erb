@@ -2,6 +2,7 @@
 <% @body_class = "sidebar searches" %>
 
 <% content_for :nav do %>
+  <h1 class="nw-hdr-title">Search</h1>
   <% if @query %>
     <div class="searches__query flex align-center gap pad-block-start-half">
       <%= tag.div class: "btn btn--reversed btn--faux align-center gap txt-nowrap" do %>
@@ -28,23 +29,7 @@
   </div>
 <% end %>
 
-<% content_for :sidebar do %>
-  <div class="rooms position-relative flex flex-column gap overflow-y overflow-hide-scrollbar">
-    <% @recent_searches.each do |search| %>
-      <%= link_to searches_path(q: search.query), class: "align-center gap room btn txt-nowrap" do %>
-        <span class="overflow-ellipsis">“<%= search.query %>”</span>
-      <% end %>
-    <% end %>
-
-    <% if @recent_searches.any? %>
-      <%= button_to clear_searches_url, method: :delete, class: "btn searches__btn",
-              data: { turbo_confirm: "Are you sure you want to clear your recent searches?" } do %>
-        <%= image_tag "broom.svg", aria: { hidden: "true" } %>
-        <span class="for-screen-reader">Clear recent searches</span>
-      <% end %>
-    <% end %>
-  </div>
-<% end %>
+<%# Novawerk Chat: search sits in the app shell; recent searches are in the header. %>
 
 <div id="message-area" class="message-area">
   <div class="message-area--empty min-width center">

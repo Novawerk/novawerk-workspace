@@ -23,10 +23,9 @@ module RoomsHelper
   end
 
   def button_to_delete_room(room, url: nil)
-    button_to url || room_url(room), method: :delete, class: "btn btn--negative max-width", aria: { label: "Delete #{room.name}" },
-        data: { turbo_confirm: "Are you sure you want to delete this room and all messages in it? This can’t be undone." } do
-      image_tag("trash.svg", aria: { hidden: "true" }, size: 20) +
-      tag.span(room_display_name(room), class: "overflow-ellipsis")
+    button_to url || room_url(room), method: :delete, class: "btn btn--negative",
+        data: { turbo_confirm: "Delete #{room_display_name(room)} and every message in it? This can't be undone.", confirm_label: "Delete room" } do
+      image_tag("trash.svg") + tag.span("Delete room…")
     end
   end
 
@@ -41,9 +40,8 @@ module RoomsHelper
   end
 
   def submit_room_button_tag
-    button_tag class: "btn btn--reversed txt-large center", type: "submit" do
-      image_tag("check.svg", aria: { hidden: "true" }, size: 20) +
-      tag.span("Save", class: "for-screen-reader")
+    button_tag class: "btn btn--reversed nw-room-form__submit", type: "submit" do
+      image_tag("check.svg") + tag.span("Save")
     end
   end
 

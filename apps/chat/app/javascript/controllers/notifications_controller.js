@@ -81,7 +81,7 @@ export default class extends Controller {
   }
 
   #showBellAlert() {
-    this.bellTarget.querySelectorAll("img").forEach(img => img.toggleAttribute("hidden"))
+    this.bellTarget.querySelectorAll("img, svg").forEach(img => img.toggleAttribute("hidden"))
   }
 
   #pulseBellButton() {

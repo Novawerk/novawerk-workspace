@@ -56,7 +56,7 @@
     </main>
 
     <aside id="sidebar" data-controller="toggle-class" data-toggle-class-toggle-class="open">
-      <%= yield :sidebar %>
+      <%= content_for?(:sidebar) ? yield(:sidebar) : (sidebar_turbo_frame_tag(src: user_sidebar_path) if Current.user) %>
     </aside>
 
     <%= render "layouts/lightbox" %>

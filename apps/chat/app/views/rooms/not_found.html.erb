@@ -1,0 +1,20 @@
+<% @page_title = "Not found" %>
+<% page_header "Not found" %>
+
+<div class="nw-page nw-page--center">
+  <div class="nw-empty">
+    <span class="nw-empty__icon"><%= image_tag "compass.svg", size: 24 %></span>
+    <h2 class="nw-empty__title">This room isn't here</h2>
+    <p class="nw-muted">It may have been deleted, or it's a closed room you're not in. Ask a maintainer if you think you should have access.</p>
+    <div class="nw-row">
+      <% if (first_room = Current.user.rooms.without_directs.order(:created_at).first) %>
+        <%= link_to room_path(first_room), class: "btn btn--reversed" do %>
+          <%= image_tag "hash.svg" %><span>Go to <%= first_room.name %></span>
+        <% end %>
+      <% end %>
+      <%= link_to searches_path, class: "btn" do %>
+        <%= image_tag "search.svg" %><span>Search messages</span>
+      <% end %>
+    </div>
+  </div>
+</div>

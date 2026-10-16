@@ -1,39 +1,39 @@
 <% @page_title = @user.name %>
 
-<% content_for :nav do %>
-  <div class="flex-item-justify-start">
-    <%= link_back %>
-  </div>
-
-  <div class="flex-item-justify-end">
-    <%= form_with url: session_path, method: :delete, data: { controller: "sessions" } do %>
-      <%= hidden_field_tag :push_subscription_endpoint, nil, data: { sessions_target: "pushSubscriptionEndpoint" } %>
-
-      <button class="btn" data-action="sessions#logout:prevent">
-        <%= image_tag "logout.svg", aria: { hidden: "true" } %>
-        <span class="for-screen-reader">Log out</span>
-      </button>
-    <% end %>
-  </div>
+<% page_header(Current.user == @user ? "My profile" : @user.name) do %>
+  <%= form_with url: session_path, method: :delete, data: { controller: "sessions" } do %>
+    <%= hidden_field_tag :push_subscription_endpoint, nil, data: { sessions_target: "pushSubscriptionEndpoint" } %>
+    <button class="btn" data-action="sessions#logout:prevent"><%= image_tag "logout.svg" %><span>Log out</span></button>
+  <% end %>
 <% end %>
 
-<section class="panel flex flex-column gap" style="view-transition-name: avatar-<%= @user.id %>">
-  <%= render partial: "pwa/install_instructions" %>
+<div class="nw-page">
+<div class="nw-page__split" style="view-transition-name: avatar-<%= @user.id %>">
+<div class="nw-page__main">
 
   <% if NovawerkSso.configured? %>
     <%# One profile, edited on novawerk.io (NB-ADR-0014). It shows here, copied at each sign-in. %>
-    <div class="flex flex-column align-center center gap txt-align-center">
-      <span class="avatar txt-xx-large"><%= image_tag fresh_user_avatar_path(@user), aria: { hidden: "true" }, size: 300 %></span>
-      <p class="txt-large margin-none"><strong><%= @user.name %></strong></p>
-      <%= novawerk_handle_tag @user %>
-      <% if @user.bio.present? %><p class="margin-none"><%= @user.bio %></p><% end %>
-      <%= novawerk_public_profile_tag @user %>
-      <% unless @user.novawerk_public? %>
-        <p class="txt-small margin-none">Your Novawerk profile is private: others here see your name, @handle, picture and bio, not your Werk.</p>
-      <% end %>
-      <p class="txt-small margin-none"><%= @user.email_address %><%= " · Maintainer" if @user.administrator? %></p>
-      <%= link_to "Edit your profile on novawerk.io", NovawerkSso.settings_url, class: "btn" %>
+    <div class="nw-profile">
+      <span class="avatar nw-profile__avatar"><%= image_tag fresh_user_avatar_path(@user), alt: "", size: 88 %></span>
+      <div class="nw-profile__body">
+        <div class="nw-row">
+          <h2 class="nw-h1"><%= @user.name %></h2>
+          <span class="nw-badge <%= "nw-badge--soft" if @user.administrator? %>"><%= @user.administrator? ? "Maintainer" : "Member" %></span>
+        </div>
+        <p class="nw-muted"><%= safe_join([ (novawerk_handle_tag(@user) if @user.novawerk_handle.present?), @user.email_address ].compact, " · ") %></p>
+        <% if @user.bio.present? %><p class="nw-profile__bio"><%= @user.bio %></p><% end %>
+        <%= novawerk_public_profile_tag @user %>
+        <div class="nw-row nw-profile__actions">
+          <%= link_to NovawerkSso.settings_url, class: "btn", target: "_blank", rel: "noopener" do %>
+            <span>Edit profile on novawerk.io</span><%= image_tag "external-link.svg" %>
+          <% end %>
+        </div>
+      </div>
     </div>
+
+    <% unless @user.novawerk_public? %>
+      <p class="nw-alert"><%= image_tag "info.svg" %><span>Your Novawerk profile is private. People here see your name, @handle, picture and bio, not your Werk. Make it public on novawerk.io to show it.</span></p>
+    <% end %>
   <% else %>
   <div class="align-center center avatar__form gap" data-controller="upload-preview">
     <%= profile_form_with @user, class:"txt-medium" do |form| %>
@@ -110,19 +110,29 @@
 
   <% end %>
 
-  <div class="margin-block pad-inline pad-block fill-shade border-radius">
-    <menu class="flex flex-column gap margin-none pad">
+  <div class="nw-card">
+    <div class="nw-card__head nw-row">
+      <h3 class="nw-card__title">My rooms</h3>
+      <span class="nw-muted nw-small">Notifications per room</span>
+    </div>
+    <menu class="nw-rooms">
       <%= render partial: "users/profiles/membership", collection: @shared_memberships %>
-
-      <% if @direct_memberships.any? && @shared_memberships.any? %>
-        <hr class="separator full-width" style="--border-style: solid">
-      <% end %>
-
       <%= render partial: "users/profiles/membership", collection: @direct_memberships %>
     </menu>
   </div>
+</div>
 
-  <%= render "users/profiles/transfer", user: @user %>
+<aside class="nw-page__aside">
+  <% if (install = render(partial: "pwa/install_instructions")).present? %>
+    <div class="nw-card">
+      <div class="nw-card__head"><h3 class="nw-card__title">This device</h3></div>
+      <div class="nw-card__body"><%= install %></div>
+    </div>
+  <% end %>
+
+  <div class="nw-card nw-card--rows">
+    <%= render "users/profiles/transfer", user: @user %>
+  </div>
 
   <% if Rails.env.development? %>
     <fieldset>
@@ -132,4 +142,7 @@
       <%= link_to "Push Notifications Dev Mode", user_push_subscriptions_url, class: "btn txt-small center" %>
     </fieldset>
   <% end %>
-</section>
+  <p class="nw-hint">Name, picture, @handle and bio come from your Novawerk account and update when you change them there.</p>
+</aside>
+</div>
+</div>

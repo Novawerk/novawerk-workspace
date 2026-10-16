@@ -1,10 +1,6 @@
 <% @page_title = "Edit bot" %>
 
-<% content_for :nav do %>
-  <div class="flex-item-justify-start">
-    <%= link_back_to account_bots_path %>
-  </div>
-<% end %>
+<% page_header "Edit bot" do %><%= link_to "Back to bots", account_bots_path, class: "btn btn--plain" %><% end %>
 
 <section class="panel" style="view-transition-name: chat-bot-<%= @bot.id %>">
   <%= form_with model: @bot, url: account_bot_path(@bot), class: "flex flex-column gap" do |form| %>

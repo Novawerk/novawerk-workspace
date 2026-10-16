@@ -1,10 +1,7 @@
 <% @page_title = "Custom styles" %>
 
-<% content_for :nav do %>
-  <div class="flex-item-justify-start">
-    <%= link_back_to edit_account_path %>
-  </div>
-<% end %>
+<% page_header "Account settings" %>
+<%= render "accounts/tabs", current: :custom_styles %>
 
 <section class="panel panel--wide txt-align-center flex flex-column position-relative" style="view-transition-name: custom-styles">
   <%= form_with model: @account, url: account_custom_styles_url, class: "flex flex-column gap",

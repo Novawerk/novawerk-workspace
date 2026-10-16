@@ -133,8 +133,7 @@ a { color: var(--primary); text-underline-offset: 3px; }
 
 /* Primary (submit) buttons are green, like the admin's "New project". */
 .btn--reversed,
-.btn--success,
-.btn[type="submit"]:not(.btn--borderless):not(.btn--negative) {
+.btn--success {
   --btn-background: var(--primary);
   --btn-border-color: var(--primary);
   --btn-color: var(--primary-foreground);
@@ -143,7 +142,6 @@ a { color: var(--primary); text-underline-offset: 3px; }
     --btn-background: oklch(0.515 0.113 155.3 / 90%);
   }
 
-  img { filter: invert(1); }
 }
 
 .btn--negative {
@@ -872,4 +870,488 @@ lexxy-toolbar {
   color: var(--primary);
   text-decoration: underline;
   text-underline-offset: 0.2em;
+}
+
+/* ===========================================================================
+ * Redesign (design canvas "Novawerk Chat redesign", 2026-10-16).
+ * Exact @nw/ui tokens as hex, lucide icons, and the page components the views use (nw-*).
+ * ======================================================================== */
+:root {
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --primary: #1f7a4a;
+  --primary-foreground: #fafafa;
+  --brand-deep: #0a3920;
+  --secondary: #f5f5f5;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #1f7a4a40;
+  --destructive: #e7000b;
+  --destructive-soft: #e7000b1a;
+  --warning-soft: #fdf6e7;
+  --sidebar: #fafafa;
+  --sidebar-accent: #eaf2ec;
+  --sidebar-accent-foreground: #0a3920;
+  --sidebar-hover: #f0f0f0;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / .1), 0 4px 6px -4px rgb(0 0 0 / .1);
+  --header-height: 3.5rem;
+  --btn-size: 2.25rem;
+}
+
+/* Icons: inline lucide in currentColor. Leftover <img> icons are never inverted. */
+svg.lucide { block-size: 1rem; inline-size: 1rem; flex: none; vertical-align: middle; }
+svg.lucide[width] { block-size: auto; inline-size: auto; }
+.colorize--black, .colorize--white { filter: none !important; }
+.btn:where(:has(img):not(.avatar)) img:not([class]) { filter: none; }
+
+/* Buttons (packages/ui button.tsx): 36px, 8px radius, label + 16px icon. */
+.btn {
+  --btn-border-radius: var(--radius-md);
+  --btn-padding: 0 0.75rem;
+  block-size: var(--btn-size);
+  font-size: 0.875rem;
+  gap: 0.375rem;
+  line-height: 1.25rem;
+  white-space: nowrap;
+}
+
+/* Icon-only buttons (a lucide icon and a screen-reader label) are square. No display here:
+   upstream hides some of them with display: none, and that must keep winning. */
+.btn:where(:has(.for-screen-reader):has(> svg.lucide)) {
+  --btn-padding: 0;
+  aspect-ratio: 1;
+  inline-size: var(--btn-size);
+}
+.btn[hidden] { display: none; }
+
+/* Avatar buttons keep upstream's shape: no padding, no fixed height. */
+.btn.avatar {
+  --btn-padding: 0;
+  --btn-border-radius: var(--avatar-border-radius, 999px);
+  block-size: auto;
+}
+
+.btn--plain {
+  --btn-background: transparent;
+  --btn-border-color: transparent;
+  box-shadow: none;
+  &:where(:not(:active):hover) { --btn-background: var(--muted); }
+}
+
+.btn--negative {
+  --btn-background: var(--destructive-soft);
+  --btn-border-color: transparent;
+  --btn-color: var(--destructive);
+  box-shadow: none;
+  &:where(:not(:active):hover) { --btn-background: #e7000b26; }
+}
+
+.nw-btn-danger-solid {
+  --btn-background: var(--destructive);
+  --btn-border-color: var(--destructive);
+  --btn-color: #fff;
+}
+
+.nw-btn-block { inline-size: 100%; block-size: 2.5rem; }
+
+/* Header bar: a page title and actions, or a room. */
+#nav {
+  min-block-size: var(--header-height);
+
+  &:has(.nw-hdr-title) {
+    background: #ffffffe6;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border-block-end: 1px solid var(--border);
+    gap: 1rem;
+    padding-inline: 1.5rem 1rem;
+    pointer-events: auto;
+  }
+}
+
+.nw-hdr-title { font-size: 0.9375rem; font-weight: 600; margin: 0; white-space: nowrap; }
+.nw-hdr-actions { align-items: center; display: flex; gap: 0.5rem; margin-inline-start: auto; }
+.nw-hdr-sub {
+  border-inline-start: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  margin-inline-end: auto;
+  overflow: hidden;
+  padding-inline-start: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  @media (max-width: 100ch) { display: none; }
+}
+#nav:has(.room--current) .room--current { margin-inline-end: 0; }
+
+.nw-tabs { display: flex; gap: 0.25rem; margin-inline-end: auto; }
+.nw-tab {
+  border-radius: var(--radius-md);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.375rem 0.75rem;
+  text-decoration: none;
+  &:hover { background: var(--muted); color: var(--foreground); }
+  &[aria-current="page"] { background: var(--muted); color: var(--foreground); }
+}
+
+/* Pages that aren't rooms: content under the header, scrolling. */
+body.sidebar #main-content:has(.nw-page) { justify-content: start; }
+.nw-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: calc(var(--header-height) + 2rem) 2.5rem 3rem;
+  @media (max-width: 100ch) { padding: calc(var(--header-height) + 1.25rem) 1rem 2rem; }
+}
+.nw-page--center { align-items: center; justify-content: center; }
+.nw-page__narrow { display: flex; flex-direction: column; gap: 1.5rem; max-inline-size: 45rem; inline-size: 100%; }
+.nw-page__split {
+  display: grid;
+  gap: 1.75rem;
+  grid-template-columns: minmax(0, 1fr) 21rem;
+  max-inline-size: 62.5rem;
+  @media (max-width: 120ch) { grid-template-columns: 1fr; }
+}
+.nw-page__main, .nw-page__aside { display: flex; flex-direction: column; gap: 1.25rem; min-inline-size: 0; }
+
+/* Type and small parts */
+.nw-h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; line-height: 2rem; margin: 0; }
+.nw-muted { color: var(--muted-foreground); }
+.nw-small { font-size: 0.75rem; line-height: 1rem; }
+.nw-hint { color: var(--muted-foreground); font-size: 0.8125rem; line-height: 1.125rem; margin: 0; }
+.nw-label { font-size: 0.875rem; font-weight: 500; }
+.nw-row { align-items: center; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.nw-stack { display: flex; flex-direction: column; gap: 0.125rem; min-inline-size: 0; text-align: start; }
+.nw-field { display: flex; flex-direction: column; gap: 0.5rem; text-align: start; }
+.nw-form { display: flex; flex-direction: column; gap: 1.125rem; inline-size: 100%; }
+
+.nw-badge {
+  align-items: center;
+  background: var(--secondary);
+  border-radius: 999px;
+  color: #171717;
+  display: inline-flex;
+  font-size: 0.75rem;
+  font-weight: 500;
+  gap: 0.25rem;
+  height: 1.25rem;
+  padding: 0 0.5rem;
+  white-space: nowrap;
+}
+.nw-badge--soft { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); }
+.nw-badge--danger { background: var(--destructive-soft); color: var(--destructive); }
+
+.nw-alert {
+  align-items: flex-start;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  font-size: 0.8125rem;
+  gap: 0.625rem;
+  inline-size: 100%;
+  line-height: 1.125rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  text-align: start;
+  svg { margin-block-start: 0.0625rem; }
+}
+.nw-alert--danger { border-color: #e7000b40; color: var(--destructive); }
+
+.nw-divider-label {
+  align-items: center;
+  color: var(--muted-foreground);
+  display: flex;
+  font-size: 0.75rem;
+  font-weight: 500;
+  gap: 0.625rem;
+  &::after { background: var(--border); content: ""; flex: 1; height: 1px; }
+}
+
+/* Cards */
+.nw-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: start;
+}
+.nw-card--danger { border-color: #e7000b40; }
+.nw-card__head { display: flex; flex-direction: column; gap: 0.25rem; padding: 1.25rem 1.5rem 0; }
+.nw-card__head.nw-row { align-items: baseline; flex-direction: row; justify-content: space-between; padding-block-end: 0.75rem; border-block-end: 1px solid var(--border); }
+.nw-card__title { font-size: 1rem; font-weight: 600; line-height: 1.5rem; margin: 0; }
+.nw-card__body { display: flex; flex-direction: column; gap: 1rem; padding: 1rem 1.5rem 1.5rem; }
+.nw-card--rows > * + * { border-block-start: 1px solid var(--border); }
+.nw-card__row { align-items: center; display: flex; gap: 0.75rem; padding: 0.875rem 1.25rem; }
+.nw-card__icon {
+  align-items: center;
+  background: var(--muted);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex: none;
+  height: 2rem;
+  justify-content: center;
+  width: 2rem;
+}
+.nw-card__icon--danger { background: var(--destructive-soft); color: var(--destructive); }
+.nw-card__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-inline-size: 0;
+  strong { font-weight: 500; }
+  span { color: var(--muted-foreground); font-size: 0.8125rem; line-height: 1.125rem; }
+  a { color: var(--muted-foreground); }
+}
+.nw-card__row form { margin: 0; }
+
+/* Sign-in link: a row that opens. */
+.nw-transfer { display: block; padding: 0; }
+.nw-transfer__summary { align-items: center; cursor: pointer; display: flex; gap: 0.75rem; list-style: none; padding: 0.875rem 1.25rem; }
+.nw-transfer__summary::-webkit-details-marker { display: none; }
+.nw-transfer[open] .nw-transfer__summary .btn { --btn-background: var(--muted); }
+.nw-transfer__body { display: flex; flex-direction: column; gap: 0.75rem; padding: 0 1.25rem 1rem 4rem; }
+.nw-transfer__body .btn[hidden] { display: none; }
+
+/* Profile header (user page, my profile) */
+.nw-profile { align-items: flex-start; display: flex; gap: 1.25rem; text-align: start; }
+.nw-profile__avatar { --avatar-size: 5.5rem; flex: none; }
+.nw-profile__avatar img { border-radius: 999px; }
+.nw-profile__body { display: flex; flex-direction: column; gap: 0.375rem; min-inline-size: 0; padding-block-start: 0.25rem; }
+.nw-profile__body > p { margin: 0; }
+.nw-profile__body .novawerk-handle { color: var(--muted-foreground); font-size: 0.9375rem; }
+.nw-profile__bio { line-height: 1.375rem; max-inline-size: 32.5rem; }
+.nw-profile__actions { margin-block-start: 0.625rem; }
+.nw-profile__actions form { margin: 0; }
+@media (max-width: 100ch) {
+  .nw-profile { align-items: center; flex-direction: column; text-align: center; }
+  .nw-profile__body { align-items: center; }
+}
+
+/* My rooms (profile) */
+.nw-rooms { margin: 0; padding: 0; }
+.nw-rooms__row {
+  align-items: center;
+  border-block-end: 1px solid #f0f0f0;
+  display: flex;
+  gap: 0.625rem;
+  min-block-size: 3rem;
+  padding: 0 1rem;
+  &:last-child { border-block-end: 0; }
+  turbo-frame { margin-inline-start: auto; }
+  .btn { --btn-background: transparent; --btn-border-color: transparent; box-shadow: none; }
+}
+.nw-rooms__name { color: var(--foreground); flex: 1; font-weight: 500; min-inline-size: 0; overflow: hidden; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Members (account settings) */
+.nw-members { margin: 0; padding: 0.25rem 0; }
+.nw-members > hr { display: none; }
+.nw-members__row {
+  align-items: center;
+  border-block-end: 1px solid #f0f0f0;
+  display: flex;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.625rem 1.5rem;
+  &:last-child { border-block-end: 0; }
+  &.banned { opacity: 0.6; }
+}
+.nw-members__person { align-items: center; color: inherit; display: flex; flex: 1; gap: 0.625rem; min-inline-size: 0; text-decoration: none; }
+.nw-members__person .avatar { --avatar-size: 2rem; }
+.nw-members__person .avatar img { border-radius: 999px; }
+.nw-members__person strong { font-weight: 500; }
+.nw-members__role { flex: none; inline-size: 6.5rem; }
+.nw-members__actions { display: flex; flex: none; gap: 0.25rem; justify-content: flex-end; inline-size: 5rem; }
+.nw-members__actions form { margin: 0; }
+.nw-members__actions .btn:not(.btn--negative) { --btn-background: transparent; --btn-border-color: transparent; box-shadow: none; }
+
+/* Room new/edit */
+.nw-room-form { padding: 1.5rem; }
+.nw-room-form form { display: flex; flex-direction: column; gap: 1rem; }
+.nw-room-form .room-access { background: transparent; border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 0; padding: 0.25rem 0.75rem; }
+.nw-room-form hr.borderless { display: none; }
+.nw-room-form__submit { align-self: flex-end; }
+
+/* Sign in */
+.nw-signin {
+  align-items: center;
+  background: var(--sidebar);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  justify-content: center;
+  min-block-size: 100dvh;
+  padding: 1rem;
+}
+.nw-signin__card { align-items: center; box-shadow: var(--shadow-sm); gap: 1.25rem; inline-size: min(25rem, 100%); padding: 2rem; text-align: center; }
+.nw-signin__logo {
+  align-items: center;
+  background: #0a39200d;
+  border-radius: 0.75rem;
+  display: flex;
+  height: 3rem;
+  justify-content: center;
+  width: 3rem;
+  img { border-radius: 0.375rem; height: 2rem; width: 2rem; }
+}
+.nw-signin__text { display: flex; flex-direction: column; gap: 0.375rem; }
+.nw-signin__text p { margin: 0; }
+.nw-signin__title { font-size: 1.25rem; font-weight: 600; line-height: 1.75rem; margin: 0; }
+
+/* Empty states and 404 */
+.nw-empty { align-items: center; display: flex; flex-direction: column; gap: 0.75rem; max-inline-size: 26rem; text-align: center; }
+.nw-empty p { margin: 0; }
+.nw-empty__icon { align-items: center; background: var(--muted); border-radius: 0.75rem; display: flex; height: 3rem; justify-content: center; width: 3rem; }
+.nw-empty__title { font-size: 1.125rem; font-weight: 600; line-height: 1.625rem; margin: 0.25rem 0 0; }
+.nw-empty .nw-row { justify-content: center; margin-block-start: 0.5rem; }
+
+/* Confirm dialog (data-turbo-confirm) */
+.nw-dialog {
+  background: var(--card);
+  border: 1px solid #0a0a0a1a;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  color: var(--foreground);
+  inline-size: min(28rem, calc(100vw - 2rem));
+  padding: 1.5rem;
+  &::backdrop { background: rgb(0 0 0 / 0.1); }
+}
+.nw-dialog__body { display: flex; flex-direction: column; gap: 1.25rem; margin: 0; }
+.nw-dialog__title { font-size: 0.9375rem; line-height: 1.375rem; margin: 0; }
+.nw-dialog__actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+/* Sidebar: search and section "+" buttons; the old in-list "add" rows are replaced by them. */
+.sidebar__search {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  color: var(--muted-foreground);
+  display: flex;
+  flex: none;
+  font-size: 0.8125rem;
+  gap: 0.5rem;
+  height: 2rem;
+  margin: 0 0.5rem 0.5rem;
+  order: 0;
+  padding: 0 0.5rem;
+  text-decoration: none;
+  &:hover { color: var(--foreground); }
+}
+.sidebar__section-title { align-items: center; display: flex; justify-content: space-between; }
+.sidebar__section-add {
+  align-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  display: flex;
+  height: 1.5rem;
+  justify-content: center;
+  width: 1.5rem;
+  &:hover { background: var(--sidebar-hover); color: var(--foreground); }
+}
+.rooms__new-btn, .direct__new { display: none !important; }
+.room svg.lucide, .direct svg.lucide { color: var(--muted-foreground); }
+
+/* Messages: warm tint when someone mentions me (design spec). */
+.message--mentioned { background: var(--warning-soft); box-shadow: none; }
+
+/* My rooms: the notification button shows its level in words, not only as a bell. */
+.nw-rooms__row .btn {
+  --btn-padding: 0 0.5rem;
+  aspect-ratio: auto;
+  color: #404040;
+  font-size: 0.75rem;
+  inline-size: auto;
+}
+.nw-rooms__row .btn .for-screen-reader {
+  block-size: auto;
+  clip-path: none;
+  inline-size: auto;
+  position: static;
+}
+
+/* Account settings: members list, setting rows and the shadcn switch. */
+.nw-members turbo-frame { display: block; }
+.nw-card .fill-shade { background: transparent; }
+.nw-card .pad-block.pad-inline-double { padding: 0; }
+.nw-card .avatar__form { justify-content: flex-start; }
+.nw-card .input.txt-large { font-size: 0.875rem; height: 2.25rem; }
+.nw-card form:has(.switch) { justify-content: space-between; text-align: start; }
+
+.switch { block-size: 1.125rem; inline-size: 2rem; }
+.switch__btn {
+  background-color: var(--input);
+  &::before { block-size: 0.875rem; box-shadow: var(--shadow-sm); inline-size: 0.875rem; inset-block-end: 0.125rem; inset-inline-start: 0.125rem; }
+  .switch__input:checked + & { background-color: var(--primary); &::before { transform: translateX(0.875rem); } }
+}
+
+/* Search: title, the query with its count, recent searches as chips. */
+body.searches #nav { background: #ffffffe6; border-block-end: 1px solid var(--border); gap: 0.75rem; padding-inline: 1.5rem 1rem; pointer-events: auto; }
+.searches__query .btn--reversed { --btn-background: var(--sidebar-accent); --btn-border-color: transparent; --btn-color: var(--sidebar-accent-foreground); block-size: 1.75rem; font-size: 0.8125rem; }
+.searches__recents { display: flex; gap: 0.375rem; }
+.searches__recents .room { background: var(--muted); block-size: 1.75rem; border-radius: 999px; font-size: 0.8125rem; inline-size: auto; padding: 0 0.625rem; }
+.message__room a { color: var(--primary); }
+.nw-members__person strong a { color: inherit; text-decoration: none; }
+.nw-members__person strong a:hover { text-decoration: underline; }
+.nw-members__person figure { margin: 0; }
+
+/* Upstream pages still built as a lone centred panel (bots, custom styles, edit DM…):
+   in the shell they become a card at the top of the page, like the redesigned ones. */
+body.sidebar #main-content:has(> section.panel) {
+  gap: 1.25rem;
+  justify-content: start;
+  padding: calc(var(--header-height) + 2rem) 2.5rem 3rem;
+  @media (max-width: 100ch) { padding: calc(var(--header-height) + 1.25rem) 1rem 2rem; }
+}
+#main-content > section.panel {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xs);
+  inline-size: 100%;
+  margin: 0;
+  max-inline-size: 45rem;
+  padding: 1.5rem;
+  text-align: start;
+  h1 { font-size: 1.25rem; font-weight: 600; line-height: 1.75rem; }
+  .center { margin-inline: 0; }
+  .panel__button { display: none; }
+  fieldset { border: 1px solid var(--border); border-radius: var(--radius-lg); }
+}
+#main-content > section.panel li.fill-shade { background: var(--sidebar); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+
+/* Phones */
+@media (max-width: 100ch) {
+  /* Room for the menu button on every page, not only rooms. */
+  #nav:has(.nw-hdr-title) { padding-inline-start: 3.5rem; }
+  #nav:has(.nw-tabs) .nw-hdr-title { display: none; }
+  .nw-tabs { overflow-x: auto; scrollbar-width: none; }
+  .nw-tab { white-space: nowrap; }
+
+  /* Row actions: a quiet icon, not a bordered button, on touch. */
+  .message__options-btn { --btn-background: transparent; --btn-border-color: transparent; box-shadow: none; opacity: 0.6; }
+
+  .nw-members__row { flex-wrap: wrap; padding-inline: 1rem; }
+  .nw-members__role { inline-size: auto; }
+  .nw-members__actions { inline-size: auto; margin-inline-start: auto; }
+  .nw-card__row { flex-wrap: wrap; }
+  .nw-card__row > .btn, .nw-card__row > form { margin-inline-start: 2.75rem; }
+}
+.nw-hint.nw-row { align-items: flex-start; flex-wrap: nowrap; }
+@media (max-width: 100ch) {
+  .nw-card__text { flex-basis: calc(100% - 2.75rem); }
 }
