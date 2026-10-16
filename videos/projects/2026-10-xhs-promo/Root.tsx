@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import { Composition } from "remotion";
 
 import { VideoRoot } from "../../kit/root";
 import { CopyContext, copies } from "./copy";
 import { Cover } from "./Cover";
+import { POSTER_FRAME, Poster } from "./Poster";
 import { Shot1Hook, SHOT1_FRAMES } from "./shots/Shot1Hook";
 import { Shot2Intro, SHOT2_FRAMES } from "./shots/Shot2Intro";
 import { Shot3Pitch, SHOT3_FRAMES } from "./shots/Shot3Pitch";
@@ -27,13 +29,15 @@ function English({ children }: { children: ReactNode }) {
 
 // Frame 0 is the intro settled (lockup, line, the home page), not the hook's empty first frame:
 // 小红书 shows the first frame in the feed.
-const poster = { shot: "Shot2Intro", frame: 140 };
+const poster = { shot: "Shot2Intro", frame: POSTER_FRAME };
 
 export function Root() {
   return (
     <>
       <VideoRoot shots={shots} cover={Cover} poster={poster} />
       <VideoRoot shots={shots} cover={Cover} variant="en" wrap={English} poster={poster} />
+      {/* The LinkedIn poster: render frame POSTER_FRAME (pnpm video … still Poster-en 140). */}
+      <Composition id="Poster-en" component={Poster} durationInFrames={SHOT2_FRAMES} fps={30} width={1080} height={1440} />
     </>
   );
 }

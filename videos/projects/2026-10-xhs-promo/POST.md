@@ -30,7 +30,7 @@ Novawerk 是一个非营利的开放工作坊。把想法说出来，中文也�
 ## English (LinkedIn, Instagram)
 
 Video: `out/novawerk_en_3x4.mp4` (Instagram feed) or `out/novawerk_en_9x16.mp4` (Reels) · cover:
-`out/cover_en_3x4.png`
+`out/cover_en_3x4.png` · LinkedIn thumbnail: `out/poster_en_3x4.png` (the film's first frame)
 
 **Ideas stuck in your notes?**
 
