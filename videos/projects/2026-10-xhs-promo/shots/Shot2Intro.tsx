@@ -17,7 +17,8 @@ const SITE = 4 * BEAT; // 5.0 s
 const SUB = 6 * BEAT; // 6.0 s
 const SPIN = 360 / (14 * 30); // the site's 14-second turn, per frame
 
-export function Shot2Intro() {
+/** `upright` stops the star's turn, for the poster (Poster.tsx). */
+export function Shot2Intro({ upright = false }: { upright?: boolean }) {
   const f = useCurrentFrame();
   const { caption, sub, site } = useCopy().intro;
 
@@ -27,7 +28,7 @@ export function Shot2Intro() {
   const size = interpolate(settle, [0, 1], [300, 104]);
   const x = interpolate(settle, [0, 1], [540 - 150, 72]);
   const y = interpolate(settle, [0, 1], [560 - 150, 130]) - fall.drop * 560;
-  const rotate = fall.spin + f * SPIN;
+  const rotate = upright ? 0 : fall.spin + f * SPIN;
   const word = progress(f, SETTLE + 8, 8);
 
   const drop = progress(f, SITE, 9, ease.spring);
