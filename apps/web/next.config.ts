@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
       "../../knowledge/culture/**/*.md",
       "../../knowledge/operations/how-we-work.md",
       "../../knowledge/legal/*.md",
+      "../../CONTRIBUTING.md",
     ],
   },
   poweredByHeader: false,

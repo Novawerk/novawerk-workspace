@@ -222,7 +222,7 @@ function Contributors() {
               ? "They can propose, post and suggest again, and come back on the wall."
               : "They can still sign in and read, but not propose, post, suggest or vote. They leave the wall, and any task they hold goes back on the board."
           }
-          label="Reason (members only)"
+          label="Reason (maintainers only)"
           confirmLabel={acting.suspended ? "Lift suspension" : "Suspend"}
           destructive={!acting.suspended}
           onSubmit={(reason) =>

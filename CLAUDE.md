@@ -16,7 +16,7 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
 
 | Path | What | Stack |
 |------|------|-------|
-| `apps/web` | Public site: `/` (portfolio), `/about`, the pitch form `/submit`, the task board (`/contribute`, `/tasks`, `/contributors`, `/u/<handle>`, `/sign-in`, `/settings`), `/imprint`, `/privacy`; `/join` redirects to `/contribute`; `POST /api/revalidate` (the API marks the `projects`, `tasks` or `contributors` cache stale) | Next.js 16 App Router, Tailwind v4 |
+| `apps/web` | Public site: `/` (portfolio), `/about`, the pitch form `/submit`, the task board (`/contribute`, `/contribute/guide` (CONTRIBUTING.md), `/tasks`, `/contributors`, `/u/<handle>`, `/sign-in`, `/settings`), `/imprint`, `/privacy`; `/join` redirects to `/contribute`; `POST /api/revalidate` (the API marks the `projects`, `tasks` or `contributors` cache stale) | Next.js 16 App Router, Tailwind v4 |
 | `apps/admin` | Internal admin panel (admin.novawerk.io) | React 19 SPA, Vite+, TanStack Router + Query, shadcn (Base UI, `base-vega`), AI Elements |
 | `apps/api` | The only entry to the database from the internet: `/public` (forms, portfolio, task board, intake chat, visit events), `/auth` (one sign-in for everyone: GitHub, Google or an emailed code; `/auth/contributor` is the old path), `/admin` (incl. the assistant chat), `/contrib` (signed-in contributors), `/cron`, `/webhooks` | Hono on Vercel Functions |
 | `apps/chat` | Novawerk Chat, the team chat (chat.novawerk.io): Campfire vendored from basecamp/once-campfire with Novawerk's theme and a Slack-style layout. Novawerk changes go in `app/assets/stylesheets/zz_novawerk.css` and small template edits; updating upstream: `apps/chat/UPSTREAM.md`. Not in the pnpm workspace; ships as a Docker image | Rails 8, SQLite, Hotwire |
@@ -61,20 +61,24 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
   site, the admin panel and the API; personal access tokens never reach `/admin`. Tests in
   `apps/api/test/admin-access.test.ts` walk every `/admin` route: keep them passing.
 - **Outbound email is gated.** Anything sent to someone outside Novawerk goes into `outbox`
-  and waits for a member's approval:
+  and waits for a maintainer's approval:
   - agents only call `queueEmail()`; agent workflows never get `RESEND_API_KEY` (a test enforces it);
   - the API's approve route calls `approveEmail()` then `sendApproved()`;
   - `notifyTeam()` may only email a novawerk.io inbox and needs no approval;
-  - `sendSignInCode()` sends a fixed template with a sign-in code to the address signing in (a
-    one signing in, or signing up; NB-ADR-0014);
+  - `sendSignInCode()` sends a fixed template with a sign-in code to the address signing in or
+    signing up (NB-ADR-0014);
   - `sendNewsletterConfirmation()` sends a fixed double opt-in template with one confirmation
     link to the address that just signed up, rate-limited per address (NB-ADR-0011). Newsletter
     issues are not part of this exception, and go only to confirmed subscribers;
   - contributor notices (NB-ADR-0013) are fixed templates about a contributor's own account and
     tasks (proposal chosen or not, replies, reminders, release, task closed, the outcome of their
     own suggestion, Werk awarded, account deleted),
-    sent without approval only to that contributor's own verified address. Nothing else to
-    contributors skips the outbox.
+    sent without approval only to that contributor's own verified address;
+  - `sendWelcome()` sends one fixed welcome email when someone makes an account (greeting by
+    their escaped name, what being a member means, a link to `/contribute/guide`), once per
+    account (`members.welcome_sent_at`, claimed before sending), only to the address that sign-in
+    just proved (NB-ADR-0014). Agents never send it.
+  Nothing else to members skips the outbox.
 - **Inbound mail to info@ is relayed, not stored.** Resend receiving calls
   `POST /webhooks/resend`; the API checks the signature and posts one card to the Slack channel
   `#info-inbox` (`apps/api/src/inbound-mail.ts`). Gmail stays the inbox; replies go from there.

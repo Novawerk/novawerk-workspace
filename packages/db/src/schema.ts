@@ -99,6 +99,11 @@ export const members = pgTable("members", {
   notifyReminders: boolean("notify_reminders").notNull().default(true),
   /** Sessions issued before this are refused: set on sign-out and when sign-in methods change. */
   sessionsRevokedAt: timestamp("sessions_revoked_at", { withTimezone: true }),
+  /**
+   * The welcome email (NB-ADR-0014) went out, or was settled without one (no address yet). Claimed
+   * once, at the first sign-in, so it never goes twice. Accounts from before it are marked.
+   */
+  welcomeSentAt: timestamp("welcome_sent_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

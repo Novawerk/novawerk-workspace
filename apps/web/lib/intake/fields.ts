@@ -44,7 +44,7 @@ export const PITCH_FIELDS: readonly DraftField[] = [
   },
   { key: "timeline", label: "Timeline", kind: "textarea", maxLength: 2000, hint: "What you want done by when." },
   { key: "name", label: "Name", kind: "text", maxLength: 100, autoComplete: "name", hint: "We ask for this at the end of the chat." },
-  { key: "email", label: "Email", kind: "email", maxLength: 200, autoComplete: "email", hint: "So a Member can reply." },
+  { key: "email", label: "Email", kind: "email", maxLength: 200, autoComplete: "email", hint: "So we can reply." },
   {
     key: "links",
     label: "Links",
@@ -68,7 +68,7 @@ export const JOIN_FIELDS: readonly DraftField[] = [
   { key: "availability", label: "Time you can give", kind: "single", options: AVAILABILITY_OPTIONS },
   { key: "city", label: "City", kind: "text", optional: true, maxLength: 100, autoComplete: "address-level2" },
   { key: "name", label: "Name", kind: "text", maxLength: 100, autoComplete: "name", hint: "We ask for this at the end of the chat." },
-  { key: "email", label: "Email", kind: "email", maxLength: 200, autoComplete: "email", hint: "So a Member can reply." },
+  { key: "email", label: "Email", kind: "email", maxLength: 200, autoComplete: "email", hint: "So we can reply." },
   {
     key: "links",
     label: "Links",

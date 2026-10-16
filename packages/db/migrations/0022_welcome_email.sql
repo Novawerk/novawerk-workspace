@@ -1,0 +1,1 @@
+ALTER TABLE "members" ADD COLUMN "welcome_sent_at" timestamp with time zone;

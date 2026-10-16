@@ -113,7 +113,7 @@ export function AcceptSubmissionDialog({ submission }: { submission: ProjectSubm
             <SwitchRow
               label={`Email ${firstName(submission.name)}`}
               htmlFor="accept-email"
-              description="Our acceptance note: what happens next (a call, a small first step) and how we work. It waits in the Outbox until a member approves it."
+              description="Our acceptance note: what happens next (a call, a small first step) and how we work. It waits in the Outbox until a maintainer approves it."
             >
               <Switch id="accept-email" checked={email} onCheckedChange={setEmail} />
             </SwitchRow>

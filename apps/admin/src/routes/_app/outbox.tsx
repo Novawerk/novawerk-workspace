@@ -48,7 +48,7 @@ import {
 } from "@/lib/queries"
 import type { MemberSummary, OutboxEmail } from "@/lib/types"
 
-/** `status` defaults to pending: what needs a member. "all" shows everything. */
+/** `status` defaults to pending: what needs a maintainer. "all" shows everything. */
 type Search = { status?: OutboxStatus | "all"; id?: string }
 
 export const Route = createFileRoute("/_app/outbox")({
@@ -116,7 +116,7 @@ function OutboxPage() {
         <PageHeader
           eyebrow="Inbox"
           title="Outbox"
-          description="Every email to someone outside Novawerk waits here. Nothing leaves until a member approves it."
+          description="Every email to someone outside Novawerk waits here. Nothing leaves until a maintainer approves it."
         />
       }
       list={

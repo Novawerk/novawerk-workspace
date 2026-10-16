@@ -30,7 +30,7 @@ export const AGENTS: AgentInfo[] = [
     id: "promo",
     name: "Promo",
     description:
-      "Plans each project's posts from its lifecycle and drafts them in Chinese and English. A member reviews and posts them by hand.",
+      "Plans each project's posts from its lifecycle and drafts them in Chinese and English. A maintainer reviews and posts them by hand.",
     when: "Right after a project changes stage or a member asks for a draft; daily for posts that come due",
     effects: ["database"],
     onGitHub: true,

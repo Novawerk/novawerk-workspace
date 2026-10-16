@@ -55,6 +55,7 @@ import { rejectInvalid, validationFailed } from "../http.js";
 import { FixedWindowLimiter, clientIp } from "../intake-chat/rate-limit.js";
 import { VERIFY_TRIES_PER_IP_PER_HOUR, checkCode, issueCode } from "../sign-in-codes.js";
 import type { ApiEnv, AppDeps, GoogleVerifier, Logger } from "../types.js";
+import { welcomeOnce } from "../welcome.js";
 
 /** Code requests per client IP per hour (in-memory, per instance). Per address: src/sign-in-codes.ts. */
 export const CODE_REQUESTS_PER_HOUR = 10;
@@ -82,6 +83,7 @@ export function authRoutes({
   githubOAuth,
   verifyGoogleToken,
   sendSignInCode,
+  sendWelcome,
 }: AppDeps & { logger: Logger; verifyGoogleToken: GoogleVerifier }) {
   const codeRequests = new FixedWindowLimiter(CODE_REQUESTS_PER_HOUR, 60 * 60_000);
   const verifyTries = new FixedWindowLimiter(VERIFY_TRIES_PER_IP_PER_HOUR, 60 * 60_000);
@@ -97,8 +99,9 @@ export function authRoutes({
   };
   const signedIn = (c: Context<ApiEnv>) => currentAccount(db, getCookie(c, SESSION_COOKIE), env.sessionSecret);
 
-  /** Session and answer for an account someone just proved is theirs. */
+  /** Session and answer for an account someone just proved is theirs (and a new one's welcome). */
   const welcome = async (c: Context<ApiEnv>, account: Member) => {
+    await welcomeOnce(db, account, sendWelcome, logger);
     await startSession(c, account.id, env.sessionSecret);
     return c.json(await toAccountMe(db, account), 200);
   };
@@ -130,6 +133,7 @@ export function authRoutes({
         const user = await githubOAuth.exchange(code, redirectUri, saved.verifier);
         const account = await signInWithGitHub(db, user, saved.linkTo);
         if (!account.active) return c.redirect(returnUrl("/sign-in?error=inactive"), 302);
+        await welcomeOnce(db, account, sendWelcome, logger);
         await startSession(c, account.id, env.sessionSecret);
         return c.redirect(returnUrl(saved.returnTo), 302);
       } catch (err) {

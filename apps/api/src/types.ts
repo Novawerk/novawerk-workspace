@@ -69,6 +69,9 @@ export interface OutboxSender {
 /** Emails a 6-digit sign-in code. Wraps `sendSignInCode` from @nw/email (member or contributor wording). */
 export type SignInCodeSender = (to: string, code: string) => Promise<unknown>;
 
+/** Sends the welcome email (src/welcome.ts). Wraps `sendWelcome` from @nw/email. */
+export type WelcomeSender = (to: string, name: string, send: { idempotencyKey: string }) => Promise<unknown>;
+
 /** Emails the newsletter's confirmation link. Wraps `sendNewsletterConfirmation` from @nw/email. */
 export type NewsletterConfirmationSender = (to: string, confirmUrl: string) => Promise<unknown>;
 
@@ -172,6 +175,8 @@ export interface AppDeps {
   files?: Files;
   /** Signing in by email. Optional: without it /auth/email/* answer 503 (GitHub and Google still work). */
   sendSignInCode?: SignInCodeSender;
+  /** The welcome email, once per new account (NB-ADR-0014). Optional: without it none is sent. */
+  sendWelcome?: WelcomeSender;
   /** Emails to contributors about their own tasks (src/contributor-notices.ts). Optional: without it the cron queues but sends nothing. */
   sendContributorNotice?: ContributorNoticeSender;
   /** Double opt-in emails. Optional: without it POST /public/subscribe answers 503. */

@@ -301,7 +301,7 @@ export function PostItem({
         <ReasonDialog
           title={`Suspend @${author.handle}?`}
           description="They can still sign in and read, but not propose, post, suggest or vote. They leave the wall."
-          label="Reason (members only)"
+          label="Reason (maintainers only)"
           confirmLabel="Suspend"
           destructive
           onSubmit={(reason) =>
@@ -314,7 +314,7 @@ export function PostItem({
         <ReasonDialog
           title="Keep this post?"
           description="It stays as it is. Its reports leave the Reported list; a new report brings it back."
-          label="Reason (members only)"
+          label="Reason (maintainers only)"
           placeholder="Fine in context"
           confirmLabel="Keep post"
           onSubmit={(reason) => keep.mutateAsync({ id: post.id, reason }).then(() => toast.success("Post kept"))}
@@ -329,7 +329,7 @@ export function PostItem({
               ? "It shows on the task again, with its author."
               : "It keeps its place on the task without its text or author. A security report? Hide it and email it to security@novawerk.io."
           }
-          label="Reason (members only)"
+          label="Reason (maintainers only)"
           placeholder={post.hidden ? "Not spam after all" : "Off-topic, spam…"}
           confirmLabel={post.hidden ? "Show again" : "Hide post"}
           destructive={!post.hidden}
@@ -441,7 +441,7 @@ export function Timeline({ events }: { events: AdminTaskEvent[] }) {
           <span aria-hidden className="absolute top-1.5 -left-[21px] size-2 rounded-full border bg-background" />
           <span className="flex flex-wrap items-center gap-x-2">
             <span className="font-medium">{EVENT_LABELS[e.kind] ?? e.kind}</span>
-            {memberOnly.has(e.kind) && <span className="text-xs text-muted-foreground">members only</span>}
+            {memberOnly.has(e.kind) && <span className="text-xs text-muted-foreground">maintainers only</span>}
           </span>
           <span className="text-xs text-muted-foreground">
             {e.actor ? (e.actor.kind === "member" ? e.actor.name : `@${e.actor.handle}`) : "GitHub"} · {formatDateTime(e.createdAt)}

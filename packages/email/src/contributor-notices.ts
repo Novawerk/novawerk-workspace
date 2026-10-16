@@ -4,7 +4,7 @@
 // would approve a hundred "you have a reply" mails), so the door is narrow instead:
 //
 //   - only the kinds in CONTRIBUTOR_NOTICE_KINDS, each a fixed template; what goes in is a task
-//     number and title, a number or date, and a member's own note;
+//     number and title, a number or date, and a maintainer's own note;
 //   - the API sends it only to the contributor's own verified address (src/contributor-notices.ts),
 //     never to an address someone typed;
 //   - every mail says why it came and links to /settings, where replies and reminders turn off.
@@ -61,14 +61,14 @@ export class ContributorNoticeError extends Error {
   }
 }
 
-type Block = { p: string } | { quote: string } | { button: { href: string; label: string } };
+export type Block = { p: string } | { quote: string } | { button: { href: string; label: string } };
 
-const SINGLE_ADDRESS = /^[^\s@<>()[\]",;:]+@[^\s@<>()[\]",;:]+\.[^\s@<>()[\]",;:]+$/;
+export const SINGLE_ADDRESS = /^[^\s@<>()[\]",;:]+@[^\s@<>()[\]",;:]+\.[^\s@<>()[\]",;:]+$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_NOTE = 2000;
 const MAX_TITLE = 200;
 
-function origin(url: string): string {
+export function origin(url: string): string {
   const parsed = new URL(url);
   if (parsed.protocol !== "https:" && parsed.protocol !== "http:") throw new Error(`Not a web address: ${url}`);
   return parsed.origin;
@@ -92,9 +92,9 @@ export function contributorNoticeContent(mail: ContributorNoticeMail, webUrl: st
   const web = origin(webUrl);
   if (mail.kind === "account_deleted") {
     return {
-      subject: "Your Novawerk contributor account is deleted",
+      subject: "Your Novawerk account is deleted",
       blocks: [
-        { p: `We deleted the contributor account @${clean(mail.handle, 40)}: your profile, proposals and tokens.` },
+        { p: `We deleted the Novawerk account @${clean(mail.handle, 40)}: your profile, proposals and tokens.` },
         { p: "Merged work stays in git history. On the task board it shows as \"a former contributor\"." },
         { p: "This is the last email we send you about the task board. If you didn't ask for this, reply and tell us." },
       ],
@@ -149,7 +149,7 @@ export function contributorNoticeContent(mail: ContributorNoticeMail, webUrl: st
         blocks: [
           mail.idle
             ? { p: `${label(task)} had no activity for a while, so it went back on the board.` }
-            : { p: `A member released ${label(task)}. It is back on the board.` },
+            : { p: `A maintainer released ${label(task)}. It is back on the board.` },
           ...(mail.note && !mail.idle ? [{ quote: clean(mail.note, MAX_NOTE) }] : []),
           { p: "Nothing counts against you. You can propose again any time." },
           open(),
@@ -159,7 +159,7 @@ export function contributorNoticeContent(mail: ContributorNoticeMail, webUrl: st
       return {
         subject: `${id} is closed`,
         blocks: [
-          { p: `A member closed ${label(task)}, which you were working on.` },
+          { p: `A maintainer closed ${label(task)}, which you were working on.` },
           ...(mail.note ? [{ quote: clean(mail.note, MAX_NOTE) }] : []),
           { p: "Nothing counts against you. Thanks for the work you put in." },
           { button: { href: `${web}/tasks`, label: "Find another task" } },
@@ -223,13 +223,13 @@ export function contributorNoticeContent(mail: ContributorNoticeMail, webUrl: st
 /** Why this mail came, and where to change it. */
 function footer(kind: ContributorNoticeKind, web: string): { text: string; settings: string | null } {
   if (kind === "account_deleted") {
-    return { text: "You get this email because your contributor account on novawerk.io was deleted.", settings: null };
+    return { text: "You get this email because your Novawerk account was deleted.", settings: null };
   }
   const optional = kind in OPTIONAL_CONTRIBUTOR_NOTICES;
   return {
     text: optional
-      ? "You get this email because you have a contributor account on novawerk.io and it is about your own posts or tasks. You can turn these emails off in Settings."
-      : "You get this email because you have a contributor account on novawerk.io and it is about your own tasks. We always send this one.",
+      ? "You get this email because you have a Novawerk account and it is about your own posts or tasks. You can turn these emails off in Settings."
+      : "You get this email because you have a Novawerk account and it is about your own tasks. We always send this one.",
     settings: `${web}/settings`,
   };
 }
@@ -241,8 +241,18 @@ const escape = (s: string) =>
 export function contributorNoticeEmail(mail: ContributorNoticeMail, webUrl: string): { subject: string; text: string; html: string } {
   const web = origin(webUrl);
   const { subject, blocks } = contributorNoticeContent(mail, web);
-  const foot = footer(mail.kind, web);
+  return renderFixedEmail(subject, blocks, footer(mail.kind, web));
+}
 
+/**
+ * A fixed email from blocks: plain text and light HTML (600 px, inline styles), every value
+ * escaped. The notices and the welcome email share it.
+ */
+export function renderFixedEmail(
+  subject: string,
+  blocks: Block[],
+  foot: { text: string; settings: string | null },
+): { subject: string; text: string; html: string } {
   const text = [
     ...blocks.map((b) =>
       "p" in b ? b.p : "quote" in b ? b.quote.split("\n").map((l) => `> ${l}`).join("\n") : `${b.button.label}: ${b.button.href}`,

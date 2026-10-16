@@ -23,6 +23,7 @@ import type {
   OutboxSender,
   PromoTrigger,
   SignInCodeSender,
+  WelcomeSender,
 } from "../src/types.js";
 
 export { createTestDb, resetDb } from "@nw/db/testing";
@@ -59,6 +60,7 @@ export function makeApp(
     files?: Files;
     cardFetch?: typeof fetch;
     sendSignInCode?: SignInCodeSender;
+    sendWelcome?: WelcomeSender;
     sendNewsletterConfirmation?: NewsletterConfirmationSender;
     inboundMail?: InboundMailOptions;
     githubOAuth?: GitHubOAuth;
@@ -90,6 +92,7 @@ export function makeApp(
     ...(opts.adminChat ? { adminChat: opts.adminChat } : {}),
     ...(opts.files ? { files: opts.files } : {}),
     ...(opts.sendSignInCode ? { sendSignInCode: opts.sendSignInCode } : {}),
+    ...(opts.sendWelcome ? { sendWelcome: opts.sendWelcome } : {}),
     ...(opts.sendNewsletterConfirmation ? { sendNewsletterConfirmation: opts.sendNewsletterConfirmation } : {}),
     ...(opts.inboundMail ? { inboundMail: opts.inboundMail } : {}),
     ...(opts.githubOAuth ? { githubOAuth: opts.githubOAuth } : {}),

@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 
 const STEPS = [
   ["Pick a task", "Every task has a size, an area and a list of what done looks like. Browse without an account."],
-  ["Propose a plan", "Say how you'd do it and roughly how long it takes. A member picks one plan and sends you the guide."],
+  ["Propose a plan", "Say how you'd do it and roughly how long it takes. A maintainer picks one plan and sends you the guide."],
   ["Open a pull request", "Work in the repo and put a Task: NW-42 line in the pull request. We review it on GitHub."],
   ["Merge, earn Werk", "When it merges, the task is done and the Werk goes on your profile."],
 ] as const;
@@ -102,6 +102,13 @@ export default async function ContributePage() {
               <li>We don&apos;t mentor whole projects. Tasks are small enough to finish alone.</li>
               <li>{TASK_LIMIT_LINE} Release a task if life gets busy; nothing counts against you.</li>
             </ul>
+            <p className="text-muted">
+              Before you propose, read the{" "}
+              <Link href="/contribute/guide" className={textLink}>
+                contribution guide
+              </Link>
+              : proposals, linking GitHub, pull requests, DCO sign-off and Werk.
+            </p>
           </div>
         </div>
       </section>

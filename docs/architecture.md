@@ -129,12 +129,14 @@ Every email to someone outside Novawerk goes through the `outbox` table.
 
 On top of the code, agent workflows never get `RESEND_API_KEY`, so an agent cannot reach Resend
 at all. The intake acknowledgement is a fixed template: nothing an applicant writes can change
-what we email back. Four other doors exist: `notifyTeam()` only reaches `@novawerk.io`,
+what we email back. Five other doors exist: `notifyTeam()` only reaches `@novawerk.io`,
 `sendSignInCode()` sends one fixed template with a sign-in code to the address that is signing
 in or signing up (NB-ADR-0014), and `sendNewsletterConfirmation()` sends one fixed double opt-in email with a confirmation link to
 the address that just signed up for the newsletter, at most 3 a day per address (NB-ADR-0011),
-and `sendContributorNotice()` sends fixed emails to a contributor about their own account and
-tasks, to their own verified address (NB-ADR-0013).
+`sendContributorNotice()` sends fixed emails to a contributor about their own account and
+tasks, to their own verified address (NB-ADR-0013), and `sendWelcome()` sends one fixed welcome
+email when someone makes an account, once (`members.welcome_sent_at`), to the address their
+sign-in just proved (NB-ADR-0014).
 
 The confirmation link opens a small page the API serves itself (`GET /public/newsletter/confirm`:
 plain HTML, no scripts, so links never wait on a web deploy). Only its button confirms (`POST`),

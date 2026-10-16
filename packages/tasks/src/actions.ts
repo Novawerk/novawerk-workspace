@@ -60,7 +60,7 @@ async function ownPendingProposal(db: Database, c: Member, proposalId: string): 
   if (!proposal || proposal.status === "withdrawn") throw new TaskRuleError("not_found", "No such proposal");
   if (proposal.contributorId !== c.id) throw new TaskRuleError("forbidden", "Not your proposal");
   if (proposal.status !== "pending" && proposal.status !== "draft") {
-    throw new TaskRuleError("invalid_state", "A member already decided on this proposal");
+    throw new TaskRuleError("invalid_state", "A maintainer already decided on this proposal");
   }
   return proposal;
 }

@@ -287,7 +287,7 @@ function LiveAgentPanel({ subject, className }: { subject: AgentSubject; classNa
                 Ask about {subject.kind === "pitch" ? `“${subject.title}”` : `${subject.person}'s application`}, the
                 inbox, members or partners.
               </p>
-              <p>It can draft an email for you. Drafts wait in the outbox until a member approves them.</p>
+              <p>It can draft an email for you. Drafts wait in the outbox until a maintainer approves them.</p>
             </div>
           )}
           {chat.messages.map((message) => (
