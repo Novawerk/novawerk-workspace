@@ -1,118 +1,191 @@
 /*
- * Novawerk Chat — Novawerk's theme and a Slack-style layout on top of Campfire.
+ * Novawerk Chat — the admin panel's look (shadcn base-vega, @nw/ui tokens) on top of Campfire.
  *
  * Named zz_ so it loads after every upstream stylesheet (stylesheet_link_tag :all sorts by path)
- * and wins the cascade without !important. Keep upstream files untouched where possible;
- * put Novawerk changes here so merging upstream stays easy.
+ * and wins the cascade without !important. Keep Novawerk changes here and upstream files
+ * untouched where possible, so upstream updates apply cleanly (UPSTREAM.md).
  *
- * Tokens mirror novawerk-workspace apps/web/app/globals.css: grey canvas, white paper,
- * near-black ink, thin borders, square corners, green as the only colour.
+ * Tokens copy packages/ui/src/styles/globals.css (light). Inter is self-hosted (no Google Fonts).
  */
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap");
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("inter-latin-ext-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("inter-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 :root {
   color-scheme: light;
 
-  --nw-canvas: #f4f4f5;
-  --nw-paper: #ffffff;
-  --nw-ink: #18181b;
-  --nw-muted: #52525b;
-  --nw-line: #e4e4e7;
-  --nw-line-strong: #c4c4cb;
-  --nw-subtle: #ececef;
-  --nw-hover: #f7f7f8;
-  --nw-accent: #1f7a4a;
-  --nw-accent-deep: #0a3920;
-  --nw-accent-soft: #e7f2ec;
-  --nw-danger: #b42318;
-  --nw-danger-soft: #fdecea;
+  /* @nw/ui tokens */
+  --radius: 0.625rem;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
 
-  /* The sidebar: deep green, like Slack's dark rail. */
-  --nw-rail: var(--nw-accent-deep);
-  --nw-rail-text: rgb(255 255 255 / 0.72);
-  --nw-rail-text-strong: #ffffff;
-  --nw-rail-hover: rgb(255 255 255 / 0.08);
-  --nw-rail-line: rgb(255 255 255 / 0.12);
-  --nw-rail-width: 264px;
-  --nw-header-height: 3.25rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --primary: oklch(0.515 0.113 155.3);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.515 0.113 155.3 / 60%);
+  --brand-deep: oklch(0.306 0.067 155.2);
 
-  /* Upstream abstractions, pinned to light mode. */
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.95 0.012 155);
+  --sidebar-accent-foreground: oklch(0.306 0.067 155.2);
+  --sidebar-hover: oklch(0.97 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-width-nw: 16rem;
+  --header-height: 3rem;
+
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+
+  /* Upstream abstractions, pinned to light mode and mapped onto the tokens. */
   --lch-white: 100% 0 0;
-  --lch-black: 21% 0.006 286;
-  --color-bg: var(--nw-paper);
-  --color-message-bg: var(--nw-paper);
-  --color-text: var(--nw-ink);
-  --color-text-reversed: var(--nw-paper);
-  --color-link: var(--nw-accent);
-  --color-border: var(--nw-line);
-  --color-border-dark: var(--nw-subtle);
-  --color-border-darker: var(--nw-line-strong);
-  --color-selected: var(--nw-accent-soft);
-  --color-selected-dark: var(--nw-accent);
-  --color-negative: var(--nw-danger);
-  --color-positive: var(--nw-accent);
-  --color-alert: var(--nw-accent);
+  --lch-black: 14.5% 0 0;
+  --color-bg: var(--background);
+  --color-message-bg: var(--background);
+  --color-text: var(--foreground);
+  --color-text-reversed: var(--background);
+  --color-link: var(--primary);
+  --color-border: var(--border);
+  --color-border-dark: var(--border);
+  --color-border-darker: var(--border);
+  --color-selected: var(--sidebar-accent);
+  --color-selected-dark: var(--primary);
+  --color-negative: var(--destructive);
+  --color-positive: var(--primary);
+  --color-alert: var(--primary);
 
-  --font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --hover-color: var(--nw-line-strong);
+  --font-family: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --hover-color: var(--border);
+  --hover-size: 0;
+  --outline-size: 0;
 }
 
 html, body {
-  background: var(--nw-paper);
-  color: var(--nw-ink);
+  background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-family);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
 }
+
+body { font-size: 0.875rem; }
 
 code, pre, kbd, .input--code {
-  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-::selection { background: var(--nw-accent); color: var(--nw-paper); }
-:focus-visible { outline: 2px solid var(--nw-accent); outline-offset: 2px; }
-a { color: var(--nw-accent); text-underline-offset: 3px; }
+::selection { background: oklch(0.515 0.113 155.3 / 20%); }
+a { color: var(--primary); text-underline-offset: 3px; }
 
-/* Square corners, except avatars and dots. */
-.btn:not(.avatar),
-.input,
-.panel,
-.room,
-.message__body-content,
-.message__attachment,
-.message__pending-upload,
-.message__actions-menu,
-.composer__file,
-.searches__query,
-lexxy-toolbar {
-  --btn-border-radius: 0;
-  --input-border-radius: 0;
-  border-radius: 0;
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 1px;
 }
 
+/* ---------------------------------------------------------------------------
+ * shadcn primitives: buttons, inputs, cards.
+ * ------------------------------------------------------------------------- */
 .btn {
-  --btn-border-color: var(--nw-line);
+  --btn-background: var(--background);
+  --btn-border-color: var(--border);
+  --btn-border-radius: var(--radius-md);
+  --btn-color: var(--foreground);
+
+  box-shadow: var(--shadow-xs);
   font-weight: 500;
+  transition: background-color 120ms, border-color 120ms, color 120ms;
+
+  &:where(:not(:active):hover) {
+    --btn-background: var(--accent);
+    box-shadow: var(--shadow-xs);
+    filter: none;
+  }
 }
+
+.btn.avatar { --btn-border-radius: 999px; box-shadow: none; }
+
+/* Primary (submit) buttons are green, like the admin's "New project". */
 .btn--reversed,
-.btn--success {
-  --btn-background: var(--nw-ink);
-  --btn-border-color: var(--nw-ink);
-  --btn-color: var(--nw-paper);
+.btn--success,
+.btn[type="submit"]:not(.btn--borderless):not(.btn--negative) {
+  --btn-background: var(--primary);
+  --btn-border-color: var(--primary);
+  --btn-color: var(--primary-foreground);
+
+  &:where(:not(:active):hover) {
+    --btn-background: oklch(0.515 0.113 155.3 / 90%);
+  }
+
+  img { filter: invert(1); }
 }
+
 .btn--negative {
-  --btn-background: var(--nw-danger);
-  --btn-border-color: var(--nw-danger);
+  --btn-background: var(--destructive);
+  --btn-border-color: var(--destructive);
+  --btn-color: var(--primary-foreground);
+}
+
+.btn--borderless,
+.btn--plain {
+  --btn-background: transparent;
+  --btn-border-color: transparent;
+  box-shadow: none;
+}
+
+.input {
+  --input-border-radius: var(--radius-md);
+  --input-border-color: var(--input);
+
+  background: var(--background);
+  border-color: var(--input);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 120ms, box-shadow 120ms;
+
+  &:focus,
+  &:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--ring);
+    outline: none;
+  }
 }
 
 .panel {
-  background: var(--nw-paper);
-  border: 1px solid var(--nw-line);
-  box-shadow: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
 }
-.input { background: var(--nw-paper); }
-.input:focus, .input:focus-within { border-color: var(--nw-accent); }
 
 /* ---------------------------------------------------------------------------
- * Layout: sidebar on the left, header across the top, messages below.
+ * Layout: the admin's shell — light sidebar on the left, header bar, content.
  * ------------------------------------------------------------------------- */
 body {
   grid-template-areas:
@@ -122,13 +195,13 @@ body {
 
   &.sidebar {
     @media (min-width: 100ch) {
-      --sidebar-width: var(--nw-rail-width);
+      --sidebar-width: var(--sidebar-width-nw);
     }
   }
 }
 
 #main-content {
-  background: var(--nw-paper);
+  background: var(--background);
 
   .sidebar & {
     @media (min-width: 100ch) {
@@ -141,13 +214,16 @@ body {
 /* Header bar */
 #nav {
   inset-inline: var(--sidebar-width) 0;
-  min-block-size: var(--nw-header-height);
-  padding-block: 0.5rem;
+  min-block-size: var(--header-height);
+  padding-block: 0;
 
   &:has(.room--current) {
-    background: var(--nw-paper);
-    border-block-end: 1px solid var(--nw-line);
-    padding-inline: 1.25rem 1rem;
+    background: oklch(1 0 0 / 0.9);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border-block-end: 1px solid var(--border);
+    column-gap: 0.25rem;
+    padding-inline: 1.5rem 1rem;
     pointer-events: auto;
 
     @media (min-width: 100ch) {
@@ -164,57 +240,74 @@ body {
     .room--current {
       --btn-background: transparent;
       --btn-border-color: transparent;
-      --btn-color: var(--nw-ink);
-      padding-inline: 0;
+      --btn-color: var(--foreground);
+      box-shadow: none;
       margin-inline-end: auto;
+      padding-inline: 0;
 
       .room__contents {
-        font-size: 1.05rem;
-        font-weight: 700;
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
       }
     }
 
     .btn:not(.room--current) {
-      --btn-border-color: transparent;
       --btn-background: transparent;
-    }
-    .btn:not(.room--current):hover {
-      --btn-background: var(--nw-hover);
+      --btn-border-color: transparent;
+      --btn-size: 2rem;
+      box-shadow: none;
+
+      &:hover { --btn-background: var(--accent); }
+
+      img { block-size: 16px; inline-size: 16px; opacity: 0.7; }
     }
   }
 
   .sidebar & {
     @media (max-width: 100ch) {
       inset-inline: 0;
-      padding-inline-start: 3.75rem;
+      padding-inline-start: 3.5rem;
 
       &::before { display: none; }
     }
   }
 }
 
-/* "#" before channel names; pings (directs) have none. */
+/* Lucide "hash" before channel names; pings (directs) have none. */
 #nav .room--current .room__contents:not(:has(.for-screen-reader))::before,
 #shared_rooms .room > span::before {
-  color: currentColor;
-  content: "#";
-  font-weight: 400;
-  margin-inline-end: 0.35em;
+  background-color: currentColor;
+  content: "";
+  display: inline-block;
+  flex: none;
+  block-size: 1rem;
+  inline-size: 1rem;
+  margin-inline-end: 0.5rem;
+  -webkit-mask: var(--icon-hash) center / contain no-repeat;
+  mask: var(--icon-hash) center / contain no-repeat;
   opacity: 0.6;
+  vertical-align: -0.15em;
+}
+
+:root {
+  --icon-hash: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='4' x2='20' y1='9' y2='9'/%3E%3Cline x1='4' x2='20' y1='15' y2='15'/%3E%3Cline x1='10' x2='8' y1='3' y2='21'/%3E%3Cline x1='16' x2='14' y1='3' y2='21'/%3E%3C/svg%3E");
 }
 
 /* ---------------------------------------------------------------------------
- * Sidebar (the green rail)
+ * Sidebar
  * ------------------------------------------------------------------------- */
 #sidebar {
   .sidebar & {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
-    background: var(--nw-rail);
-    color: var(--nw-rail-text);
+    background: var(--sidebar);
+    border-inline-end: 1px solid var(--sidebar-border);
+    color: var(--sidebar-foreground);
 
     @media (max-width: 100ch) {
-      inline-size: min(85vw, var(--nw-rail-width));
+      box-shadow: var(--shadow-md);
+      inline-size: min(85vw, var(--sidebar-width-nw));
       inset: 0 auto 0 0;
       transform: translate(-100%);
     }
@@ -224,13 +317,6 @@ body {
     @media (max-width: 100ch) {
       transform: translate(0);
     }
-  }
-
-  img.colorize--black,
-  .rooms__new-btn img,
-  .sidebar__tool:not(.avatar) img {
-    filter: invert(1) brightness(2);
-    opacity: 0.8;
   }
 }
 
@@ -242,53 +328,78 @@ body {
 
 .sidebar__workspace {
   align-items: center;
-  border-block-end: 1px solid var(--nw-rail-line);
-  color: var(--nw-rail-text-strong);
+  background: var(--sidebar);
+  border-radius: var(--radius-md);
+  color: var(--sidebar-foreground);
   display: flex;
   flex: none;
-  gap: 0.6rem;
-  min-block-size: var(--nw-header-height);
-  order: 0;
-  padding-inline: 1rem;
-  position: sticky;
+  gap: 0.5rem;
   inset-block-start: 0;
-  background: var(--nw-rail);
+  margin: 0.5rem 0.5rem 0.25rem;
+  order: 0;
+  padding: 0.5rem;
+  position: sticky;
   text-decoration: none;
   z-index: 4;
 
-  &:hover { color: var(--nw-rail-text-strong); }
+  &:hover {
+    background: var(--sidebar-hover);
+    color: var(--sidebar-foreground);
+  }
 }
 
 .sidebar__workspace-logo {
-  background: var(--nw-paper);
-  block-size: 28px;
-  inline-size: 28px;
-  padding: 3px;
+  align-items: center;
+  aspect-ratio: 1;
+  background: oklch(0.306 0.067 155.2 / 5%);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex: none;
+  inline-size: 2rem;
+  justify-content: center;
 }
 
-.sidebar__workspace-name {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+.sidebar__workspace-text,
+.sidebar__me-text {
+  display: grid;
+  line-height: 1.25;
+  min-inline-size: 0;
+}
+
+.sidebar__workspace-name,
+.sidebar__me-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__me-name { font-weight: 500; }
+
+.sidebar__workspace-sub,
+.sidebar__me-email {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebar__section-title {
-  color: var(--nw-rail-text);
-  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
   font-weight: 500;
-  letter-spacing: 0.02em;
   margin: 0;
-  padding: 1rem 1rem 0.35rem;
+  padding: 0.75rem 0.5rem 0.25rem;
 }
 
-/* Channels come first, then direct messages, like Slack. */
+/* Channels first, then direct messages. */
 .rooms {
-  gap: 0;
+  gap: 1px;
+  margin-inline: 0;
   order: 1;
   padding-inline: 0.5rem;
-  margin-inline: 0;
-
-  .sidebar__section-title { padding-inline: 0.5rem; }
 }
 
 #direct_rooms_control {
@@ -296,59 +407,78 @@ body {
   order: 2;
 }
 
-.room {
+/* Menu items: like SidebarMenuButton. */
+.room,
+.direct,
+.rooms__new-btn {
   --btn-background: transparent;
   --btn-border-color: transparent;
-  --btn-color: var(--nw-rail-text);
-  --btn-padding: 0.3rem 0.5rem;
+  --btn-border-radius: var(--radius-md);
+  --btn-color: var(--sidebar-foreground);
+  --btn-padding: 0 0.5rem;
 
+  align-items: center;
   background: transparent;
-  block-size: auto;
+  block-size: 2rem;
   border: 0;
-  color: var(--nw-rail-text);
-  font-size: 0.95rem;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  color: var(--sidebar-foreground);
+  display: flex;
+  font-size: 0.875rem;
   font-weight: 400;
+  gap: 0.5rem;
   inline-size: 100%;
   justify-content: start;
-  min-block-size: 1.9rem;
+  padding: 0 0.5rem;
+  text-decoration: none;
 
+  &:where(:not(:active):hover),
   &:hover {
-    background: var(--nw-rail-hover);
-    color: var(--nw-rail-text-strong);
+    --btn-background: var(--sidebar-hover);
+    background: var(--sidebar-hover);
+    color: var(--sidebar-foreground);
   }
 
-  &.unread {
-    color: var(--nw-rail-text-strong);
-    font-weight: 700;
+  &[aria-current="page"] {
+    --btn-background: var(--sidebar-accent);
+    background: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+    font-weight: 500;
   }
+}
 
-  &[aria-current="page"],
-  &.room--active {
-    background: var(--nw-accent);
-    color: var(--nw-rail-text-strong);
-  }
+.room.unread,
+.direct.unread .direct__author {
+  font-weight: 600;
+}
+
+.room.unread::after {
+  background: var(--primary);
+  block-size: 0.5rem;
+  border-radius: 999px;
+  content: "";
+  inline-size: 0.5rem;
+  margin-inline-start: auto;
 }
 
 .rooms__new-btn {
-  --btn-color: var(--nw-rail-text);
-  justify-content: start;
-  opacity: 0.8;
+  color: var(--muted-foreground);
 
   &::after {
     content: "Add channel";
-    font-size: 0.95rem;
   }
 
-  img { block-size: 16px; inline-size: 16px; }
+  img { block-size: 16px; inline-size: 16px; opacity: 0.6; }
 }
 
-/* Direct messages as a vertical list. */
+/* Direct messages as a list. */
 .directs {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 1px;
   margin: 0;
   overflow: visible;
   padding: 0 0.5rem 1rem;
@@ -369,27 +499,8 @@ body {
 }
 
 .direct {
-  --avatar-size: 22px;
-
-  align-items: center;
-  border-radius: 0;
-  color: var(--nw-rail-text);
-  display: flex;
+  --avatar-size: 1.25rem;
   flex-direction: row;
-  gap: 0.55rem;
-  min-block-size: 1.9rem;
-  padding: 0.2rem 0.5rem;
-  text-decoration: none;
-
-  &:hover {
-    background: var(--nw-rail-hover);
-    color: var(--nw-rail-text-strong);
-  }
-
-  &[aria-current="page"] {
-    background: var(--nw-accent);
-    color: var(--nw-rail-text-strong);
-  }
 
   .avatar,
   .avatar__group {
@@ -398,62 +509,87 @@ body {
     inline-size: var(--avatar-size);
   }
 
-  .avatar img { border-radius: 4px; }
+  .avatar img { border-radius: 999px; }
 
   .avatar--icon {
     background: transparent;
     border: 0;
+
+    img { opacity: 0.6; }
   }
 }
+
+.direct__new { color: var(--muted-foreground); }
 
 .direct__author {
   background: none;
   color: inherit;
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   padding: 0;
 
-  .unread & {
-    color: var(--nw-rail-text-strong);
-    font-weight: 700;
-
-    &::after {
-      background-color: var(--nw-paper);
-    }
-  }
+  .unread &::after { background-color: var(--primary); }
 }
 
-/* Profile and settings pinned to the bottom of the rail. */
+/* The signed-in user, pinned to the bottom like the admin's user menu. */
 .sidebar__tools {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-  background: var(--nw-rail);
-  border-block-start: 1px solid var(--nw-rail-line);
+  align-items: center;
+  background: var(--sidebar);
+  gap: 0.25rem;
   justify-content: space-between;
-  padding: 0.6rem 1rem;
+  padding: 0.5rem;
 
   @media (min-width: 100ch) {
-    inline-size: var(--nw-rail-width);
+    inline-size: var(--sidebar-width-nw);
     inset-inline: 0 auto;
   }
 
   @media (max-width: 100ch) {
-    inline-size: min(85vw, var(--nw-rail-width));
+    inline-size: min(85vw, var(--sidebar-width-nw));
     inset-inline: 0 auto;
   }
 
-  .btn:not(.avatar) {
+  .btn {
     --btn-background: transparent;
     --btn-border-color: transparent;
-  }
+    --btn-size: 2rem;
+    box-shadow: none;
 
-  .avatar { --avatar-size: 32px; }
-  .avatar img { border-radius: 4px; }
+    &:hover { --btn-background: var(--sidebar-hover); }
+
+    img { block-size: 16px; inline-size: 16px; opacity: 0.7; }
+  }
 }
 
-/* Menu button on phones: sits in the header, opens the rail from the left. */
+.sidebar__me {
+  align-items: center;
+  border-radius: var(--radius-md);
+  color: var(--sidebar-foreground);
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+  min-inline-size: 0;
+  padding: 0.375rem 0.5rem;
+  text-decoration: none;
+
+  &:hover {
+    background: var(--sidebar-hover);
+    color: var(--sidebar-foreground);
+  }
+
+  .avatar {
+    --avatar-size: 2rem;
+    block-size: 2rem;
+    inline-size: 2rem;
+
+    img { border-radius: var(--radius-lg); }
+  }
+}
+
+/* Menu button on phones. */
 .sidebar__toggle {
-  --btn-background: var(--nw-paper);
-  --btn-border-color: var(--nw-line);
+  --btn-size: 2.25rem;
   inset-inline-start: calc(100% + 0.75rem);
 
   .open & {
@@ -463,16 +599,16 @@ body {
   }
 
   #sidebar:where(:not(.open):has(.unread)) &::after {
-    background-color: var(--nw-accent);
+    background-color: var(--primary);
   }
 }
 
 /* ---------------------------------------------------------------------------
- * Messages: Slack rows — avatar, name and time on one line, text below, no bubbles.
+ * Messages: rows with avatar, name, time; a soft hover; no bubbles.
  * ------------------------------------------------------------------------- */
 .messages {
   --message-space: 0;
-  padding-block: calc(var(--nw-header-height) + 0.75rem) 0.5rem;
+  padding-block: calc(var(--header-height) + 1rem) 0.5rem;
 }
 
 .message,
@@ -480,14 +616,15 @@ body {
   --content-padding-block: 0;
   --content-padding-inline: 0;
 
-  column-gap: 0.6rem;
-  grid-auto-columns: 36px 1fr;
+  column-gap: 0.75rem;
+  grid-auto-columns: 2.25rem 1fr;
   grid-template-areas:
     "sep sep"
     "avatar body";
-  padding: 0.45rem 1.25rem;
+  padding: 0.5rem 1.5rem;
+  transition: background-color 120ms;
 
-  &:hover { background: var(--nw-hover); }
+  &:hover { background: oklch(0.97 0 0 / 0.6); }
 
   :is(.message__body, .message__meta, .message__heading) {
     justify-self: start;
@@ -504,25 +641,21 @@ body {
 
 .message + .message--threaded {
   margin-block-start: 0;
-  padding-block-start: 0.1rem;
-}
-
-.message--threaded:hover .message__body-content::before {
-  color: var(--nw-muted);
+  padding-block-start: 0.125rem;
 }
 
 .message__avatar {
-  --avatar-size: 36px;
+  --avatar-size: 2.25rem;
   align-self: start;
   box-shadow: none;
-  margin-block-start: 0.15rem;
+  margin-block-start: 0.125rem;
 
-  img { border-radius: 4px; }
+  img { border-radius: 999px; }
 }
 
 .message__body {
-  max-inline-size: 100%;
   flex-direction: row;
+  max-inline-size: 100%;
 
   .message--me & { flex-direction: row; }
 }
@@ -532,129 +665,174 @@ body {
   --message-background: transparent;
   background: transparent;
   border: 0;
+  border-radius: 0;
+  font-size: 0.875rem;
   inline-size: 100%;
+  line-height: 1.5;
   padding: 0;
 }
 
-.message--mentioned .message__body-content {
-  --message-background: transparent;
-  border-inline-start: 3px solid var(--nw-accent);
-  padding-inline-start: 0.6rem;
+.message--mentioned {
+  background: oklch(0.95 0.012 155 / 0.6);
+  box-shadow: inset 2px 0 0 var(--primary);
+
+  .message__body-content { --message-background: transparent; }
 }
-.message--mentioned { background: var(--nw-accent-soft); }
 
 .message__author {
-  color: var(--nw-ink);
-  font-size: 0.95rem;
-  font-weight: 700;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 .message__permalink {
-  color: var(--nw-muted);
+  color: var(--muted-foreground);
   font-size: 0.75rem;
   opacity: 1;
 }
 
-/* Slack-style hover toolbar on the right of the row. */
-.message__meta .message__actions {
-  @media (min-width: 100ch) {
-    inset: -0.9rem 0 auto auto;
-    position: absolute;
-    transform: none;
-  }
-}
-.message--me .message__actions {
-  @media (min-width: 100ch) {
-    inset-inline: auto 0;
-  }
-}
-
-.message__attachment {
-  border: 1px solid var(--nw-line);
-  max-inline-size: min(480px, 100%);
-}
-
-/* Day divider: a rule with the date in a pill. */
-.message__day-separator {
-  color: var(--nw-ink);
-  font-size: 0.8rem;
-  font-weight: 600;
-  margin-block: 0.75rem 0.25rem;
-
-  * {
-    background: var(--nw-paper);
-    border: 1px solid var(--nw-line);
-    border-radius: 999px;
-    padding: 0.15rem 0.75rem;
-  }
-}
-
-/* Welcome card */
-#system_welcome {
-  .message__body-content {
-    background: var(--nw-paper);
-    border: 1px solid var(--nw-line);
-    padding: 1.25rem;
-  }
-}
-
-/* ---------------------------------------------------------------------------
- * Composer: a bordered box, like Slack's message field.
- * ------------------------------------------------------------------------- */
-.composer {
-  background: var(--nw-paper);
-  padding: 0 1.25rem 1rem;
-}
-
-.composer__input {
-  --input-border-radius: 6px;
-  background: var(--nw-paper);
-  border: 1px solid var(--nw-line-strong);
-  border-radius: 6px;
-  box-shadow: none;
-  min-block-size: 2.75rem;
-
-  &:focus-within {
-    border-color: var(--nw-ink);
-    box-shadow: 0 0 0 1px var(--nw-ink);
-  }
-}
-
-.composer__context-btn {
-  --btn-background: transparent;
-  --btn-border-color: transparent;
-}
-
-#footer {
-  background: var(--nw-paper);
-}
-
-/* Follow-up messages from the same person: no name line; the time shows in the gutter on hover. */
+/* Follow-ups from the same person: no name line; the time shows in the gutter on hover. */
 .message--threaded {
   .message__heading {
-    inline-size: 36px;
-    inset-block-start: 0.5rem;
-    inset-inline-start: 1.25rem;
+    inline-size: 2.25rem;
+    inset-block-start: 0.375rem;
+    inset-inline-start: 1.5rem;
     justify-content: center;
     position: absolute;
     visibility: hidden;
   }
 
-  .message__permalink { font-size: 0.65rem; }
+  .message__permalink { font-size: 0.625rem; }
 
   &:hover .message__heading { visibility: visible; }
 }
 
+/* Hover toolbar, top right of the row, like a small popover. */
+.message__meta .message__actions {
+  @media (min-width: 100ch) {
+    inset: -0.875rem 0 auto auto;
+    position: absolute;
+    transform: none;
+  }
+}
+
+.message__options-btn,
+.message__action-btn {
+  --btn-background: var(--background);
+  --btn-border-color: var(--border);
+  --btn-border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.message__actions-menu {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.message__attachment,
+.message__pending-upload {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  max-inline-size: min(28rem, 100%);
+}
+
+/* Day divider: a line with the date in an outline badge. */
+.message__day-separator {
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-block: 1rem 0.25rem;
+
+  * {
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: var(--shadow-xs);
+    padding: 0.125rem 0.625rem;
+  }
+}
+
+/* Welcome card */
 #system_welcome,
 #system_welcome:hover {
   background: transparent;
 }
 
-/* Row actions and composer icons are quiet icon buttons. */
-.message__options-btn,
-.message__action-btn,
+#system_welcome .message__body-content {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Composer: a textarea-style box with the actions inside, like shadcn's InputGroup.
+ * ------------------------------------------------------------------------- */
+.composer {
+  background: var(--background);
+  padding: 0 1.5rem 1rem;
+}
+
+.composer__input {
+  --input-border-radius: var(--radius-lg);
+
+  background: var(--background);
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  min-block-size: 2.75rem;
+  padding: 0.375rem 0.375rem 0.375rem 0.75rem;
+
+  &:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--ring);
+  }
+
+  .input {
+    border: 0;
+    box-shadow: none;
+
+    &:focus, &:focus-within { box-shadow: none; }
+  }
+}
+
+.composer__context-btn,
 .composer__attachment-btn,
 .composer__rich-text-btn {
-  --btn-border-color: transparent;
   --btn-background: transparent;
+  --btn-border-color: transparent;
+  --btn-size: 2rem;
+  box-shadow: none;
+
+  &:hover { --btn-background: var(--accent); }
+
+  img { opacity: 0.7; }
+}
+
+#footer { background: var(--background); }
+
+/* Lexxy's formatting toolbar */
+lexxy-toolbar {
+  border-color: var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* Upstream rings unread rooms in black; the dot on the right says it instead. */
+#sidebar .room.unread,
+#sidebar .direct.unread {
+  box-shadow: none;
+}
+
+/* Upstream sizes this icon from the avatar size, which shrinks it to nothing here. */
+.direct__new .avatar img {
+  block-size: 1rem;
+  inline-size: 1rem;
+}
+
+/* "Turn on notifications" nudge: a soft green ring instead of a hard outline. */
+.btn--pulsing {
+  outline-color: var(--ring);
 }

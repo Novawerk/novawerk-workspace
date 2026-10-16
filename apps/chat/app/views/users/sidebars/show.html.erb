@@ -7,8 +7,13 @@
       data-badge-dot-unread-class="unread"
       data-action="rooms-list:unread@window->badge-dot#update rooms-list:read@window->badge-dot#update turbo:submit-start->turbo-frame#unpermanize">
     <%= link_to root_path, class: "sidebar__workspace", data: { turbo_frame: "_top" } do %>
-      <%= image_tag fresh_account_logo_path, size: 28, aria: { hidden: "true" }, class: "sidebar__workspace-logo" %>
-      <span class="sidebar__workspace-name">Novawerk Chat</span>
+      <span class="sidebar__workspace-logo">
+        <%= image_tag "nova-star.svg", size: 24, aria: { hidden: "true" } %>
+      </span>
+      <span class="sidebar__workspace-text">
+        <span class="sidebar__workspace-name">Novawerk</span>
+        <span class="sidebar__workspace-sub">Chat</span>
+      </span>
     <% end %>
 
     <turbo-frame id="direct_rooms_control" target="_top">
@@ -57,8 +62,14 @@
   </div>
 
   <div class="flex align-end sidebar__tools gap justify-end">
-    <%= link_to user_profile_path, class: "btn avatar flex-item-no-shrink sidebar__tool" do %>
-      <%= image_tag fresh_user_avatar_path(Current.user), size: 48, aria: { hidden: "true" }, style: "view-transition-name: avatar-#{Current.user.id}" %>
+    <%= link_to user_profile_path, class: "sidebar__me" do %>
+      <span class="avatar flex-item-no-shrink">
+        <%= image_tag fresh_user_avatar_path(Current.user), size: 48, aria: { hidden: "true" }, style: "view-transition-name: avatar-#{Current.user.id}" %>
+      </span>
+      <span class="sidebar__me-text">
+        <span class="sidebar__me-name"><%= Current.user.name %></span>
+        <span class="sidebar__me-email"><%= Current.user.email_address %></span>
+      </span>
       <span class="for-screen-reader">My Settings</span>
     <% end %>
 
