@@ -227,8 +227,10 @@ than one way of signing in to the same account in Settings.
 with your Novawerk account. Each time you open it, we hand it your account's
 number, your email address (the one you sign in with, else the one GitHub
 gave us), your name, handle, picture link, bio and whether you are a
-maintainer, so it can show your profile; it keeps them for as long as you use
-the chat. What you write in the chat stays on that server. When you delete your
+maintainer, and, only if your profile is public, your Werk and the link to
+your profile, so it can show your profile; it keeps them for as long as you
+use the chat. When you change your profile or earn Werk, we send the chat the
+new version. What you write in the chat stays on that server. When you delete your
 account, or it is suspended, we tell the chat at once and it signs you out
 there; a deleted account is removed from the chat, and its messages stay.
 

@@ -59,6 +59,7 @@ import {
   type TokenContext,
 } from "@nw/tasks";
 
+import { tellChatProfile } from "./chat-sso.js";
 import { FixedWindowLimiter, clientIp } from "./intake-chat/rate-limit.js";
 import { invalidTokenMessage, type TokenGate } from "./token-gate.js";
 import type { ApiEnv, AppDeps, Logger } from "./types.js";
@@ -352,6 +353,7 @@ export function buildMcpServer(
       run(async () => {
         const { me } = as("profile:write");
         const row = await updateProfile(db, me.id, profileUpdateInput.parse({ ...rest, ...(display_name !== undefined ? { displayName: display_name } : {}) }));
+        await tellChatProfile(deps, row.id);
         return { ...toContributorMe(row), email: null, notifyEmail: null };
       }),
   );

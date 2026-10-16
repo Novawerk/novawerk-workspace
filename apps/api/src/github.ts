@@ -3,6 +3,9 @@
 // GitHub App (@nw/github); a merge refreshes the website's task pages. Used by
 // POST /webhooks/github and the nightly /cron/github-sync.
 
+import { eq } from "drizzle-orm";
+
+import { tasks } from "@nw/db";
 import { parsePullRequestUrl, type PullRequestFacts } from "@nw/github";
 import {
   applyPullRequest,
@@ -15,6 +18,7 @@ import {
   type PullRequestOutcome,
 } from "@nw/tasks";
 
+import { tellChatProfile } from "./chat-sso.js";
 import { revalidateWeb } from "./revalidate.js";
 import type { AppDeps, Logger } from "./types.js";
 
@@ -58,7 +62,12 @@ export async function handlePullRequest(
       deps.logger.error(`[github] ${reply.kind} on ${pr.repo}#${pr.number} failed:`, err instanceof Error ? err.message : err);
     }
   }
-  if (outcome.result === "merged") await revalidateWeb(deps.env.webRevalidate, deps.logger, BOARD_CACHE_TAGS);
+  if (outcome.result === "merged") {
+    await revalidateWeb(deps.env.webRevalidate, deps.logger, BOARD_CACHE_TAGS);
+    // New Werk: the chat shows the total on a public profile.
+    const [task] = await deps.db.select({ assigneeId: tasks.assigneeId }).from(tasks).where(eq(tasks.id, outcome.taskNumber ?? -1));
+    if (task?.assigneeId) await tellChatProfile(deps, task.assigneeId);
+  }
   return outcome;
 }
 

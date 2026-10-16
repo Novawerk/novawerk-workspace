@@ -2596,7 +2596,8 @@ export type SuggestionSort = (typeof SUGGESTION_SORTS)[number];
 
 /** POST /admin/werk: a new ledger row. Rows are never edited. */
 export const werkAdjustInput = z.object({
-  contributorId: z.uuid({ error: "Pick a contributor" }),
+  /** An account id: older ones are handles, newer ones uuids (NB-ADR-0014). */
+  contributorId: z.string({ error: "Pick a contributor" }).trim().min(1, "Pick a contributor").max(80),
   delta: z
     .number({ error: "A whole number" })
     .int("A whole number")
