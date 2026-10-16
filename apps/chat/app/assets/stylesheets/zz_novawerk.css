@@ -628,3 +628,33 @@ body {
 #footer {
   background: var(--nw-paper);
 }
+
+/* Follow-up messages from the same person: no name line; the time shows in the gutter on hover. */
+.message--threaded {
+  .message__heading {
+    inline-size: 36px;
+    inset-block-start: 0.5rem;
+    inset-inline-start: 1.25rem;
+    justify-content: center;
+    position: absolute;
+    visibility: hidden;
+  }
+
+  .message__permalink { font-size: 0.65rem; }
+
+  &:hover .message__heading { visibility: visible; }
+}
+
+#system_welcome,
+#system_welcome:hover {
+  background: transparent;
+}
+
+/* Row actions and composer icons are quiet icon buttons. */
+.message__options-btn,
+.message__action-btn,
+.composer__attachment-btn,
+.composer__rich-text-btn {
+  --btn-border-color: transparent;
+  --btn-background: transparent;
+}
