@@ -6,7 +6,13 @@
       data-controller="badge-dot"
       data-badge-dot-unread-class="unread"
       data-action="rooms-list:unread@window->badge-dot#update rooms-list:read@window->badge-dot#update turbo:submit-start->turbo-frame#unpermanize">
+    <%= link_to root_path, class: "sidebar__workspace", data: { turbo_frame: "_top" } do %>
+      <%= image_tag fresh_account_logo_path, size: 28, aria: { hidden: "true" }, class: "sidebar__workspace-logo" %>
+      <span class="sidebar__workspace-name">Novawerk Chat</span>
+    <% end %>
+
     <turbo-frame id="direct_rooms_control" target="_top">
+      <h2 class="sidebar__section-title">Direct messages</h2>
       <div class="directs gap overflow-x overflow-hide-scrollbar">
         <%= link_to new_rooms_direct_path, class: "direct direct__new", data: { turbo_frame: "_self" } do %>
           <span class="avatar avatar--icon">
@@ -15,7 +21,7 @@
 
           <span class="direct__author flex max-width min-width border-radius pad-inline-half">
             <span class="for-screen-reader">New</span>
-            <span class="txt-small overflow-clip">Ping</span>
+            <span class="txt-small overflow-clip">New message</span>
           </span>
         <% end %>
 
@@ -30,6 +36,7 @@
     </turbo-frame>
 
     <div class="rooms position-relative flex flex-column gap">
+      <h2 class="sidebar__section-title">Channels</h2>
       <div id="shared_rooms" contents data-controller="sorted-list">
         <% @other_memberships.each do |membership| %>
           <%= render "users/sidebars/rooms/shared", room: membership.room, unread: membership.unread? %>

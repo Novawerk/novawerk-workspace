@@ -1,0 +1,630 @@
+/*
+ * Novawerk Chat — Novawerk's theme and a Slack-style layout on top of Campfire.
+ *
+ * Named zz_ so it loads after every upstream stylesheet (stylesheet_link_tag :all sorts by path)
+ * and wins the cascade without !important. Keep upstream files untouched where possible;
+ * put Novawerk changes here so merging upstream stays easy.
+ *
+ * Tokens mirror novawerk-workspace apps/web/app/globals.css: grey canvas, white paper,
+ * near-black ink, thin borders, square corners, green as the only colour.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap");
+
+:root {
+  color-scheme: light;
+
+  --nw-canvas: #f4f4f5;
+  --nw-paper: #ffffff;
+  --nw-ink: #18181b;
+  --nw-muted: #52525b;
+  --nw-line: #e4e4e7;
+  --nw-line-strong: #c4c4cb;
+  --nw-subtle: #ececef;
+  --nw-hover: #f7f7f8;
+  --nw-accent: #1f7a4a;
+  --nw-accent-deep: #0a3920;
+  --nw-accent-soft: #e7f2ec;
+  --nw-danger: #b42318;
+  --nw-danger-soft: #fdecea;
+
+  /* The sidebar: deep green, like Slack's dark rail. */
+  --nw-rail: var(--nw-accent-deep);
+  --nw-rail-text: rgb(255 255 255 / 0.72);
+  --nw-rail-text-strong: #ffffff;
+  --nw-rail-hover: rgb(255 255 255 / 0.08);
+  --nw-rail-line: rgb(255 255 255 / 0.12);
+  --nw-rail-width: 264px;
+  --nw-header-height: 3.25rem;
+
+  /* Upstream abstractions, pinned to light mode. */
+  --lch-white: 100% 0 0;
+  --lch-black: 21% 0.006 286;
+  --color-bg: var(--nw-paper);
+  --color-message-bg: var(--nw-paper);
+  --color-text: var(--nw-ink);
+  --color-text-reversed: var(--nw-paper);
+  --color-link: var(--nw-accent);
+  --color-border: var(--nw-line);
+  --color-border-dark: var(--nw-subtle);
+  --color-border-darker: var(--nw-line-strong);
+  --color-selected: var(--nw-accent-soft);
+  --color-selected-dark: var(--nw-accent);
+  --color-negative: var(--nw-danger);
+  --color-positive: var(--nw-accent);
+  --color-alert: var(--nw-accent);
+
+  --font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --hover-color: var(--nw-line-strong);
+}
+
+html, body {
+  background: var(--nw-paper);
+  color: var(--nw-ink);
+  font-family: var(--font-family);
+}
+
+code, pre, kbd, .input--code {
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+::selection { background: var(--nw-accent); color: var(--nw-paper); }
+:focus-visible { outline: 2px solid var(--nw-accent); outline-offset: 2px; }
+a { color: var(--nw-accent); text-underline-offset: 3px; }
+
+/* Square corners, except avatars and dots. */
+.btn:not(.avatar),
+.input,
+.panel,
+.room,
+.message__body-content,
+.message__attachment,
+.message__pending-upload,
+.message__actions-menu,
+.composer__file,
+.searches__query,
+lexxy-toolbar {
+  --btn-border-radius: 0;
+  --input-border-radius: 0;
+  border-radius: 0;
+}
+
+.btn {
+  --btn-border-color: var(--nw-line);
+  font-weight: 500;
+}
+.btn--reversed,
+.btn--success {
+  --btn-background: var(--nw-ink);
+  --btn-border-color: var(--nw-ink);
+  --btn-color: var(--nw-paper);
+}
+.btn--negative {
+  --btn-background: var(--nw-danger);
+  --btn-border-color: var(--nw-danger);
+}
+
+.panel {
+  background: var(--nw-paper);
+  border: 1px solid var(--nw-line);
+  box-shadow: none;
+}
+.input { background: var(--nw-paper); }
+.input:focus, .input:focus-within { border-color: var(--nw-accent); }
+
+/* ---------------------------------------------------------------------------
+ * Layout: sidebar on the left, header across the top, messages below.
+ * ------------------------------------------------------------------------- */
+body {
+  grid-template-areas:
+    "sidebar nav"
+    "sidebar main";
+  grid-template-columns: var(--sidebar-width) 1fr;
+
+  &.sidebar {
+    @media (min-width: 100ch) {
+      --sidebar-width: var(--nw-rail-width);
+    }
+  }
+}
+
+#main-content {
+  background: var(--nw-paper);
+
+  .sidebar & {
+    @media (min-width: 100ch) {
+      border-inline: 0;
+      margin-inline: 0;
+    }
+  }
+}
+
+/* Header bar */
+#nav {
+  inset-inline: var(--sidebar-width) 0;
+  min-block-size: var(--nw-header-height);
+  padding-block: 0.5rem;
+
+  &:has(.room--current) {
+    background: var(--nw-paper);
+    border-block-end: 1px solid var(--nw-line);
+    padding-inline: 1.25rem 1rem;
+    pointer-events: auto;
+
+    @media (min-width: 100ch) {
+      margin-inline-start: 0;
+
+      .room--current,
+      .account-logo + .room--current {
+        margin-inline-start: 0;
+      }
+    }
+
+    .account-logo { display: none; }
+
+    .room--current {
+      --btn-background: transparent;
+      --btn-border-color: transparent;
+      --btn-color: var(--nw-ink);
+      padding-inline: 0;
+      margin-inline-end: auto;
+
+      .room__contents {
+        font-size: 1.05rem;
+        font-weight: 700;
+      }
+    }
+
+    .btn:not(.room--current) {
+      --btn-border-color: transparent;
+      --btn-background: transparent;
+    }
+    .btn:not(.room--current):hover {
+      --btn-background: var(--nw-hover);
+    }
+  }
+
+  .sidebar & {
+    @media (max-width: 100ch) {
+      inset-inline: 0;
+      padding-inline-start: 3.75rem;
+
+      &::before { display: none; }
+    }
+  }
+}
+
+/* "#" before channel names; pings (directs) have none. */
+#nav .room--current .room__contents:not(:has(.for-screen-reader))::before,
+#shared_rooms .room > span::before {
+  color: currentColor;
+  content: "#";
+  font-weight: 400;
+  margin-inline-end: 0.35em;
+  opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------------------
+ * Sidebar (the green rail)
+ * ------------------------------------------------------------------------- */
+#sidebar {
+  .sidebar & {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--nw-rail);
+    color: var(--nw-rail-text);
+
+    @media (max-width: 100ch) {
+      inline-size: min(85vw, var(--nw-rail-width));
+      inset: 0 auto 0 0;
+      transform: translate(-100%);
+    }
+  }
+
+  &.open {
+    @media (max-width: 100ch) {
+      transform: translate(0);
+    }
+  }
+
+  img.colorize--black,
+  .rooms__new-btn img,
+  .sidebar__tool:not(.avatar) img {
+    filter: invert(1) brightness(2);
+    opacity: 0.8;
+  }
+}
+
+.sidebar__container {
+  display: flex;
+  flex-direction: column;
+  padding-block-start: 0;
+}
+
+.sidebar__workspace {
+  align-items: center;
+  border-block-end: 1px solid var(--nw-rail-line);
+  color: var(--nw-rail-text-strong);
+  display: flex;
+  flex: none;
+  gap: 0.6rem;
+  min-block-size: var(--nw-header-height);
+  order: 0;
+  padding-inline: 1rem;
+  position: sticky;
+  inset-block-start: 0;
+  background: var(--nw-rail);
+  text-decoration: none;
+  z-index: 4;
+
+  &:hover { color: var(--nw-rail-text-strong); }
+}
+
+.sidebar__workspace-logo {
+  background: var(--nw-paper);
+  block-size: 28px;
+  inline-size: 28px;
+  padding: 3px;
+}
+
+.sidebar__workspace-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.sidebar__section-title {
+  color: var(--nw-rail-text);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin: 0;
+  padding: 1rem 1rem 0.35rem;
+}
+
+/* Channels come first, then direct messages, like Slack. */
+.rooms {
+  gap: 0;
+  order: 1;
+  padding-inline: 0.5rem;
+  margin-inline: 0;
+
+  .sidebar__section-title { padding-inline: 0.5rem; }
+}
+
+#direct_rooms_control {
+  display: block;
+  order: 2;
+}
+
+.room {
+  --btn-background: transparent;
+  --btn-border-color: transparent;
+  --btn-color: var(--nw-rail-text);
+  --btn-padding: 0.3rem 0.5rem;
+
+  background: transparent;
+  block-size: auto;
+  border: 0;
+  color: var(--nw-rail-text);
+  font-size: 0.95rem;
+  font-weight: 400;
+  inline-size: 100%;
+  justify-content: start;
+  min-block-size: 1.9rem;
+
+  &:hover {
+    background: var(--nw-rail-hover);
+    color: var(--nw-rail-text-strong);
+  }
+
+  &.unread {
+    color: var(--nw-rail-text-strong);
+    font-weight: 700;
+  }
+
+  &[aria-current="page"],
+  &.room--active {
+    background: var(--nw-accent);
+    color: var(--nw-rail-text-strong);
+  }
+}
+
+.rooms__new-btn {
+  --btn-color: var(--nw-rail-text);
+  justify-content: start;
+  opacity: 0.8;
+
+  &::after {
+    content: "Add channel";
+    font-size: 0.95rem;
+  }
+
+  img { block-size: 16px; inline-size: 16px; }
+}
+
+/* Direct messages as a vertical list. */
+.directs {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  overflow: visible;
+  padding: 0 0.5rem 1rem;
+  position: static;
+
+  .open & {
+    @media (max-width: 100ch) {
+      -webkit-mask-image: none;
+      mask-image: none;
+      padding-inline-start: 0.5rem;
+    }
+  }
+}
+
+#direct_rooms,
+.directs > div[contents] {
+  display: contents;
+}
+
+.direct {
+  --avatar-size: 22px;
+
+  align-items: center;
+  border-radius: 0;
+  color: var(--nw-rail-text);
+  display: flex;
+  flex-direction: row;
+  gap: 0.55rem;
+  min-block-size: 1.9rem;
+  padding: 0.2rem 0.5rem;
+  text-decoration: none;
+
+  &:hover {
+    background: var(--nw-rail-hover);
+    color: var(--nw-rail-text-strong);
+  }
+
+  &[aria-current="page"] {
+    background: var(--nw-accent);
+    color: var(--nw-rail-text-strong);
+  }
+
+  .avatar,
+  .avatar__group {
+    block-size: var(--avatar-size);
+    flex: none;
+    inline-size: var(--avatar-size);
+  }
+
+  .avatar img { border-radius: 4px; }
+
+  .avatar--icon {
+    background: transparent;
+    border: 0;
+  }
+}
+
+.direct__author {
+  background: none;
+  color: inherit;
+  font-size: 0.95rem;
+  padding: 0;
+
+  .unread & {
+    color: var(--nw-rail-text-strong);
+    font-weight: 700;
+
+    &::after {
+      background-color: var(--nw-paper);
+    }
+  }
+}
+
+/* Profile and settings pinned to the bottom of the rail. */
+.sidebar__tools {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--nw-rail);
+  border-block-start: 1px solid var(--nw-rail-line);
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+
+  @media (min-width: 100ch) {
+    inline-size: var(--nw-rail-width);
+    inset-inline: 0 auto;
+  }
+
+  @media (max-width: 100ch) {
+    inline-size: min(85vw, var(--nw-rail-width));
+    inset-inline: 0 auto;
+  }
+
+  .btn:not(.avatar) {
+    --btn-background: transparent;
+    --btn-border-color: transparent;
+  }
+
+  .avatar { --avatar-size: 32px; }
+  .avatar img { border-radius: 4px; }
+}
+
+/* Menu button on phones: sits in the header, opens the rail from the left. */
+.sidebar__toggle {
+  --btn-background: var(--nw-paper);
+  --btn-border-color: var(--nw-line);
+  inset-inline-start: calc(100% + 0.75rem);
+
+  .open & {
+    @media (max-width: 100ch) {
+      inset-inline-start: calc(100% + 0.75rem);
+    }
+  }
+
+  #sidebar:where(:not(.open):has(.unread)) &::after {
+    background-color: var(--nw-accent);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Messages: Slack rows — avatar, name and time on one line, text below, no bubbles.
+ * ------------------------------------------------------------------------- */
+.messages {
+  --message-space: 0;
+  padding-block: calc(var(--nw-header-height) + 0.75rem) 0.5rem;
+}
+
+.message,
+.message--me {
+  --content-padding-block: 0;
+  --content-padding-inline: 0;
+
+  column-gap: 0.6rem;
+  grid-auto-columns: 36px 1fr;
+  grid-template-areas:
+    "sep sep"
+    "avatar body";
+  padding: 0.45rem 1.25rem;
+
+  &:hover { background: var(--nw-hover); }
+
+  :is(.message__body, .message__meta, .message__heading) {
+    justify-self: start;
+  }
+
+  :is(.message__meta, .message__heading) {
+    flex-direction: row;
+    justify-content: start;
+  }
+
+  .message__meta { padding-inline: 0; }
+  .message__avatar { margin-inline: 0; }
+}
+
+.message + .message--threaded {
+  margin-block-start: 0;
+  padding-block-start: 0.1rem;
+}
+
+.message--threaded:hover .message__body-content::before {
+  color: var(--nw-muted);
+}
+
+.message__avatar {
+  --avatar-size: 36px;
+  align-self: start;
+  box-shadow: none;
+  margin-block-start: 0.15rem;
+
+  img { border-radius: 4px; }
+}
+
+.message__body {
+  max-inline-size: 100%;
+  flex-direction: row;
+
+  .message--me & { flex-direction: row; }
+}
+
+.message__body-content,
+.message--me .message__body-content {
+  --message-background: transparent;
+  background: transparent;
+  border: 0;
+  inline-size: 100%;
+  padding: 0;
+}
+
+.message--mentioned .message__body-content {
+  --message-background: transparent;
+  border-inline-start: 3px solid var(--nw-accent);
+  padding-inline-start: 0.6rem;
+}
+.message--mentioned { background: var(--nw-accent-soft); }
+
+.message__author {
+  color: var(--nw-ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.message__permalink {
+  color: var(--nw-muted);
+  font-size: 0.75rem;
+  opacity: 1;
+}
+
+/* Slack-style hover toolbar on the right of the row. */
+.message__meta .message__actions {
+  @media (min-width: 100ch) {
+    inset: -0.9rem 0 auto auto;
+    position: absolute;
+    transform: none;
+  }
+}
+.message--me .message__actions {
+  @media (min-width: 100ch) {
+    inset-inline: auto 0;
+  }
+}
+
+.message__attachment {
+  border: 1px solid var(--nw-line);
+  max-inline-size: min(480px, 100%);
+}
+
+/* Day divider: a rule with the date in a pill. */
+.message__day-separator {
+  color: var(--nw-ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-block: 0.75rem 0.25rem;
+
+  * {
+    background: var(--nw-paper);
+    border: 1px solid var(--nw-line);
+    border-radius: 999px;
+    padding: 0.15rem 0.75rem;
+  }
+}
+
+/* Welcome card */
+#system_welcome {
+  .message__body-content {
+    background: var(--nw-paper);
+    border: 1px solid var(--nw-line);
+    padding: 1.25rem;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Composer: a bordered box, like Slack's message field.
+ * ------------------------------------------------------------------------- */
+.composer {
+  background: var(--nw-paper);
+  padding: 0 1.25rem 1rem;
+}
+
+.composer__input {
+  --input-border-radius: 6px;
+  background: var(--nw-paper);
+  border: 1px solid var(--nw-line-strong);
+  border-radius: 6px;
+  box-shadow: none;
+  min-block-size: 2.75rem;
+
+  &:focus-within {
+    border-color: var(--nw-ink);
+    box-shadow: 0 0 0 1px var(--nw-ink);
+  }
+}
+
+.composer__context-btn {
+  --btn-background: transparent;
+  --btn-border-color: transparent;
+}
+
+#footer {
+  background: var(--nw-paper);
+}
