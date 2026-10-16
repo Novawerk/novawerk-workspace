@@ -1,73 +1,64 @@
 <% @page_title = "Search" %>
 <% @body_class = "sidebar searches" %>
-
 <% content_for :nav do %>
-  <h1 class="nw-hdr-title">Search</h1>
-  <% if @query %>
-    <div class="searches__query flex align-center gap pad-block-start-half">
-      <%= tag.div class: "btn btn--reversed btn--faux align-center gap txt-nowrap" do %>
-        <span class="overflow-ellipsis">“<%= @query %>”</span>
-        <span class="flex-item-no-shrink"><%= @messages.count %></span>
-      <% end %>
-    </div>
-  <% end %>
+  <%= link_to "javascript:history.back()", class: "btn btn--plain nw-hdr-back" do %><%= image_tag "arrow-left.svg" %><span>Back</span><% end %>
+  <h1 class="nw-hdr-title"><%= image_tag "search.svg", class: "nw-muted" %>Search</h1>
+<% end %>
 
-  <div class="searches__recents align-center gap pad-block-half overflow-y overflow-hide-scrollbar">
-    <% @recent_searches.each do |search| %>
-      <%= link_to searches_path(q: search.query), class: "align-center gap room btn txt-nowrap" do %>
-        <span class="overflow-ellipsis">“<%= search.query %>”</span>
-      <% end %>
+<%# Novawerk Chat: search sits in the app shell (Search board): the field on top, then recent searches,
+    then the results in a card. %>
+<div class="nw-page nw-search">
+  <div class="nw-page__narrow nw-page__narrow--search">
+    <%= form_with url: searches_path, class: "nw-search__form", data: { controller: "form", action: "keydown.esc->form#cancel" } do |form| %>
+      <label class="input nw-search__field">
+        <%= image_tag "search.svg", class: "nw-muted" %>
+        <%= form.text_field :q, value: params[:q], class: "searches__input", role: "searchbox", aria: { label: "Search messages" },
+              placeholder: "Search messages", autofocus: true, required: true, autocomplete: "off" %>
+        <kbd class="nw-kbd">Enter</kbd>
+        <%= link_to searches_path, data: { form_target: "cancel" }, role: "button", class: "nw-search__clear", title: "Clear search" do %>
+          <%= image_tag "remove.svg", size: 14 %><span class="for-screen-reader">Clear search field</span>
+        <% end %>
+      </label>
     <% end %>
 
     <% if @recent_searches.any? %>
-      <%= button_to clear_searches_url, method: :delete, class: "btn searches__btn",
-              data: { turbo_confirm: "Are you sure you want to clear your recent searches?" } do %>
-        <%= image_tag "broom.svg", aria: { hidden: "true" } %>
-        <span class="for-screen-reader">Clear recent searches</span>
+      <div class="nw-search__recent">
+        <span class="nw-small nw-muted">Recent</span>
+        <% @recent_searches.each do |search| %>
+          <%= link_to searches_path(q: search.query), class: "nw-chip" do %>
+            <%= image_tag "refresh.svg", size: 12 %><span><%= search.query %></span>
+          <% end %>
+        <% end %>
+        <%= button_to "Clear recent searches", clear_searches_url, method: :delete, class: "nw-link-btn", form_class: "nw-inline-form",
+              data: { turbo_confirm: "Clear your recent searches?", confirm_label: "Clear" } %>
+      </div>
+    <% end %>
+
+    <% if @query %>
+      <div class="nw-search__meta">
+        <span class="nw-small nw-muted"><%= pluralize(@messages.count, "message") %> match “<%= @query %>”</span>
+        <span class="nw-small nw-muted">Newest first</span>
+      </div>
+
+      <% if @messages.none? %>
+        <div class="nw-empty nw-empty--search">
+          <span class="nw-empty__icon"><%= image_tag "search.svg", size: 24 %></span>
+          <h2 class="nw-empty__title">No messages match “<%= @query %>”</h2>
+          <p class="nw-muted">Check the spelling or try fewer words. Search covers rooms you're in.</p>
+          <%= link_to "Clear search", searches_path, class: "btn nw-btn-outline nw-btn-sm" %>
+        </div>
       <% end %>
-    <% end %>
-  </div>
-<% end %>
-
-<%# Novawerk Chat: search sits in the app shell; recent searches are in the header. %>
-
-<div id="message-area" class="message-area">
-  <div class="message-area--empty min-width center">
-    <figure class="center pad">
-      <%= image_tag "search.svg", aria: { hidden: "true" }, class: "colorize--black translucent" %>
-    </figure>
-  </div>
-
-  <%= search_results_tag do %>
-    <%= render partial: "messages/message", collection: @messages, cached: ->(message) { message_fragment_cache_key(message) } %>
-  <% end %>
-</div>
-
-<% content_for :footer do %>
-  <div class="composer flex align-end gap">
-    <%= link_to room_path(@return_to_room),
-            class: "btn flex-item-no-shrink margin-block-end", style: "view-transition-name: input-switcher; --btn-border-radius: 0.5em" do %>
-      <%= image_tag "arrow-left.svg", aria: { hidden: "true" } %>
-      <span class="for-screen-reader">Exit search </span>
-    <% end %>
-
-    <%= form_with url: searches_path, class: "margin-block flex-item-grow contain flex align-center gap",
-          data: { controller: "form", action: "keydown.esc->form#cancel" } do |form| %>
-      <div class="composer__input flex align-center flex-item-grow gap full-width input input--actor min-width">
-        <%= image_tag "search.svg", size: 20, aria: { hidden: "true" }, class: "composer__input-hint colorize--black", style: "view-transition-name: input-btn;" %>
-
-        <%= form.text_field :q, value: params[:q], class: "searches__input input flex-item-grow", role: "searchbox", aria: { label: "search" }, autofocus: true, required: true %>
-
-        <%= link_to searches_path, data: { form_target: "cancel" }, role: "button", class: "searches__reset" do %>
-          <%= image_tag "remove.svg", aria: { hidden: "true" }, size: 14, class: "colorize--black" %>
-          <span class="for-screen-reader">Clear search field</span>
+      <div id="message-area" class="message-area nw-search__results <%= "nw-hidden" if @messages.none? %>"
+           data-controller="nw-highlight" data-nw-highlight-query-value="<%= @query %>">
+        <%= search_results_tag do %>
+          <%= render partial: "messages/message", collection: @messages, cached: ->(message) { message_fragment_cache_key(message) } %>
         <% end %>
-
-        <%= form.button type: "submit", class: "btn btn--reversed flex-item-no-shrink txt-small", style: "--btn-border-radius: 0.5em" do %>
-          <%= image_tag "arrow-up.svg", aria: { hidden: "true" } %>
-          <span class="for-screen-reader">Search</span>
-        <% end %>
+      </div>
+    <% else %>
+      <div class="nw-empty nw-empty--search">
+        <span class="nw-empty__icon"><%= image_tag "search.svg", size: 24 %></span>
+        <p class="nw-muted">Search every room you're in. Try a name, a word or a #room.</p>
       </div>
     <% end %>
   </div>
-<% end %>
+</div>

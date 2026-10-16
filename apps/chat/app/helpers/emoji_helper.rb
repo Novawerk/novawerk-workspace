@@ -1,12 +1,11 @@
 module EmojiHelper
+  # Novawerk Chat: the quick reactions from the design (message menu, phone sheet, composer).
   REACTIONS = {
     "👍" => "Thumbs up",
-    "👏" => "Clapping",
-    "👋" => "Waving hand",
-    "💪" => "Muscle",
-    "❤️" => "Red heart",
-    "😂" => "Face with tears of joy",
-    "🎉" => "Party popper",
+    "❤️" => "Heart",
+    "🎉" => "Party",
+    "😂" => "Laugh",
+    "👀" => "Eyes",
     "🔥" => "Fire"
   }
 end

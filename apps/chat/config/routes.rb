@@ -60,7 +60,8 @@ Rails.application.routes.draw do
   end
 
   direct :fresh_user_avatar do |user, options|
-    route_for :user_avatar, user.avatar_token, v: user.updated_at.to_fs(:number)
+    # Novawerk Chat: "-2" since initials avatars use the design's tints (users/avatars/show.svg.erb).
+    route_for :user_avatar, user.avatar_token, v: "#{user.updated_at.to_fs(:number)}-2"
   end
 
   resources :rooms do

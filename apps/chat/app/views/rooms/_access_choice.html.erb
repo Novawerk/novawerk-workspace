@@ -1,0 +1,18 @@
+<%# Novawerk Chat: "Who can join" as two radio cards. Open and closed are two routes, so the other card links there. %>
+<div class="nw-field">
+  <span class="nw-label">Who can join</span>
+  <div class="nw-choice">
+    <% [ [ :open, "hash.svg", "Open", "Everyone in #{Current.account.name}, including people who join later." ],
+         [ :closed, "lock.svg", "Closed", "Only the people you pick. Others can't see it." ] ].each do |kind, icon, title, text| %>
+      <% current = kind == current_kind %>
+      <%= link_to (current ? "#" : type_change_path), class: [ "nw-choice__card", ("is-on" if current) ], data: { turbo_action: "replace" },
+            aria: { current: current }, tabindex: (current ? -1 : nil), onclick: (current ? "return false" : nil) do %>
+        <span class="nw-radio <%= "is-on" if current %>"></span>
+        <span class="nw-stack">
+          <span class="nw-choice__title"><%= image_tag icon, size: 14 %><%= title %></span>
+          <span class="nw-hint"><%= text %></span>
+        </span>
+      <% end %>
+    <% end %>
+  </div>
+</div>

@@ -39,10 +39,8 @@ module RoomsHelper
     end
   end
 
-  def submit_room_button_tag
-    button_tag class: "btn btn--reversed nw-room-form__submit", type: "submit" do
-      image_tag("check.svg") + tag.span("Save")
-    end
+  def submit_room_button_tag(room = nil)
+    button_tag (room&.new_record? ? "Create room" : "Save changes"), class: "btn btn--reversed", type: "submit"
   end
 
   def composer_form_tag(room, &)

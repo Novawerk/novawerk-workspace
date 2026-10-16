@@ -1,24 +1,18 @@
-<li class="flex align-center gap margin-none" data-value="<%= user.name.downcase %>">
-  <figure class="avatar flex-item-no-shrink" style="--avatar-size: 4ch;">
-    <%= avatar_tag user, loading: :lazy %>
-  </figure>
-
-  <div class="min-width">
-    <div class="overflow-ellipsis fill-shade"><strong><%= user.name %></strong></div>
-  </div>
-
-  <hr class="separator" aria-hidden="true">
-
+<li class="nw-picker__row" data-value="<%= [ user.name, user.novawerk_handle ].compact.join(" ").downcase %>">
   <% if Current.user.can_administer?(room) %>
     <% if user == Current.user && room.new_record? %>
       <%= hidden_field_tag "user_ids[]", user.id, id: nil %>
-      <%= image_tag "check.svg", size: 20, class: "colorize--black flex-item-no-shrink", aria: { hidden: "true" } %>
+      <input type="checkbox" class="nw-check" checked disabled aria-label="You">
     <% else %>
-      <label class="switch flex-item-no-shrink">
-        <%= check_box_tag "user_ids[]", user.id, selected, class: "switch__input", id: nil %>
-        <span class="switch__btn round"></span>
-        <span class="for-screen-reader">Give <%= user.name %> access to this room</span>
-      </label>
+      <%= check_box_tag "user_ids[]", user.id, selected, class: "nw-check", id: nil, aria: { label: "Give #{user.name} access to this room" } %>
     <% end %>
+  <% end %>
+  <span class="avatar"><%= image_tag fresh_user_avatar_path(user), alt: "", size: 24, loading: :lazy %></span>
+  <span class="nw-picker__name"><%= user.name %></span>
+  <% if user.novawerk_handle.present? %><span class="nw-small nw-muted">@<%= user.novawerk_handle %></span><% end %>
+  <% if user == Current.user %>
+    <span class="nw-badge">You</span>
+  <% elsif user.administrator? %>
+    <span class="nw-badge nw-badge--soft">Maintainer</span>
   <% end %>
 </li>

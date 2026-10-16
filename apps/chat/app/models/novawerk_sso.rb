@@ -40,6 +40,10 @@ module NovawerkSso
       ENV.fetch("NOVAWERK_WEB_URL", "https://novawerk.io").chomp("/")
     end
 
+    def admin_url
+      ENV.fetch("NOVAWERK_ADMIN_URL", "https://admin.novawerk.io").chomp("/")
+    end
+
     # The ticket's (or event's) claims, or InvalidTicket. Each works once (its `jti`).
     def verify!(ticket, now: Time.current, audience: AUDIENCE)
       claims = Ticket.decode!(ticket.to_s, secret)

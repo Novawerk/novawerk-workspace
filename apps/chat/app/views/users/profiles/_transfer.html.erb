@@ -6,9 +6,11 @@
     <span class="nw-card__icon"><%= image_tag "key.svg" %></span>
     <span class="nw-card__text">
       <strong><%= mine ? "Sign in on another device" : "Sign-in link" %></strong>
-      <span><%= mine ? "A private one-time link or QR code. Don't share it." : "A private link that signs #{user.name} in on another device. Share it only with them." %></span>
+      <span class="nw-desktop-only"><%= mine ? "A private one-time link or QR code. Don't share it." : "A private link that signs #{user.name} in on another device. Share it only with them." %></span>
+      <span class="nw-phone-only">For <%= mine ? "your" : "#{user.name.split.first}'s" %> other devices</span>
     </span>
-    <span class="btn"><%= mine ? "Show link…" : "Get link…" %></span>
+    <span class="btn nw-desktop-only"><%= mine ? "Show link…" : "Get link…" %></span>
+    <%= image_tag "chevron-right.svg", class: "nw-phone-only nw-muted" %>
   </summary>
 
   <div class="nw-transfer__body">

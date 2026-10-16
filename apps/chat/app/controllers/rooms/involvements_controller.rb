@@ -9,7 +9,8 @@ class Rooms::InvolvementsController < ApplicationController
     @membership.update! involvement: params[:involvement]
 
     broadcast_visibility_changes
-    redirect_to room_involvement_url(@room)
+    # Novawerk Chat: the bell menu in the room header comes back to the room.
+    redirect_to params[:return_to_room] ? room_url(@room) : room_involvement_url(@room)
   end
 
   private

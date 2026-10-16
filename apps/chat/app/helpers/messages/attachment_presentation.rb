@@ -92,8 +92,13 @@ class Messages::AttachmentPresentation
     end
 
     def lightbox_link(&)
+      # Novawerk Chat: the lightbox header shows who posted the file, where and when (Lightbox board).
       link_to rails_blob_path(message.attachment), class: "flex", data: {
-        lightbox_target: "image", action: "lightbox#open", lightbox_url_value: download_url }, &
+        lightbox_target: "image", action: "lightbox#open", lightbox_url_value: download_url,
+        lightbox_filename: filename, lightbox_author: message.creator.name,
+        lightbox_avatar: context.user_avatar_path(message.creator.avatar_token, v: "#{message.creator.updated_at.to_fs(:number)}-2"),
+        lightbox_room: ("in ##{message.room.name}" unless message.room.direct?), lightbox_time: message.created_at.iso8601,
+        lightbox_size: ActiveSupport::NumberHelper.number_to_human_size(message.attachment.byte_size) }, &
     end
 
     def download_link

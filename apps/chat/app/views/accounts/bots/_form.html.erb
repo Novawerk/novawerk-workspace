@@ -1,32 +1,26 @@
-<h1 class="for-screen-reader">Chat Bot Setup</h1>
-<label class="align-center center avatar__form gap" data-controller="upload-preview">
-  <div class="btn input--file">
-    <%= image_tag "camera.svg", aria: { hidden: "true" }, size: 20 %>
-    <%= form.file_field :avatar, class: "input", accept: "image/*",
-          data: { upload_preview_target: "input", action: "upload-preview#previewImage" } %>
-    <span class="for-screen-reader">Upload bot avatar</span>
+<div class="nw-room-form__body">
+  <div class="nw-logo-row" data-controller="upload-preview">
+    <span class="nw-logo-tile nw-logo-tile--sm"><%= image_tag bot.avatar.attached? ? bot.avatar : "default-bot-avatar.svg", alt: "", size: 48, data: { upload_preview_target: "image" } %></span>
+    <span class="nw-stack nw-grow"><span class="nw-label">Picture</span><span class="nw-hint">Shown next to its messages.</span></span>
+    <label class="btn nw-btn-outline nw-btn-sm input--file">
+      <%= image_tag "upload.svg" %><span>Upload</span>
+      <%= form.file_field :avatar, class: "input", accept: "image/*", data: { upload_preview_target: "input", action: "upload-preview#previewImage" } %>
+    </label>
   </div>
 
-  <div class="avatar input--file txt-xx-large" style="--avatar-size: var(--btn-size);">
-    <%= image_tag bot.avatar.attached? ? bot.avatar : "default-bot-avatar.svg", alt: "Bot avatar", size: 48, data: { upload_preview_target: "image" } %>
+  <div class="nw-field">
+    <%= form.label :name, "Name", class: "nw-label" %>
+    <%= form.text_field :name, class: "input nw-input", autocomplete: "off", placeholder: "Task board bot", autofocus: true, required: true, data: { "1p-ignore": true } %>
   </div>
-</label>
 
-<div class="flex align-center gap">
-  <%= translation_button(:bot_name) %>
-  <label class="flex align-center gap flex-item-grow txt-large input input--actor">
-    <%= form.text_field :name, class: "input", autocomplete: "name", placeholder: "Name the bot", autofocus: true, required: true,
-          data: { "1p-ignore": true } %>
-    <%= image_tag "bot.svg", aria: { hidden: "true" }, size: 24, class: "colorize--black" %>
-  </label>
+  <div class="nw-field">
+    <%= form.label :webhook_url, class: "nw-label" do %>Webhook URL <span class="nw-muted">(optional)</span><% end %>
+    <%= form.url_field :webhook_url, class: "input nw-input", placeholder: "https://example.com/hooks/chat" %>
+    <span class="nw-hint">We POST here when someone mentions the bot or messages it directly.</span>
+  </div>
 </div>
 
-<div class="flex align-center gap">
-  <%= translation_button(:webhook_url) %>
-  <label class="flex align-center gap flex-item-grow txt-large input input--actor">
-    <%= form.url_field :webhook_url, class: "input", placeholder: "Webhook URL" %>
-    <%= image_tag "web.svg", aria: { hidden: "true" }, size: 24, class: "colorize--black" %>
-  </label>
+<div class="nw-card__foot">
+  <%= link_to "Cancel", account_bots_path, class: "btn nw-btn-outline" %>
+  <%= form.button "Save bot", type: "submit", class: "btn btn--reversed" %>
 </div>
-
-<%= profile_form_submit_button %>

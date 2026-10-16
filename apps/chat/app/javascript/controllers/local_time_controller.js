@@ -13,8 +13,15 @@ export default class extends Controller {
     this.#formatTime(this.timeFormatter, target)
   }
 
+  // Novawerk Chat: day dividers say "Today" and "Yesterday", as in the design.
   dateTargetConnected(target) {
     this.#formatTime(this.dateFormatter, target)
+
+    const day = new Date(target.getAttribute("datetime")).toDateString()
+    const today = new Date()
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)
+    if (day === today.toDateString()) target.textContent = "Today"
+    else if (day === yesterday.toDateString()) target.textContent = "Yesterday"
   }
 
   datetimeTargetConnected(target) {

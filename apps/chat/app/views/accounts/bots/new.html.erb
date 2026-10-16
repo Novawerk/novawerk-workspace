@@ -1,9 +1,13 @@
 <% @page_title = "New chat bot" %>
+<% page_header "New bot", crumb: "Bots" %>
 
-<% page_header "New bot" do %><%= link_to "Back to bots", account_bots_path, class: "btn btn--plain" %><% end %>
-
-<section class="panel">
-  <%= form_with model: @bot, url: account_bots_path, class: "flex flex-column gap" do |form| %>
-    <%= render "accounts/bots/form", form: form, bot: @bot %>
-  <% end %>
-</section>
+<div class="nw-page">
+  <div class="nw-page__narrow nw-page__narrow--form">
+    <h2 class="nw-h1">New bot</h2>
+    <div class="nw-card nw-room-form">
+      <%= form_with model: @bot, url: account_bots_path do |form| %>
+        <%= render "accounts/bots/form", form: form, bot: @bot %>
+      <% end %>
+    </div>
+  </div>
+</div>

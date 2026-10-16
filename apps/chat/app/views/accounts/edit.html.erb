@@ -1,108 +1,80 @@
 <% @page_title = "Account settings" %>
-
 <% page_header "Account settings" %>
-<%= render "accounts/tabs", current: :general %>
 
 <div class="nw-page">
-<div class="nw-page__narrow" style="view-transition-name: account-settings">
-  <% if Current.user.can_administer? %>
-  <div class="nw-card">
-    <div class="nw-card__head"><h2 class="nw-card__title">Chat</h2><p class="nw-muted">How Novawerk Chat looks to everyone.</p></div>
-    <div class="nw-card__body">
-    <div class="align-center center avatar__form gap" data-controller="upload-preview">
-      <%= form_with model: @account, method: :patch, class: "txt--medium", data: { controller: "form" } do |form| %>
-        <label class="btn input--file">
-          <%= image_tag "camera.svg", aria: { hidden: "true" }, size: 20 %>
-          <%= form.file_field :logo, class: "input", accept: "image/*",
-                data: { action: "upload-preview#previewImage change->form#submit" } %>
-          <span class="for-screen-reader">Upload logo</span>
-        </label>
-      <% end %>
+  <div class="nw-page__narrow nw-page__narrow--wide" style="view-transition-name: account-settings">
+    <%= render "accounts/tabs", current: :general %>
 
-      <%= form_with model: @account, method: :patch, data: { controller: "form" } do |form| %>
-        <label class="btn avatar input--file account-logo txt-xx-large">
-          <%= image_tag fresh_account_logo_path, role: "presentation", size: 48, data: { upload_preview_target: "image" } %>
-          <%= form.file_field :logo, class: "input", accept: "image/*",
-                data: { action: "upload-preview#previewImage change->form#submit" } %>
-          <span class="for-screen-reader">Upload logo</span>
-        </label>
-      <% end %>
+    <% if Current.user.can_administer? %>
+      <div class="nw-card">
+        <div class="nw-card__head"><h2 class="nw-card__title">Chat</h2><p class="nw-card__desc">How Novawerk Chat looks to everyone.</p></div>
+        <div class="nw-card__body nw-card__body--settings">
+          <div class="nw-logo-row" data-controller="upload-preview">
+            <span class="nw-logo-tile"><%= image_tag fresh_account_logo_path, alt: "", size: 56, data: { upload_preview_target: "image" } %></span>
+            <div class="nw-stack nw-grow"><span class="nw-label">Logo</span><span class="nw-hint">Square PNG, at least 192 px. Used as the app icon.</span></div>
+            <%= form_with model: @account, method: :patch, data: { controller: "form" } do |form| %>
+              <label class="btn nw-btn-outline nw-btn-sm input--file">
+                <%= image_tag "upload.svg" %><span>Upload</span>
+                <%= form.file_field :logo, class: "input", accept: "image/*", data: { upload_preview_target: "input", action: "upload-preview#previewImage change->form#submit" } %>
+              </label>
+            <% end %>
+            <% if @account.logo.attached? %>
+              <%= button_to "Remove", fresh_account_logo_path, method: :delete, class: "btn btn--plain nw-btn-sm" %>
+            <% end %>
+          </div>
 
-      <% if @account.logo.attached? %>
-        <%= button_to fresh_account_logo_path, method: :delete, class: "btn btn--negative txt-small avatar__delete-btn" do %>
-          <%= image_tag "minus.svg", aria: { hidden: "true" }, size: 20 %>
-          <span class="for-screen-reader">Delete logo</span>
-        <% end %>
-      <% end %>
-    </div>
+          <%= form_with model: @account, class: "nw-field", data: { controller: "form" } do |form| %>
+            <%= form.label :name, "Name", class: "nw-label" %>
+            <div class="nw-row nw-row--nowrap">
+              <%= form.text_field :name, class: "input nw-input nw-input--name", autocomplete: "off", data: { action: "keydown.enter->form#submit" } %>
+              <%= form.button "Save", type: "submit", class: "btn nw-btn-outline" %>
+            </div>
+          <% end %>
 
-    <%= form_with model: @account, data: { controller: "form" }, class: "flex flex-column gap" do |form| %>
-      <div class="flex align-center gap">
-        <%= translation_button(:account_name) %>
+          <div class="nw-sep"></div>
 
-        <label class="flex align-center gap flex-item-grow">
-          <%= form.text_field :name, class: "input txt-large", autocomplete: "off", placeholder: "Name this account", autofocus: true,
-                data: { action: "keydown.enter->form#submit" } %>
-        </label>
-
-        <%= form.button class: "btn btn--reversed center", type: "submit" do %>
-          <%= image_tag "check.svg", aria: { hidden: "true" }, size: 20 %>
-          <span class="for-screen-reader">Save changes</span>
-        <% end %>
+          <%= form_with model: @account, method: :put, data: { controller: "form" }, class: "nw-setting-row" do |form| %>
+            <span class="nw-stack nw-grow"><span class="nw-label">Only maintainers can create rooms</span><span class="nw-hint">Members can still start direct messages.</span></span>
+            <%= form.fields_for :settings, @account.settings do |settings_form| %>
+              <%= settings_form.hidden_field :restrict_room_creation_to_administrators, value: !Current.account.settings.restrict_room_creation_to_administrators? %>
+            <% end %>
+            <label class="switch">
+              <%= tag.input type: "checkbox", class: "switch__input", checked: Current.account.settings.restrict_room_creation_to_administrators?, data: { action: "change->form#submit" } %>
+              <span class="switch__btn round"></span>
+              <span class="for-screen-reader">Only maintainers can create rooms</span>
+            </label>
+          <% end %>
+        </div>
       </div>
     <% end %>
 
-    <div class="margin-block-start pad-block pad-inline-double fill-shade border-radius">
-      <%= form_with model: @account, method: :put, data: { controller: "form" }, class: "flex align-center gap center" do |form| %>
-        <div class="flex-item-grow flex align-center gap txt-align-start">
-          <span class="nw-stack"><strong>Only maintainers can create rooms</strong><span class="nw-hint">Members can still start direct messages.</span></span>
-        </div>
-        <%= form.fields_for :settings, @account.settings do |settings_form| %>
-          <%= settings_form.hidden_field :restrict_room_creation_to_administrators,
-              value: !Current.account.settings.restrict_room_creation_to_administrators? %>
-        <% end %>
-
-        <label class="switch">
-          <%= tag.input type: "checkbox", class: "switch__input",
-                checked: Current.account.settings.restrict_room_creation_to_administrators?,
-                data: { action: "change->form#submit" } %>
-          <span class="switch__btn round"></span>
-          <span class="for-screen-reader">
-            Must be admin to create new rooms
-          </span>
+    <% total = User.visible_to(Current.user).without_bots.count %>
+    <div class="nw-card" data-controller="nw-filter">
+      <div class="nw-card__head nw-card__head--split">
+        <div class="nw-stack"><h2 class="nw-card__title">Members</h2>
+          <p class="nw-card__desc"><%= pluralize(total, "person", plural: "people") %> · <%= NovawerkSso.configured? ? "they join with their Novawerk account." : "they join with the invite link." %></p></div>
+        <label class="input nw-input-group">
+          <%= image_tag "search.svg", class: "nw-muted" %>
+          <input type="search" placeholder="Search members" aria-label="Search members" data-action="input->nw-filter#filter">
         </label>
+      </div>
 
+      <% unless NovawerkSso.configured? %>
+        <div class="nw-card__body"><%= render "accounts/invite" %></div>
       <% end %>
+
+      <div class="nw-table" role="table" aria-label="Members">
+        <div class="nw-table__head" role="row">
+          <span role="columnheader">Person</span><span role="columnheader">Role</span><span role="columnheader">Joined</span><span role="columnheader"><span class="for-screen-reader">Actions</span></span>
+        </div>
+        <turbo-frame id="account_users" class="nw-table__body">
+          <%= render partial: "accounts/users/user", collection: @administrators, as: :user %>
+          <%= render partial: "accounts/users/user", collection: @page.records, as: :user %>
+          <%= render "accounts/users/next_page_container", page: @page.next_param unless @page.last? %>
+        </turbo-frame>
+      </div>
     </div>
-    </div>
-  </div>
-  <% else %>
-    <%= account_logo_tag style: "txt-xx-large center" %>
-    <h1 class="flex-item-grow txt-x-large"><%= @account.name %></h1>
-  <% end %>
 
-  <div class="nw-card">
-    <div class="nw-card__head"><h2 class="nw-card__title">Members</h2><p class="nw-muted"><%= NovawerkSso.configured? ? "They join with their Novawerk account." : "People on this chat." %></p></div>
-    <% unless NovawerkSso.configured? %>
-      <div class="nw-card__body"><%= render "accounts/invite" %></div>
-    <% end %>
-
-    <menu class="nw-members">
-      <turbo-frame id="account_users">
-        <%= render partial: "accounts/users/user", collection: @administrators, as: :user %>
-
-        <% if @administrators.any? && @page.records.any? %>
-          <hr class="separator full-width" style="--border-style: solid">
-        <% end %>
-
-        <%= render partial: "accounts/users/user", collection: @page.records, as: :user %>
-        <%= render "accounts/users/next_page_container", page: @page.next_param unless @page.last? %>
-      </turbo-frame>
-    </menu>
+    <p class="nw-small nw-muted nw-center">Novawerk Chat · based on Campfire&trade;</p>
   </div>
 </div>
-</div>
-
-<% content_for :footer do %>
-  <div class="txt-align-center center margin-block-double txt-subtle">Novawerk Chat · based on Campfire&trade; <%= version_badge %></div>
-<% end %>

@@ -28,9 +28,17 @@ module ApplicationHelper
   end
 
   # Novawerk Chat: the header of a page that isn't a room: a title, then actions on the right.
-  def page_header(title, &actions)
+  def page_header(title, crumb: nil, &actions)
     content_for :nav do
-      tag.h1(title, class: "nw-hdr-title") + (actions ? tag.div(class: "nw-hdr-actions", &actions) : "".html_safe)
+      heading = if crumb
+        tag.h1(class: "nw-hdr-title nw-crumb") do
+          tag.span(crumb, class: "nw-crumb__parent") + image_tag("chevron-right.svg", size: 14) + tag.b(title)
+        end
+      else
+        tag.h1(title, class: "nw-hdr-title")
+      end
+      back = link_to(image_tag("arrow-left.svg") + tag.span("Back"), "javascript:history.back()", class: "btn btn--plain nw-hdr-back")
+      back + heading + (actions ? tag.div(class: "nw-hdr-actions", &actions) : "".html_safe)
     end
   end
 

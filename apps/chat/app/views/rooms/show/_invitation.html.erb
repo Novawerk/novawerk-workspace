@@ -1,25 +1,23 @@
-<% if @room == Room.original && !@room.messages.paged? %>
-  <div id="system_welcome" class="message message--formatted txt-align-center center">
-    <div class="message__body center">
-      <div class="message__body-content position-relative">
-        <%= account_logo_tag style: "center margin-block-end txt-large" %>
-        <div class="flex align-center gap">
-          <div class="system-welcome--translation">
-            <%= translation_button(:invite_message) %>
-          </div>
-          <p>
-            <strong>Welcome to Novawerk Chat</strong><br>
-            <% if NovawerkSso.configured? %>
-              Everyone with a Novawerk account can sign in here. Invite people to sign up on novawerk.io.
-            <% else %>
-              To invite people to chat, share the join link below.
-            <% end %>
-          </p>
-        </div>
-        <% unless NovawerkSso.configured? %>
-          <%= render "accounts/invite" %>
-        <% end %>
-      </div>
+<%# Novawerk Chat: the start of a room is an intro, not a card with a raw join link (that stays in
+    Account settings, and only without Novawerk sign-in). %>
+<% if !room.direct? && !room.messages.paged? %>
+  <div id="system_welcome" class="nw-intro">
+    <span class="nw-intro__icon"><%= image_tag(room.is_a?(Rooms::Closed) ? "lock.svg" : "hash.svg", size: 24) %></span>
+    <p class="nw-intro__title">Welcome to #<%= room.name %></p>
+    <p class="nw-intro__text">
+      <% if room.is_a?(Rooms::Closed) %>
+        This is the start of #<%= room.name %>. Only its members can see it.
+      <% else %>
+        This is the start of #<%= room.name %>. Everyone with a Novawerk account is here, and new members join it automatically.
+      <% end %>
+    </p>
+    <div class="nw-intro__actions">
+      <%= link_to [ :edit, room ], class: "btn nw-btn-outline nw-btn-sm" do %>
+        <%= image_tag "users.svg" %><span>Members</span>
+      <% end %>
+      <%= link_to user_profile_path, class: "btn nw-btn-outline nw-btn-sm" do %>
+        <%= image_tag "notification-bell-everything.svg" %><span>Notifications</span>
+      <% end %>
     </div>
   </div>
 <% end %>

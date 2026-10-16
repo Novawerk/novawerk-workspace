@@ -6,10 +6,13 @@ import { getCookie, setCookie } from "lib/cookie"
 
 export default class extends Controller {
   static values = { subscriptionsUrl: String }
-  static targets = [ "notAllowedNotice", "bell", "details" ]
+  static targets = [ "notAllowedNotice", "bell", "details", "blocked" ]
   static classes = [ "attention" ]
 
   async connect() {
+    // Novawerk Chat: when the browser blocks notifications, the bell menu says so in a row of its own.
+    this.blockedTargets.forEach(row => row.hidden = window.Notification?.permission !== "denied")
+
     if (!pageIsTurboPreview()) {
       if (window.notificationsPreviouslyReady) {
         onNextEventLoopTick(() => this.dispatch("ready"))
@@ -29,6 +32,12 @@ export default class extends Controller {
   }
 
   async attemptToSubscribe() {
+    // Novawerk Chat: when the browser blocks notifications, the menu's "Notifications are off" row explains it.
+    if (window.Notification?.permission === "denied") {
+      this.#endFirstRun()
+      return
+    }
+
     if (this.#allowed) {
       const registration = await this.#serviceWorkerRegistration || await this.#registerServiceWorker()
 
@@ -42,6 +51,11 @@ export default class extends Controller {
     }
 
     this.#endFirstRun()
+  }
+
+  showBlockedNotice() {
+    this.bellTarget.closest("details")?.removeAttribute("open")
+    this.#revealNotAllowedNotice()
   }
 
   async isEnabled() {
@@ -68,6 +82,7 @@ export default class extends Controller {
   }
 
   #revealNotAllowedNotice() {
+    if (this.notAllowedNoticeTarget.open) return
     this.notAllowedNoticeTarget.showModal()
     this.#openSingleOption()
   }

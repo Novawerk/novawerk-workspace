@@ -6,7 +6,7 @@ class Users::AvatarsController < ApplicationController
   def show
     @user = User.from_avatar_token(params[:user_id])
 
-    if stale?(etag: @user)
+    if stale?(etag: [ @user, "initials-2" ])
       expires_in 30.minutes, public: true, stale_while_revalidate: 1.week
 
       if (avatar_variant = @user.avatar_variant)

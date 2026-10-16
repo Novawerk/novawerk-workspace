@@ -1,38 +1,61 @@
-<span>
-  <span class="button_to_change_notifying"
-      data-controller="notifications" data-notifications-subscriptions-url-value="<%= user_push_subscriptions_path %>" data-notifications-attention-class="btn--pulsing">
-    <%= turbo_frame_tag dom_id(room, :involvement), data: {
-          controller: "turbo-frame", action: "notifications:ready@window->turbo-frame#load", turbo_frame_url_param: room_involvement_path(room) } do %>
-      <button class="btn" data-action="click->notifications#attemptToSubscribe" data-notifications-target="bell">
-        <%= image_tag "notification-bell-loading.svg", size: 20, aria: { hidden: "true" } %>
-        <%= image_tag "notification-bell-alert.svg", size: 20, aria: { hidden: "true" }, hidden: true %>
-        <span class="for-screen-reader">Notification settings for this <%= room.direct? ? "Ping" : "room" %></span>
-      </button>
-    <% end %>
+<%# Novawerk Chat: the bell opens "Notify me about" (RoomStates · E) instead of cycling through levels.
+    Clicking it still asks the browser for push permission the first time. %>
+<% involvement = Current.user.memberships.find_by(room: room)&.involvement || "mentions" %>
+<% levels = room.direct? ?
+     [ [ "everything", "All messages", "Every new message from #{room_display_name(room)}" ], [ "nothing", "Nothing", "No alerts for this conversation" ] ] :
+     [ [ "everything", "All messages", "Every new message in ##{room.name}" ], [ "mentions", "Mentions only", "When someone writes @#{Current.user.novawerk_handle.presence || Current.user.name.split.first.downcase}" ], [ "nothing", "Nothing", "Keep it in the sidebar, no alerts" ] ] %>
 
-    <dialog data-notifications-target="notAllowedNotice" class="dialog pad center center-block border-radius border shadow" style="--inline-space: var(--block-space)">
-      <div class="flex flex-column txt-align-center">
-        <span class="btn btn--faux center txt-x-large">
-          <%= image_tag "notification-bell-alert.svg", size: 48, aria: { hidden: "true" } %>
-          <span class="for-screen-reader">Notifications alert</span>
-        </span>
+<span class="button_to_change_notifying"
+    data-controller="notifications" data-notifications-subscriptions-url-value="<%= user_push_subscriptions_path %>" data-notifications-attention-class="btn--pulsing">
+  <details class="nw-hdr-menu" data-controller="popup" data-action="keydown.esc->popup#close toggle->popup#toggle click@document->popup#closeOnClickOutside">
+    <summary class="btn" title="Notifications" data-notifications-target="bell" data-action="click->notifications#attemptToSubscribe">
+      <%= image_tag "notification-bell-everything.svg" %>
+      <%= image_tag "notification-bell-alert.svg", hidden: true %>
+      <span class="for-screen-reader">Notification settings for this <%= room.direct? ? "conversation" : "room" %></span>
+    </summary>
 
-        <section>
-          <h1 class="txt-large margin-none">Notifications aren’t allowed</h1>
-          <div class="txt-align-start margin-block-start">
-            <%= render partial: "pwa/browser_settings" %>
-            <%= render partial: "pwa/system_settings" %>
-            <%= render partial: "pwa/install_instructions" %>
-          </div>
-        </section>
-
-        <form method="dialog" class="flex align-center gap center">
-          <button class="btn dialog__close" autofocus="true">
-            <span class="for-screen-reader">Close</span>
-            <%= image_tag "remove.svg", size: 20, aria: { hidden: "true" } %>
-          </button>
-        </form>
+    <div class="nw-menu nw-hdr-menu__menu nw-hdr-menu__menu--wide" data-popup-target="menu">
+      <div data-notifications-target="blocked" hidden>
+        <button type="button" class="nw-menu__item nw-menu__item--tall nw-menu__item--warning" data-action="notifications#showBlockedNotice">
+          <%= image_tag "notification-bell-nothing.svg" %>
+          <span class="nw-stack"><span class="nw-menu__title">Notifications are off</span><span class="nw-small nw-muted">Blocked by this browser. Fix…</span></span>
+        </button>
+        <div class="nw-menu__sep"></div>
       </div>
-    </dialog>
-  </span>
+      <div class="nw-menu__label">Notify me about</div>
+      <% levels.each do |value, title, text| %>
+        <%= button_to room_involvement_path(room), method: :put, params: { involvement: value, return_to_room: 1 },
+              class: "nw-menu__item nw-menu__item--tall", form_class: "nw-menu__form", data: { turbo_frame: "_top" } do %>
+          <% if involvement == value %><%= image_tag "check.svg" %><% else %><span class="nw-menu__spacer"></span><% end %>
+          <span class="nw-stack"><span class="nw-menu__title"><%= title %></span><span class="nw-small nw-muted"><%= text %></span></span>
+        <% end %>
+      <% end %>
+      <% unless room.direct? %>
+        <div class="nw-menu__sep"></div>
+        <%= button_to room_involvement_path(room), method: :put, params: { involvement: involvement == "invisible" ? "mentions" : "invisible", return_to_room: 1 },
+              class: "nw-menu__item", form_class: "nw-menu__form", data: { turbo_frame: "_top" } do %>
+          <%= image_tag "eye-off.svg" %><span><%= involvement == "invisible" ? "Show in sidebar" : "Hide from sidebar" %></span>
+        <% end %>
+      <% end %>
+    </div>
+  </details>
+
+  <dialog data-notifications-target="notAllowedNotice" class="nw-dialog nw-notice-dialog">
+    <div class="nw-notice-dialog__head">
+      <span class="nw-notice-dialog__icon"><%= image_tag "notification-bell-nothing.svg", size: 20 %></span>
+      <div class="nw-stack">
+        <h2 class="nw-notice-dialog__title">Notifications are off</h2>
+        <p class="nw-muted">Your browser is blocking them for <%= request.host %>.</p>
+      </div>
+    </div>
+    <ol class="nw-notice-dialog__steps">
+      <li>Click the icon left of the address bar.</li>
+      <li>Set <b>Notifications</b> to <b>Allow</b>.</li>
+      <li>Also check your system settings let the browser notify.</li>
+    </ol>
+    <form method="dialog" class="nw-dialog__actions">
+      <button class="btn nw-btn-outline nw-btn-sm" value="close">Not now</button>
+      <button class="btn btn--reversed nw-btn-sm" value="retry" data-action="notifications#attemptToSubscribe">Try again</button>
+    </form>
+  </dialog>
 </span>

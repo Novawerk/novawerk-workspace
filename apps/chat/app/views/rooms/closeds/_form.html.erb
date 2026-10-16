@@ -1,40 +1,27 @@
 <%= render layout: "rooms/layouts/form", locals: { room: room } do %>
-  <%= user_filter_menu_tag do %>
-    <% if Current.user.can_administer?(room) %>
-      <li class="flex align-center gap margin-none">
-        <figure class="avatar flex-item-no-shrink" style="--avatar-border-radius: 0; --avatar-size: 4ch;">
-          <%= image_tag "everyone.svg", aria: { hidden: "true" }, class: "colorize--black", style: "background-color: transparent" %>
-          <span class="for-screen-reader">Everyone</span>
-        </figure>
-
-        <div class="min-width">
-          <div class="overflow-ellipsis fill-shade"><strong>Everyone</strong></div>
-        </div>
-
-        <hr class="separator" aria-hidden="true">
-
-        <%= link_to type_change_path, class: "btn--faux flex-inline", tabindex: "-1", data: { turbo_action: "replace" } do %>
-          <label for="room_type" class="switch">
-            <input type="checkbox" id="room_type" class="switch__input">
-            <span class="switch__btn round"></span>
-            <span class="for-screen-reader">Give everyone access to this room</span>
-          </label>
-        <% end %>
-      </li>
-
-      <hr class="separator full-width" style="--border-style: solid">
-    <% end %>
-
-    <%= user_filter_search_tag if selected_users.count +  unselected_users.count > 20 %>
-
-    <div data-filter-target="list" contents>
-      <%= render partial: "rooms/closeds/user", collection: selected_users, locals: { room: room, selected: true } %>
-
-      <% if selected_users.any? && unselected_users.any? %>
-        <hr class="separator full-width" style="--border-style: solid">
-      <% end %>
-
-      <%= render partial: "rooms/closeds/user", collection: unselected_users, locals: { room: room, selected: false } %>
-    </div>
+  <% if Current.user.can_administer?(room) %>
+    <%= render "rooms/access_choice", current_kind: :closed, type_change_path: type_change_path %>
   <% end %>
+
+  <div class="nw-field" data-controller="filter nw-picker" data-filter-active-class="filter--active" data-filter-selected-class="selected">
+    <div class="nw-picker__head">
+      <span class="nw-label">Members</span>
+      <span class="nw-small nw-muted"><span data-nw-picker-target="count"><%= selected_users.size + (room.new_record? ? 1 : 0) %></span> of <%= selected_users.size + unselected_users.size %> picked</span>
+    </div>
+    <div class="nw-picker">
+      <div class="nw-picker__tools">
+        <span class="input nw-input-group">
+          <%= image_tag "search.svg", class: "nw-muted" %>
+          <input type="search" placeholder="Search people" aria-label="Search people" autocomplete="off" data-action="input->filter#filter">
+        </span>
+        <% if Current.user.can_administer?(room) %>
+          <button type="button" class="btn nw-btn-outline nw-btn-sm" data-action="nw-picker#selectAll"><%= image_tag "check.svg" %><span>Select all</span></button>
+        <% end %>
+      </div>
+      <menu class="nw-picker__list" data-filter-target="list" data-action="change->nw-picker#count">
+        <%= render partial: "rooms/closeds/user", collection: selected_users, locals: { room: room, selected: true } %>
+        <%= render partial: "rooms/closeds/user", collection: unselected_users, locals: { room: room, selected: false } %>
+      </menu>
+    </div>
+  </div>
 <% end %>
