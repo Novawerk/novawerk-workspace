@@ -156,7 +156,7 @@ function PitcherNote({ submission }: { submission: ProjectSubmission }) {
   return (
     <p className="text-xs text-muted-foreground">
       {submission.email} is {p.member.displayName} ({p.member.id}), already a Member: we link them as the project's
-      Initiator.{p.member.canAdmin ? " They are an admin and stay one." : ""}
+      Initiator.{p.member.role === "maintainer" ? " They are a maintainer and stay one." : ""}
     </p>
   )
 }
@@ -216,7 +216,7 @@ export function AcceptApplicationDialog({ application }: { application: MemberAp
           <DialogHeader>
             <DialogTitle>Accept {firstName(application.name)} as a Member?</DialogTitle>
             <DialogDescription>
-              We add them to Members (without admin access) and mark the application accepted. If a member already
+              We add them to Members (as a member, not a maintainer) and mark the application accepted. If a member already
               uses {application.email}, we link that member instead.
             </DialogDescription>
           </DialogHeader>

@@ -462,12 +462,16 @@ const isoDate = z.iso.date({ error: "Use a date like 2026-10-03" });
 
 // ─── Members ─────────────────────────────────────────────────────────────────
 
-/** POST /admin/members. Everyone is a Member; `canAdmin` lets them sign in to this panel. */
+/** A member's role (NB-ADR-0014): `maintainer` runs Novawerk; there are no other ranks. */
+export const MEMBER_ROLES = ["member", "maintainer"] as const;
+export type MemberRole = (typeof MEMBER_ROLES)[number];
+
+/** POST /admin/members. Everyone is a member; `role` maintainer runs this panel. Defaults to member. */
 export const memberCreateInput = z.object({
   id: handle("ada-lovelace"),
   displayName: z.string().trim().min(1, "Enter a name").max(100, "Keep it under 100 characters"),
   email,
-  canAdmin: z.boolean().optional(),
+  role: z.enum(MEMBER_ROLES).optional(),
   /** Defaults to today. */
   joinedOn: isoDate.optional(),
 });
@@ -477,7 +481,7 @@ export type MemberCreateInput = z.infer<typeof memberCreateInput>;
 export const memberUpdateInput = z
   .object({
     displayName: z.string().trim().min(1, "Enter a name").max(100, "Keep it under 100 characters").optional(),
-    canAdmin: z.boolean().optional(),
+    role: z.enum(MEMBER_ROLES).optional(),
     active: z.boolean().optional(),
   })
   .refine(hasChanges, { message: "Nothing to update" });
@@ -2416,7 +2420,7 @@ export interface CreatedToken extends ContributorTokenInfo {
 }
 
 // ─── Contributor task board: admin (/admin/tasks, /admin/proposals, …) ───────
-// Members with can_admin run the board: write and publish tasks, choose a plan, triage
+// Maintainers run the board: write and publish tasks, choose a plan, triage
 // suggestions, moderate, and adjust Werk. Every action writes a task event.
 
 /** The hint under each size in the task editor. */

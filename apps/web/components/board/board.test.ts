@@ -2,7 +2,7 @@ import type { PublicContributor, PublicTask } from "@nw/contracts";
 import { describe, expect, it } from "vitest";
 
 import type { Block } from "../builders/types";
-import { safeReturnPath } from "../../lib/contrib-api";
+import { safeReturnPath, safeReturnTo } from "../../lib/contrib-api";
 
 import { boardState, formatDate, maskEmail, personLabel, prLabel, safeHref, safeMarkdownHref } from "./labels";
 import { firstContributions, scenePeople } from "./wall";
@@ -80,6 +80,14 @@ describe("links people control", () => {
     expect(safeReturnPath("/tasks?mine=1")).toBe("/tasks?mine=1");
     for (const bad of ["//example.com", "/\\example.com", "/\t/example.com", "/\n/x", "https://example.com", "javascript:alert(1)", "", null]) {
       expect(safeReturnPath(bad)).toBe("/tasks");
+    }
+  });
+  it("also sends people back to our own apps, and nowhere else (NB-ADR-0014)", () => {
+    expect(safeReturnTo("/tasks/NW-5")).toBe("/tasks/NW-5");
+    expect(safeReturnTo("https://admin.novawerk.io/projects")).toBe("https://admin.novawerk.io/projects");
+    expect(safeReturnTo("https://chat.novawerk.io/")).toBe("https://chat.novawerk.io/");
+    for (const bad of ["https://evil.example/x", "https://admin.novawerk.io.evil.example/", "http://admin.novawerk.io/", "//admin.novawerk.io", "javascript:alert(1)"]) {
+      expect(safeReturnTo(bad)).toBe("/tasks");
     }
   });
   it("keeps Markdown links to http(s), mailto and same-site paths", () => {

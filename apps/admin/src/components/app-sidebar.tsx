@@ -36,16 +36,17 @@ import {
 
 import { dataSource } from "@/lib/data-source"
 import { initials } from "@/lib/format"
-import { navFor, subItemActive } from "@/lib/nav"
+import { isMaintainer, navFor, subItemActive } from "@/lib/nav"
 import { applicationsQueryOptions, outboxQueryOptions, submissionsQueryOptions } from "@/lib/queries"
 import type { Me } from "@/lib/types"
 
 export function AppSidebar({ me }: { me: Me }) {
   const pathname = useLocation({ select: (location) => location.pathname })
-  // Counts are for admins; other members can't read the inbox or the outbox.
-  const { data: newPitches } = useQuery({ ...submissionsQueryOptions("new"), enabled: me.canAdmin })
-  const { data: newApplications } = useQuery({ ...applicationsQueryOptions("new"), enabled: me.canAdmin })
-  const { data: pendingEmails } = useQuery({ ...outboxQueryOptions({ status: "pending" }), enabled: me.canAdmin })
+  // Counts are for maintainers; other members can't read the inbox or the outbox.
+  const maintainer = isMaintainer(me)
+  const { data: newPitches } = useQuery({ ...submissionsQueryOptions("new"), enabled: maintainer })
+  const { data: newApplications } = useQuery({ ...applicationsQueryOptions("new"), enabled: maintainer })
+  const { data: pendingEmails } = useQuery({ ...outboxQueryOptions({ status: "pending" }), enabled: maintainer })
   // On a phone the sidebar is a sheet over the page: close it once a link is picked.
   const { isMobile, setOpenMobile } = useSidebar()
   const closeOnMobile = () => {
@@ -69,7 +70,7 @@ export function AppSidebar({ me }: { me: Me }) {
               </div>
               <div className="grid flex-1 text-left leading-tight">
                 <span className="truncate text-sm font-semibold">Novawerk</span>
-                <span className="truncate text-xs text-muted-foreground">{me.canAdmin ? "Admin" : "Member"}</span>
+                <span className="truncate text-xs text-muted-foreground">{maintainer ? "Maintainer" : "Member"}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -178,7 +179,7 @@ function UserMenu({ me }: { me: Me }) {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => void navigate({ to: "/profile" })}>
-              <UserRoundIcon /> Your public profile
+              <UserRoundIcon /> Your profile
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => void signOut()}>
               <LogOutIcon /> Sign out

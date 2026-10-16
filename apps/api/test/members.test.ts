@@ -30,13 +30,13 @@ describe("POST /admin/members", () => {
       id: "margaret",
       displayName: "Margaret Hamilton",
       email: "Margaret@Example.org",
-      canAdmin: true,
+      role: "maintainer",
     });
     expect(res.status).toBe(201);
     expect(await res.json()).toMatchObject({
       id: "margaret",
       email: "margaret@example.org",
-      canAdmin: true,
+      role: "maintainer",
       active: true,
       joinedOn: new Date().toISOString().slice(0, 10),
       initiatorOf: [],
@@ -108,10 +108,10 @@ describe("PATCH /admin/members/:id", () => {
     const { app } = makeApp(db);
     const res = await adminFetch(app, "PATCH", "/admin/members/grace", {
       displayName: "Grace Hopper",
-      canAdmin: true,
+      role: "maintainer",
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ id: "grace", displayName: "Grace Hopper", canAdmin: true, active: true });
+    expect(await res.json()).toMatchObject({ id: "grace", displayName: "Grace Hopper", role: "maintainer", active: true });
 
     await adminJson(app, "PATCH", "/admin/members/grace", { active: false });
     const [row] = await db.select().from(members).where(eq(members.id, "grace"));
@@ -120,9 +120,9 @@ describe("PATCH /admin/members/:id", () => {
 
   it("does not let you lock yourself out", async () => {
     const { app } = makeApp(db);
-    const admin = await adminFetch(app, "PATCH", "/admin/members/ada", { canAdmin: false });
+    const admin = await adminFetch(app, "PATCH", "/admin/members/ada", { role: "member" });
     expect(admin.status).toBe(400);
-    expect(await admin.json()).toMatchObject({ issues: { canAdmin: ["You can't remove your own admin access"] } });
+    expect(await admin.json()).toMatchObject({ issues: { role: ["You can't stop being a maintainer yourself"] } });
     expect((await adminFetch(app, "PATCH", "/admin/members/ada", { active: false })).status).toBe(400);
     // Renaming yourself is fine.
     expect((await adminFetch(app, "PATCH", "/admin/members/ada", { displayName: "Ada L." })).status).toBe(200);
@@ -137,9 +137,9 @@ describe("PATCH /admin/members/:id", () => {
   it("revoking admin access closes the admin areas at once; the member can still sign in", async () => {
     const { app } = makeApp(db);
     await joinATeam(db, "grace");
-    await adminJson(app, "PATCH", "/admin/members/grace", { canAdmin: true });
+    await adminJson(app, "PATCH", "/admin/members/grace", { role: "maintainer" });
     expect((await adminFetch(app, "GET", "/admin/outbox", undefined, "grace")).status).toBe(200);
-    await adminJson(app, "PATCH", "/admin/members/grace", { canAdmin: false });
+    await adminJson(app, "PATCH", "/admin/members/grace", { role: "member" });
     expect((await adminFetch(app, "GET", "/admin/outbox", undefined, "grace")).status).toBe(403);
     expect((await adminFetch(app, "GET", "/admin/me", undefined, "grace")).status).toBe(200);
   });

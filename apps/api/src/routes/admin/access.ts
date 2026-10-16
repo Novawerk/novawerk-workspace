@@ -1,8 +1,8 @@
-// Who may touch which project. Admins (`can_admin`) see every project; any other member sees the
+// Who may touch which project. Maintainers see every project; any other member sees the
 // projects they are on the team of, and nothing else exists for them (a 404, not a 403, so
 // project ids don't leak). On their projects a team member edits the content, deliverables,
 // posts and files; only the Initiator changes the team; the stage, featured, order and slug stay
-// with admins.
+// with maintainers.
 
 import { and, eq, sql } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";

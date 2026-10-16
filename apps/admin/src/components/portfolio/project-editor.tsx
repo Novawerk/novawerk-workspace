@@ -98,7 +98,7 @@ const toInput = (f: Form): ProjectInput => ({
   launchDate: f.launchDate || null,
 })
 
-/** What a member without admin access sends: everything but the stage, featured, order and slug. */
+/** What a member who isn't a maintainer sends: everything but the stage, featured, order and slug. */
 function withoutAdminFields(input: ProjectInput): Partial<ProjectInput> {
   const { status: _s, featured: _f, sortOrder: _o, slug: _slug, ...rest } = input
   return rest
@@ -147,7 +147,7 @@ export function ProjectEditor({ project, initialTab = "overview" }: { project?: 
 
   // Admins run everything. Other members edit their own project's content; only its Initiator
   // changes the team; the stage, featured, order and slug stay with admins (the API checks too).
-  const isAdmin = me?.canAdmin ?? false
+  const isAdmin = me?.role === "maintainer"
   const isInitiator = Boolean(saved?.team.some((t) => t.memberId === me?.id && t.role.toLowerCase() === INITIATOR_ROLE.toLowerCase()))
   const canEditTeam = isAdmin || isInitiator
 

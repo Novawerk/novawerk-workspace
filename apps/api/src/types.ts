@@ -1,5 +1,5 @@
 import type { AgentHooks, ModelProvider } from "@nw/agent-harness";
-import { isMaintainer, type Database, type Member } from "@nw/db";
+import type { Database, Member } from "@nw/db";
 import type { Files } from "@nw/object-store";
 import type { CardFontLoader } from "@nw/promo/cards";
 import type { TeamNotification } from "@nw/email";
@@ -186,9 +186,8 @@ export interface AdminMember {
   id: string;
   displayName: string;
   email: string;
+  /** `maintainer` sees the whole panel; a `member` only their projects (NB-ADR-0014). */
   role: Member["role"];
-  /** The maintainer role, under its old name until the admin panel reads `role` (NB-ADR-0014). */
-  canAdmin: boolean;
 }
 
 export const toAdminMember = (m: Member): AdminMember => ({
@@ -196,18 +195,14 @@ export const toAdminMember = (m: Member): AdminMember => ({
   displayName: m.displayName,
   email: m.email ?? "",
   role: m.role,
-  canAdmin: isMaintainer(m),
 });
 
-/**
- * A member as /admin/members lists them. `canAdmin` is the maintainer role until the admin panel
- * moves to roles (NB-ADR-0014).
- */
+/** A member as /admin/members lists them. */
 export const toMemberRow = (m: Member) => ({
   id: m.id,
   displayName: m.displayName,
   email: m.email ?? "",
-  canAdmin: isMaintainer(m),
+  role: m.role,
   joinedOn: m.joinedOn,
   active: m.active,
   publicProfile: m.public,

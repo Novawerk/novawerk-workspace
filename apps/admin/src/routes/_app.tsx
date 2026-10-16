@@ -12,14 +12,14 @@ import { AgentRail, AgentRailProvider, AgentRailToggle } from "@/components/agen
 import { AppSidebar } from "@/components/app-sidebar"
 import { CommandPalette } from "@/components/command-palette"
 import { SampleDataBadge } from "@/components/sample-data-badge"
-import { isUnauthorized } from "@/lib/api"
+import { isForbidden, isUnauthorized } from "@/lib/api"
 import { API_URL } from "@/lib/env"
-import { memberMayOpen } from "@/lib/nav"
+import { isMaintainer, memberMayOpen } from "@/lib/nav"
 import { meQueryOptions } from "@/lib/queries"
 
 /**
  * Pathless layout for every signed-in page. `beforeLoad` asks GET /admin/me; a 401 sends
- * the visitor to /login. Members without admin access only get their own projects and posts;
+ * the visitor to /login, a 403 (an account the panel doesn't open for) too, saying why. Members who aren't maintainers only get their own projects and posts;
  * anything else sends them to /projects. In sample-data mode the data source answers with a
  * sample member.
  */
@@ -30,9 +30,10 @@ export const Route = createFileRoute("/_app")({
       me = await context.queryClient.ensureQueryData(meQueryOptions)
     } catch (error) {
       if (isUnauthorized(error)) throw redirect({ to: "/login" })
+      if (isForbidden(error)) throw redirect({ to: "/login", search: { denied: true } })
       throw error
     }
-    if (!me.canAdmin && !memberMayOpen(location.pathname)) throw redirect({ to: "/projects" })
+    if (!isMaintainer(me) && !memberMayOpen(location.pathname)) throw redirect({ to: "/projects" })
     return { me }
   },
   component: AppLayout,
