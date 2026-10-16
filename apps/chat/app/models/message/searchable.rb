@@ -1,0 +1,68 @@
+module Message::Searchable
+  extend ActiveSupport::Concern
+
+  included do
+    before_update        -> { @attachment_replaced = attachment_changes.key?("attachment") }
+    after_update_commit  :update_in_index, if: :indexed_text_changed?
+    after_destroy_commit :remove_from_index
+
+    scope :search, ->(query) { joins("join message_search_index idx on messages.id = idx.rowid").where("idx.body match ?", match_terms(query)).ordered }
+  end
+
+  class_methods do
+    # Quotes each word, so that FTS5 searches for AND, OR, NOT and NEAR rather than
+    # parsing them as operators, which fails on a query like "AND" or "salt AND".
+    def match_terms(query)
+      query.split.map { |word| %("#{word.gsub('"', '""')}") }.join(" ")
+    end
+  end
+
+  class_methods do
+    def search_reachable(user, query, size: 100)
+      relation = user.reachable_messages.search(query).with_presentation
+      probe = connection.select_rows(sanitize_sql([ <<~SQL, user.id, match_terms(query) ]))
+        SELECT m.id, mm.user_id IS NOT NULL FROM message_search_index idx
+        JOIN messages m ON m.id = idx.rowid
+        LEFT JOIN memberships mm ON mm.room_id = m.room_id AND mm.user_id = ?
+        WHERE idx.body MATCH ? ORDER BY idx.rowid DESC LIMIT 1000
+      SQL
+      ids = probe.filter_map { |id, reachable| id if reachable == 1 }.first(size)
+
+      # A scoped fallback preserves older reachable hits behind a large private history.
+      if ids.size < size && probe.size == 1000
+        relation.last_page_of_matches(size)
+      else
+        Message::Pagination::Page.load(relation.where(id: ids).reorder(:id), :last, size)
+      end
+    end
+
+    # Orders by the index's rowid, which is the message id, so SQLite walks the full-text index
+    # newest first and stops at the page. Ordering by created_at sorted every match before paging.
+    def last_page_of_matches(size)
+      Message::Pagination::Page.load(reorder("idx.rowid"), :last, size)
+    end
+  end
+
+  private
+    def create_in_index
+      execute_sql_with_binds "insert into message_search_index(rowid, body) values (?, ?)", id, plain_text_body
+    end
+
+    # Boosts touch their message too: rewrite the index only when the body was saved or the attachment replaced.
+    # Active Storage clears attachment_changes in its own after_commit, before this one runs.
+    def indexed_text_changed?
+      association(:rich_text_body).target&.saved_change_to_body? || @attachment_replaced
+    end
+
+    def update_in_index
+      execute_sql_with_binds "update message_search_index set body = ? where rowid = ?", plain_text_body, id
+    end
+
+    def remove_from_index
+      execute_sql_with_binds "delete from message_search_index where rowid = ?", id
+    end
+
+    def execute_sql_with_binds(*statement)
+      self.class.connection.execute self.class.sanitize_sql(statement)
+    end
+end

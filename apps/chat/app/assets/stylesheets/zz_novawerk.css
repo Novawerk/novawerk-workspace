@@ -1,0 +1,838 @@
+/*
+ * Novawerk Chat — the admin panel's look (shadcn base-vega, @nw/ui tokens) on top of Campfire.
+ *
+ * Named zz_ so it loads after every upstream stylesheet (stylesheet_link_tag :all sorts by path)
+ * and wins the cascade without !important. Keep Novawerk changes here and upstream files
+ * untouched where possible, so upstream updates apply cleanly (UPSTREAM.md).
+ *
+ * Tokens copy packages/ui/src/styles/globals.css (light). Inter is self-hosted (no Google Fonts).
+ */
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("inter-latin-ext-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("inter-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  color-scheme: light;
+
+  /* @nw/ui tokens */
+  --radius: 0.625rem;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --primary: oklch(0.515 0.113 155.3);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.515 0.113 155.3 / 60%);
+  --brand-deep: oklch(0.306 0.067 155.2);
+
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.95 0.012 155);
+  --sidebar-accent-foreground: oklch(0.306 0.067 155.2);
+  --sidebar-hover: oklch(0.97 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-width-nw: 16rem;
+  --header-height: 3rem;
+
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+
+  /* Upstream abstractions, pinned to light mode and mapped onto the tokens. */
+  --lch-white: 100% 0 0;
+  --lch-black: 14.5% 0 0;
+  --color-bg: var(--background);
+  --color-message-bg: var(--background);
+  --color-text: var(--foreground);
+  --color-text-reversed: var(--background);
+  --color-link: var(--primary);
+  --color-border: var(--border);
+  --color-border-dark: var(--border);
+  --color-border-darker: var(--border);
+  --color-selected: var(--sidebar-accent);
+  --color-selected-dark: var(--primary);
+  --color-negative: var(--destructive);
+  --color-positive: var(--primary);
+  --color-alert: var(--primary);
+
+  --font-family: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --hover-color: var(--border);
+  --hover-size: 0;
+  --outline-size: 0;
+}
+
+html, body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-family);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+body { font-size: 0.875rem; }
+
+code, pre, kbd, .input--code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+::selection { background: oklch(0.515 0.113 155.3 / 20%); }
+a { color: var(--primary); text-underline-offset: 3px; }
+
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* ---------------------------------------------------------------------------
+ * shadcn primitives: buttons, inputs, cards.
+ * ------------------------------------------------------------------------- */
+.btn {
+  --btn-background: var(--background);
+  --btn-border-color: var(--border);
+  --btn-border-radius: var(--radius-md);
+  --btn-color: var(--foreground);
+
+  box-shadow: var(--shadow-xs);
+  font-weight: 500;
+  transition: background-color 120ms, border-color 120ms, color 120ms;
+
+  &:where(:not(:active):hover) {
+    --btn-background: var(--accent);
+    box-shadow: var(--shadow-xs);
+    filter: none;
+  }
+}
+
+.btn.avatar { --btn-border-radius: 999px; box-shadow: none; }
+
+/* Primary (submit) buttons are green, like the admin's "New project". */
+.btn--reversed,
+.btn--success,
+.btn[type="submit"]:not(.btn--borderless):not(.btn--negative) {
+  --btn-background: var(--primary);
+  --btn-border-color: var(--primary);
+  --btn-color: var(--primary-foreground);
+
+  &:where(:not(:active):hover) {
+    --btn-background: oklch(0.515 0.113 155.3 / 90%);
+  }
+
+  img { filter: invert(1); }
+}
+
+.btn--negative {
+  --btn-background: var(--destructive);
+  --btn-border-color: var(--destructive);
+  --btn-color: var(--primary-foreground);
+}
+
+.btn--borderless,
+.btn--plain {
+  --btn-background: transparent;
+  --btn-border-color: transparent;
+  box-shadow: none;
+}
+
+.input {
+  --input-border-radius: var(--radius-md);
+  --input-border-color: var(--input);
+
+  background: var(--background);
+  border-color: var(--input);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 120ms, box-shadow 120ms;
+
+  &:focus,
+  &:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--ring);
+    outline: none;
+  }
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------------------------------------------------------------------------
+ * Layout: the admin's shell — light sidebar on the left, header bar, content.
+ * ------------------------------------------------------------------------- */
+body {
+  grid-template-areas:
+    "sidebar nav"
+    "sidebar main";
+  grid-template-columns: var(--sidebar-width) 1fr;
+
+  &.sidebar {
+    @media (min-width: 100ch) {
+      --sidebar-width: var(--sidebar-width-nw);
+    }
+  }
+}
+
+#main-content {
+  background: var(--background);
+
+  .sidebar & {
+    @media (min-width: 100ch) {
+      border-inline: 0;
+      margin-inline: 0;
+    }
+  }
+}
+
+/* Header bar */
+#nav {
+  inset-inline: var(--sidebar-width) 0;
+  min-block-size: var(--header-height);
+  padding-block: 0;
+
+  &:has(.room--current) {
+    background: oklch(1 0 0 / 0.9);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border-block-end: 1px solid var(--border);
+    column-gap: 0.25rem;
+    padding-inline: 1.5rem 1rem;
+    pointer-events: auto;
+
+    @media (min-width: 100ch) {
+      margin-inline-start: 0;
+
+      .room--current,
+      .account-logo + .room--current {
+        margin-inline-start: 0;
+      }
+    }
+
+    .account-logo { display: none; }
+
+    .room--current {
+      --btn-background: transparent;
+      --btn-border-color: transparent;
+      --btn-color: var(--foreground);
+      box-shadow: none;
+      margin-inline-end: auto;
+      padding-inline: 0;
+
+      .room__contents {
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+    }
+
+    .btn:not(.room--current) {
+      --btn-background: transparent;
+      --btn-border-color: transparent;
+      --btn-size: 2rem;
+      box-shadow: none;
+
+      &:hover { --btn-background: var(--accent); }
+
+      img { block-size: 16px; inline-size: 16px; opacity: 0.7; }
+    }
+  }
+
+  .sidebar & {
+    @media (max-width: 100ch) {
+      inset-inline: 0;
+      padding-inline-start: 3.5rem;
+
+      &::before { display: none; }
+    }
+  }
+}
+
+/* Lucide "hash" before channel names; pings (directs) have none. */
+#nav .room--current .room__contents:not(:has(.for-screen-reader))::before,
+#shared_rooms .room > span::before {
+  background-color: currentColor;
+  content: "";
+  display: inline-block;
+  flex: none;
+  block-size: 1rem;
+  inline-size: 1rem;
+  margin-inline-end: 0.5rem;
+  -webkit-mask: var(--icon-hash) center / contain no-repeat;
+  mask: var(--icon-hash) center / contain no-repeat;
+  opacity: 0.6;
+  vertical-align: -0.15em;
+}
+
+:root {
+  --icon-hash: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='4' x2='20' y1='9' y2='9'/%3E%3Cline x1='4' x2='20' y1='15' y2='15'/%3E%3Cline x1='10' x2='8' y1='3' y2='21'/%3E%3Cline x1='16' x2='14' y1='3' y2='21'/%3E%3C/svg%3E");
+}
+
+/* ---------------------------------------------------------------------------
+ * Sidebar
+ * ------------------------------------------------------------------------- */
+#sidebar {
+  .sidebar & {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--sidebar);
+    border-inline-end: 1px solid var(--sidebar-border);
+    color: var(--sidebar-foreground);
+
+    @media (max-width: 100ch) {
+      box-shadow: var(--shadow-md);
+      inline-size: min(85vw, var(--sidebar-width-nw));
+      inset: 0 auto 0 0;
+      transform: translate(-100%);
+    }
+  }
+
+  &.open {
+    @media (max-width: 100ch) {
+      transform: translate(0);
+    }
+  }
+}
+
+.sidebar__container {
+  display: flex;
+  flex-direction: column;
+  padding-block-start: 0;
+}
+
+.sidebar__workspace {
+  align-items: center;
+  background: var(--sidebar);
+  border-radius: var(--radius-md);
+  color: var(--sidebar-foreground);
+  display: flex;
+  flex: none;
+  gap: 0.5rem;
+  inset-block-start: 0;
+  margin: 0.5rem 0.5rem 0.25rem;
+  order: 0;
+  padding: 0.5rem;
+  position: sticky;
+  text-decoration: none;
+  z-index: 4;
+
+  &:hover {
+    background: var(--sidebar-hover);
+    color: var(--sidebar-foreground);
+  }
+}
+
+.sidebar__workspace-logo {
+  align-items: center;
+  aspect-ratio: 1;
+  background: oklch(0.306 0.067 155.2 / 5%);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex: none;
+  inline-size: 2rem;
+  justify-content: center;
+}
+
+.sidebar__workspace-text,
+.sidebar__me-text {
+  display: grid;
+  line-height: 1.25;
+  min-inline-size: 0;
+}
+
+.sidebar__workspace-name,
+.sidebar__me-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__me-name { font-weight: 500; }
+
+.sidebar__workspace-sub,
+.sidebar__me-email {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__section-title {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin: 0;
+  padding: 0.75rem 0.5rem 0.25rem;
+}
+
+/* Channels first, then direct messages. */
+.rooms {
+  gap: 1px;
+  margin-inline: 0;
+  order: 1;
+  padding-inline: 0.5rem;
+}
+
+#direct_rooms_control {
+  display: block;
+  order: 2;
+}
+
+/* Menu items: like SidebarMenuButton. */
+.room,
+.direct,
+.rooms__new-btn {
+  --btn-background: transparent;
+  --btn-border-color: transparent;
+  --btn-border-radius: var(--radius-md);
+  --btn-color: var(--sidebar-foreground);
+  --btn-padding: 0 0.5rem;
+
+  align-items: center;
+  background: transparent;
+  block-size: 2rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  color: var(--sidebar-foreground);
+  display: flex;
+  font-size: 0.875rem;
+  font-weight: 400;
+  gap: 0.5rem;
+  inline-size: 100%;
+  justify-content: start;
+  padding: 0 0.5rem;
+  text-decoration: none;
+
+  &:where(:not(:active):hover),
+  &:hover {
+    --btn-background: var(--sidebar-hover);
+    background: var(--sidebar-hover);
+    color: var(--sidebar-foreground);
+  }
+
+  &[aria-current="page"] {
+    --btn-background: var(--sidebar-accent);
+    background: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+    font-weight: 500;
+  }
+}
+
+.room.unread,
+.direct.unread .direct__author {
+  font-weight: 600;
+}
+
+.room.unread::after {
+  background: var(--primary);
+  block-size: 0.5rem;
+  border-radius: 999px;
+  content: "";
+  inline-size: 0.5rem;
+  margin-inline-start: auto;
+}
+
+.rooms__new-btn {
+  color: var(--muted-foreground);
+
+  &::after {
+    content: "Add channel";
+  }
+
+  img { block-size: 16px; inline-size: 16px; opacity: 0.6; }
+}
+
+/* Direct messages as a list. */
+.directs {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  overflow: visible;
+  padding: 0 0.5rem 1rem;
+  position: static;
+
+  .open & {
+    @media (max-width: 100ch) {
+      -webkit-mask-image: none;
+      mask-image: none;
+      padding-inline-start: 0.5rem;
+    }
+  }
+}
+
+#direct_rooms,
+.directs > div[contents] {
+  display: contents;
+}
+
+.direct {
+  --avatar-size: 1.25rem;
+  flex-direction: row;
+
+  .avatar,
+  .avatar__group {
+    block-size: var(--avatar-size);
+    flex: none;
+    inline-size: var(--avatar-size);
+  }
+
+  .avatar img { border-radius: 999px; }
+
+  .avatar--icon {
+    background: transparent;
+    border: 0;
+
+    img { opacity: 0.6; }
+  }
+}
+
+.direct__new { color: var(--muted-foreground); }
+
+.direct__author {
+  background: none;
+  color: inherit;
+  font-size: 0.875rem;
+  padding: 0;
+
+  .unread &::after { background-color: var(--primary); }
+}
+
+/* The signed-in user, pinned to the bottom like the admin's user menu. */
+.sidebar__tools {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  align-items: center;
+  background: var(--sidebar);
+  gap: 0.25rem;
+  justify-content: space-between;
+  padding: 0.5rem;
+
+  @media (min-width: 100ch) {
+    inline-size: var(--sidebar-width-nw);
+    inset-inline: 0 auto;
+  }
+
+  @media (max-width: 100ch) {
+    inline-size: min(85vw, var(--sidebar-width-nw));
+    inset-inline: 0 auto;
+  }
+
+  .btn {
+    --btn-background: transparent;
+    --btn-border-color: transparent;
+    --btn-size: 2rem;
+    box-shadow: none;
+
+    &:hover { --btn-background: var(--sidebar-hover); }
+
+    img { block-size: 16px; inline-size: 16px; opacity: 0.7; }
+  }
+}
+
+.sidebar__me {
+  align-items: center;
+  border-radius: var(--radius-md);
+  color: var(--sidebar-foreground);
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+  min-inline-size: 0;
+  padding: 0.375rem 0.5rem;
+  text-decoration: none;
+
+  &:hover {
+    background: var(--sidebar-hover);
+    color: var(--sidebar-foreground);
+  }
+
+  .avatar {
+    --avatar-size: 2rem;
+    block-size: 2rem;
+    inline-size: 2rem;
+
+    img { border-radius: var(--radius-lg); }
+  }
+}
+
+/* Menu button on phones. */
+.sidebar__toggle {
+  --btn-size: 2.25rem;
+  inset-inline-start: calc(100% + 0.75rem);
+
+  .open & {
+    @media (max-width: 100ch) {
+      inset-inline-start: calc(100% + 0.75rem);
+    }
+  }
+
+  #sidebar:where(:not(.open):has(.unread)) &::after {
+    background-color: var(--primary);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Messages: rows with avatar, name, time; a soft hover; no bubbles.
+ * ------------------------------------------------------------------------- */
+.messages {
+  --message-space: 0;
+  padding-block: calc(var(--header-height) + 1rem) 0.5rem;
+}
+
+.message,
+.message--me {
+  --content-padding-block: 0;
+  --content-padding-inline: 0;
+
+  column-gap: 0.75rem;
+  grid-auto-columns: 2.25rem 1fr;
+  grid-template-areas:
+    "sep sep"
+    "avatar body";
+  padding: 0.5rem 1.5rem;
+  transition: background-color 120ms;
+
+  &:hover { background: oklch(0.97 0 0 / 0.6); }
+
+  :is(.message__body, .message__meta, .message__heading) {
+    justify-self: start;
+  }
+
+  :is(.message__meta, .message__heading) {
+    flex-direction: row;
+    justify-content: start;
+  }
+
+  .message__meta { padding-inline: 0; }
+  .message__avatar { margin-inline: 0; }
+}
+
+.message + .message--threaded {
+  margin-block-start: 0;
+  padding-block-start: 0.125rem;
+}
+
+.message__avatar {
+  --avatar-size: 2.25rem;
+  align-self: start;
+  box-shadow: none;
+  margin-block-start: 0.125rem;
+
+  img { border-radius: 999px; }
+}
+
+.message__body {
+  flex-direction: row;
+  max-inline-size: 100%;
+
+  .message--me & { flex-direction: row; }
+}
+
+.message__body-content,
+.message--me .message__body-content {
+  --message-background: transparent;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-size: 0.875rem;
+  inline-size: 100%;
+  line-height: 1.5;
+  padding: 0;
+}
+
+.message--mentioned {
+  background: oklch(0.95 0.012 155 / 0.6);
+  box-shadow: inset 2px 0 0 var(--primary);
+
+  .message__body-content { --message-background: transparent; }
+}
+
+.message__author {
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.message__permalink {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  opacity: 1;
+}
+
+/* Follow-ups from the same person: no name line; the time shows in the gutter on hover. */
+.message--threaded {
+  .message__heading {
+    inline-size: 2.25rem;
+    inset-block-start: 0.375rem;
+    inset-inline-start: 1.5rem;
+    justify-content: center;
+    position: absolute;
+    visibility: hidden;
+  }
+
+  .message__permalink { font-size: 0.625rem; }
+
+  &:hover .message__heading { visibility: visible; }
+}
+
+/* Hover toolbar, top right of the row, like a small popover. */
+.message__meta .message__actions {
+  @media (min-width: 100ch) {
+    inset: -0.875rem 0 auto auto;
+    position: absolute;
+    transform: none;
+  }
+}
+
+.message__options-btn,
+.message__action-btn {
+  --btn-background: var(--background);
+  --btn-border-color: var(--border);
+  --btn-border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.message__actions-menu {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.message__attachment,
+.message__pending-upload {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  max-inline-size: min(28rem, 100%);
+}
+
+/* Day divider: a line with the date in an outline badge. */
+.message__day-separator {
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-block: 1rem 0.25rem;
+
+  * {
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: var(--shadow-xs);
+    padding: 0.125rem 0.625rem;
+  }
+}
+
+/* Welcome card */
+#system_welcome,
+#system_welcome:hover {
+  background: transparent;
+}
+
+#system_welcome .message__body-content {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Composer: a textarea-style box with the actions inside, like shadcn's InputGroup.
+ * ------------------------------------------------------------------------- */
+.composer {
+  background: var(--background);
+  padding: 0 1.5rem 1rem;
+}
+
+.composer__input {
+  --input-border-radius: var(--radius-lg);
+
+  background: var(--background);
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  min-block-size: 2.75rem;
+  padding: 0.375rem 0.375rem 0.375rem 0.75rem;
+
+  &:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--ring);
+  }
+
+  .input {
+    border: 0;
+    box-shadow: none;
+
+    &:focus, &:focus-within { box-shadow: none; }
+  }
+}
+
+.composer__context-btn,
+.composer__attachment-btn,
+.composer__rich-text-btn {
+  --btn-background: transparent;
+  --btn-border-color: transparent;
+  --btn-size: 2rem;
+  box-shadow: none;
+
+  &:hover { --btn-background: var(--accent); }
+
+  img { opacity: 0.7; }
+}
+
+#footer { background: var(--background); }
+
+/* Lexxy's formatting toolbar */
+lexxy-toolbar {
+  border-color: var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* Upstream rings unread rooms in black; the dot on the right says it instead. */
+#sidebar .room.unread,
+#sidebar .direct.unread {
+  box-shadow: none;
+}
+
+/* Upstream sizes this icon from the avatar size, which shrinks it to nothing here. */
+.direct__new .avatar img {
+  block-size: 1rem;
+  inline-size: 1rem;
+}
+
+/* "Turn on notifications" nudge: a soft green ring instead of a hard outline. */
+.btn--pulsing {
+  outline-color: var(--ring);
+}
