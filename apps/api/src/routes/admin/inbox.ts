@@ -28,7 +28,7 @@ import { AcceptError, acceptApplication, acceptSubmission, previewPitcher, submi
 import { acceptedEmail, declinedEmail, draftInvite, type DraftedEmail } from "../../admin/pitch-emails.js";
 import { intakeTranscript } from "../../admin/transcripts.js";
 import { conflict, notFound, notFoundIfInvalid, rejectInvalid, validationFailed } from "../../http.js";
-import type { ApiEnv } from "../../types.js";
+import { toMemberRow, type ApiEnv } from "../../types.js";
 import { privateFileResponse } from "./private-file.js";
 import { memberExists, uuidParam, type AdminDeps } from "./shared.js";
 import { FILES_OFF } from "./uploads.js";
@@ -255,7 +255,8 @@ export function inboxRoutes({ db, adminChat, files }: AdminDeps) {
         zValidator("json", applicationAcceptInput, rejectInvalid),
         async (c) => {
           try {
-            return c.json(await acceptApplication(db, c.req.valid("param").id, c.req.valid("json")), 200);
+            const accepted = await acceptApplication(db, c.req.valid("param").id, c.req.valid("json"));
+            return c.json({ ...accepted, member: toMemberRow(accepted.member) }, 200);
           } catch (err) {
             if (!(err instanceof AcceptError)) throw err;
             if (err.status === 404) return c.json(notFound, 404);

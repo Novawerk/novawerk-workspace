@@ -121,7 +121,7 @@ const listMembers = defineTool({
       .select({
         id: members.id,
         displayName: members.displayName,
-        canAdmin: members.canAdmin,
+        role: members.role,
         active: members.active,
         joinedOn: members.joinedOn,
       })

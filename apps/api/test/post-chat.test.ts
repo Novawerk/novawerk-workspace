@@ -8,7 +8,7 @@ import { MockProvider, type MockStep, type ToolCall } from "@nw/agent-harness";
 import type { AdminChatEvent, AdminChatSession } from "@nw/contracts";
 import { agentSessions, members, posts, projects, type Database } from "@nw/db";
 
-import { TEST_MEMBERS, adminFetch, createTestDb, makeApp, resetDb } from "./helpers.js";
+import { TEST_MEMBERS, adminFetch, createTestDb, joinATeam, makeApp, resetDb } from "./helpers.js";
 
 let db: Database;
 let postId: string;
@@ -18,6 +18,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await resetDb(db);
   await db.insert(members).values(TEST_MEMBERS);
+  await joinATeam(db, "grace");
   const [project] = await db.insert(projects).values({ slug: "kiez-pantry", title: "Kiez Pantry", status: "building" }).returning();
   const [post] = await db
     .insert(posts)

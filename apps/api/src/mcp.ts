@@ -36,7 +36,7 @@ import {
   taskListQuery,
   type TokenScope,
 } from "@nw/contracts";
-import type { Contributor } from "@nw/db";
+import type { Member } from "@nw/db";
 import {
   TaskRuleError,
   addPost,
@@ -67,7 +67,7 @@ const MAX_BODY_BYTES = 64 * 1024;
 /** MCP requests per client IP per hour without a token (in-memory, per instance). */
 export const ANONYMOUS_MCP_PER_HOUR = 300;
 
-type Caller = { contributor: Contributor; token: TokenContext } | null;
+type Caller = { contributor: Member; token: TokenContext } | null;
 
 type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
 

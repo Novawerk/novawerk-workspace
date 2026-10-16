@@ -16,7 +16,7 @@ import {
   type TokenScope,
   tokenCreateInput,
 } from "@nw/contracts";
-import { contributorTokens, contributors, type Contributor, type ContributorToken, type Database } from "@nw/db";
+import { contributorTokens, members, type Member, type ContributorToken, type Database } from "@nw/db";
 
 import { TaskRuleError } from "./errors.js";
 import { iso } from "./people.js";
@@ -109,19 +109,19 @@ export async function authenticateToken(
   db: Database,
   secret: string,
   now = new Date(),
-): Promise<{ contributor: Contributor; token: TokenContext } | null> {
+): Promise<{ contributor: Member; token: TokenContext } | null> {
   if (!SECRET.test(secret)) return null;
   const [row] = await db
-    .select({ token: contributorTokens, contributor: contributors })
+    .select({ token: contributorTokens, contributor: members })
     .from(contributorTokens)
-    .innerJoin(contributors, eq(contributors.id, contributorTokens.contributorId))
+    .innerJoin(members, eq(members.id, contributorTokens.contributorId))
     .where(
       and(
         eq(contributorTokens.secretHash, hashTokenSecret(secret)),
         isNull(contributorTokens.revokedAt),
         gt(contributorTokens.expiresAt, now),
         // A suspended account's tokens stop too. Signing out doesn't stop tokens: revoke them.
-        isNull(contributors.suspendedAt),
+        isNull(members.suspendedAt),
       ),
     )
     .limit(1);

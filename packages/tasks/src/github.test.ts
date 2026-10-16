@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { proposalInput } from "@nw/contracts";
-import { contributors, postReports, taskEvents, tasks, werkLedger, type Contributor, type Database } from "@nw/db";
+import { members, postReports, taskEvents, tasks, werkLedger, type Member, type Database } from "@nw/db";
 import { createTestDb, resetDb } from "@nw/db/testing";
 
 import {
@@ -39,8 +39,8 @@ beforeAll(async () => {
   db = await createTestDb();
 }, 60_000);
 
-let lena: Contributor;
-let jonas: Contributor;
+let lena: Member;
+let jonas: Member;
 beforeEach(async () => {
   await resetDb(db);
   lena = await signInWithGitHub(db, { id: 101, login: "lena-k", name: "Lena", avatarUrl: null });
@@ -330,7 +330,7 @@ describe("reports and blocks", () => {
     expect((await listPublicBlocks(db, "other key"))[1]!.handle).not.toBe(blocks[1]!.handle);
     expect(JSON.stringify(blocks)).not.toContain("lena");
 
-    await db.delete(contributors).where(eq(contributors.id, lena.id));
+    await db.delete(members).where(eq(members.id, lena.id));
     expect((await listPublicBlocks(db, "key"))[1]!.handle).toMatch(/^anon-/);
   });
 });

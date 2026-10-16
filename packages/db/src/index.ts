@@ -14,6 +14,9 @@ import type { FinanceEntry, Member, NewDocument, NewPartner, Partner } from "./s
 export * from "./schema.js";
 export { schema };
 
+/** Runs Novawerk: the whole admin panel (NB-ADR-0014). Personal access tokens never carry it. */
+export const isMaintainer = (m: Pick<Member, "role">): boolean => m.role === "maintainer";
+
 /** Any Drizzle Postgres database built with our schema (node-postgres in prod, PGlite in tests). */
 export type Database = PgDatabase<PgQueryResultHKT, typeof schema>;
 

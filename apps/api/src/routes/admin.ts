@@ -39,11 +39,16 @@ import { uploadRoutes } from "./admin/uploads.js";
 /** GET /admin/me: the session's member plus their public profile fields. */
 async function memberSelf(db: Database, member: AdminMember) {
   const [row] = await db
-    .select({ publicProfile: members.publicProfile, profileHandle: members.profileHandle, profileBio: members.profileBio })
+    .select({ publicProfile: members.public, profileHandle: members.handle, profileBio: members.bio })
     .from(members)
     .where(eq(members.id, member.id))
     .limit(1);
-  return { ...member, publicProfile: row?.publicProfile ?? false, profileHandle: row?.profileHandle ?? null, profileBio: row?.profileBio ?? null };
+  return {
+    ...member,
+    publicProfile: row?.publicProfile ?? false,
+    profileHandle: (row?.profileHandle ?? null) as string | null,
+    profileBio: row?.profileBio ?? null,
+  };
 }
 
 /** A project's Markdown body is the biggest thing we accept. */

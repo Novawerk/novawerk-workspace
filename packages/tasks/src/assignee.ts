@@ -5,7 +5,7 @@
 import { eq } from "drizzle-orm";
 
 import { formatTaskId, type TaskGuide } from "@nw/contracts";
-import { postReports, taskEvents, taskPosts, tasks, type Contributor, type Database, type Task } from "@nw/db";
+import { postReports, taskEvents, taskPosts, tasks, type Member, type Database, type Task } from "@nw/db";
 
 import { canWork } from "./contributors.js";
 import { TaskRuleError } from "./errors.js";
@@ -13,7 +13,7 @@ import { whyPullRequestDoesNotCount, type PullRequestInput } from "./github.js";
 import type { Via } from "./actions.js";
 import { lockContributor, transitionTask } from "./transitions.js";
 
-async function heldTask(db: Database, c: Contributor, taskId: number): Promise<Task> {
+async function heldTask(db: Database, c: Member, taskId: number): Promise<Task> {
   const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId)).limit(1);
   if (!task || task.status === "draft") throw new TaskRuleError("not_found", `${formatTaskId(taskId)} doesn't exist`);
   if (task.assigneeId !== c.id) throw new TaskRuleError("forbidden", "Only the person on this task can do that");
@@ -52,7 +52,7 @@ Ask in the task's thread: https://novawerk.io/tasks/${id}. Answers stay public f
 }
 
 /** GET /contrib/tasks/:id/guide: for the assignee only. */
-export async function guideFor(db: Database, c: Contributor, taskId: number): Promise<TaskGuide> {
+export async function guideFor(db: Database, c: Member, taskId: number): Promise<TaskGuide> {
   const task = await heldTask(db, c, taskId);
   return { taskId: formatTaskId(task.id), markdown: task.guideTemplate?.trim() || defaultGuide(task) };
 }
@@ -61,7 +61,7 @@ export async function guideFor(db: Database, c: Contributor, taskId: number): Pr
  * Before asking GitHub about a PR: is this the caller's task, in progress, and the PR on its
  * repository? So nobody can make the API fetch arbitrary pull requests.
  */
-export async function checkCanLinkPr(db: Database, c: Contributor, taskId: number, repo: string): Promise<void> {
+export async function checkCanLinkPr(db: Database, c: Member, taskId: number, repo: string): Promise<void> {
   const task = await heldTask(db, c, taskId);
   if (!canWork(c)) throw new TaskRuleError("github_required", "Link your GitHub account first: we match pull requests by it");
   if (task.status !== "assigned") throw new TaskRuleError("invalid_state", "Only a task in progress can get a pull request linked");
@@ -74,7 +74,7 @@ export async function checkCanLinkPr(db: Database, c: Contributor, taskId: numbe
  * linked GitHub account, and name this task. Anything else is refused, so a task can't wait in
  * review on a PR that can never finish it.
  */
-export async function linkPrByHand(db: Database, c: Contributor, taskId: number, pr: PullRequestInput, via?: Via): Promise<Task> {
+export async function linkPrByHand(db: Database, c: Member, taskId: number, pr: PullRequestInput, via?: Via): Promise<Task> {
   await heldTask(db, c, taskId);
   if (!canWork(c)) throw new TaskRuleError("github_required", "Link your GitHub account first: we match pull requests by it");
   if (pr.merged || pr.state !== "open") throw new TaskRuleError("invalid", "That pull request is closed", "url");
@@ -90,7 +90,7 @@ export async function linkPrByHand(db: Database, c: Contributor, taskId: number,
 }
 
 /** Give the task back. It returns to open; the timeline records it; nothing counts against anyone. */
-export async function releaseHeldTask(db: Database, c: Contributor, taskId: number, reason?: string, via?: Via): Promise<Task> {
+export async function releaseHeldTask(db: Database, c: Member, taskId: number, reason?: string, via?: Via): Promise<Task> {
   await heldTask(db, c, taskId);
   return transitionTask(db, {
     taskId,
@@ -102,7 +102,7 @@ export async function releaseHeldTask(db: Database, c: Contributor, taskId: numb
 }
 
 /** "I need a week more": once per assignment, while the task is assigned. */
-export async function extendTask(db: Database, c: Contributor, taskId: number, now = new Date(), via?: Via): Promise<Task> {
+export async function extendTask(db: Database, c: Member, taskId: number, now = new Date(), via?: Via): Promise<Task> {
   const task = await heldTask(db, c, taskId);
   if (task.status !== "assigned") throw new TaskRuleError("invalid_state", "Only a task in progress can get more time");
   return db.transaction(async (tx) => {
@@ -128,7 +128,7 @@ export async function extendTask(db: Database, c: Contributor, taskId: number, n
 }
 
 /** Report a post to the members. Once per person and post; never your own. */
-export async function reportPost(db: Database, c: Contributor, postId: string, reason?: string): Promise<void> {
+export async function reportPost(db: Database, c: Member, postId: string, reason?: string): Promise<void> {
   if (c.suspendedAt) throw new TaskRuleError("suspended", "This account is suspended");
   const [row] = await db
     .select({ post: taskPosts, status: tasks.status })

@@ -14,7 +14,7 @@ import { asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { Hono } from "hono";
 
 import { INITIATOR_ROLE, projectInput, projectTeamInput, projectUpdateInput } from "@nw/contracts";
-import { members, projectMembers, projects, type Database, type Project } from "@nw/db";
+import { isMaintainer, members, projectMembers, projects, type Database, type Project } from "@nw/db";
 
 import { conflict, isUniqueViolation, notFound, notFoundIfInvalid, rejectInvalid, validationFailed } from "../../http.js";
 import { planPosts, recordStatusChange, today } from "../../admin/lifecycle.js";
@@ -79,7 +79,7 @@ export function projectRoutes({ db, env, logger, files, triggerPromo }: AdminDep
       /** Same order as the website: featured first, then sort order, then title. A member sees their own. */
       .get("/", async (c) => {
         const member = c.get("member");
-        const mine = member.canAdmin ? undefined : await projectIdsOf(db, member.id);
+        const mine = isMaintainer(member) ? undefined : await projectIdsOf(db, member.id);
         if (mine && mine.length === 0) return c.json([] as (Project & { team: TeamMember[] })[], 200);
         const rows = await db
           .select()
@@ -128,7 +128,7 @@ export function projectRoutes({ db, env, logger, files, triggerPromo }: AdminDep
         async (c) => {
           const { id } = c.req.valid("param");
           const patch = c.req.valid("json");
-          if (!c.get("member").canAdmin && ADMIN_PROJECT_FIELDS.some((f) => patch[f] !== undefined)) {
+          if (!isMaintainer(c.get("member")) && ADMIN_PROJECT_FIELDS.some((f) => patch[f] !== undefined)) {
             return c.json({ error: "Only admins change the stage, featured, order or slug" }, 403);
           }
           const [before] = await db
@@ -188,7 +188,7 @@ export function projectRoutes({ db, env, logger, files, triggerPromo }: AdminDep
           }
           // An Initiator can't write themselves out: only an admin hands a project over.
           const me = c.get("member");
-          if (!me.canAdmin && !team.some((m) => m.memberId === me.id && m.role.trim().toLowerCase() === INITIATOR_ROLE.toLowerCase())) {
+          if (!isMaintainer(me) && !team.some((m) => m.memberId === me.id && m.role.trim().toLowerCase() === INITIATOR_ROLE.toLowerCase())) {
             return c.json(validationFailed({ members: ["Keep yourself on the team as Initiator. An admin can hand the project over."] }), 400);
           }
           const [project] = await db.select({ id: projects.id }).from(projects).where(eq(projects.id, id)).limit(1);

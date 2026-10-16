@@ -29,7 +29,7 @@ async function tryToSend(db: Parameters<typeof sendApproved>[0], id: string): Pr
 
 async function main() {
   const { db, close } = await memoryDb(async (d) => {
-    await d.insert(members).values({ id: "ada", displayName: "Ada (demo member)", email: "ada@example.org" });
+    await d.insert(members).values({ id: "ada", handle: "ada", displayName: "Ada (demo member)", email: "ada@example.org" });
   });
   const records = memoryRecordStore();
   try {

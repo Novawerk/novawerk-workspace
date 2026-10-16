@@ -7,7 +7,7 @@ import { and, count, eq, inArray, ne } from "drizzle-orm";
 
 import { TASK_LIMITS, TASK_SIZE_WERK, formatTaskId, type TaskArea, type TaskSize } from "@nw/contracts";
 import {
-  contributors,
+  members,
   taskEvents,
   taskProposals,
   tasks,
@@ -92,7 +92,7 @@ function subjectOf(action: TaskAction, task: Task, patch: Partial<typeof tasks.$
  * assign, suspend) lock the person before the task, so the two never wait on each other.
  */
 export async function lockContributor(tx: Tx, contributorId: string) {
-  const [person] = await tx.select().from(contributors).where(eq(contributors.id, contributorId)).for("update");
+  const [person] = await tx.select().from(members).where(eq(members.id, contributorId)).for("update");
   return person;
 }
 
@@ -381,7 +381,7 @@ export async function adjustWerk(
   if (!Number.isInteger(input.delta) || input.delta === 0) throw new TaskRuleError("invalid", "A whole number, not zero", "delta");
   if (!input.reason.trim()) throw new TaskRuleError("invalid", "Say why: the contributor sees it", "reason");
   return db.transaction(async (tx) => {
-    const [person] = await tx.select({ id: contributors.id }).from(contributors).where(eq(contributors.id, input.contributorId));
+    const [person] = await tx.select({ id: members.id }).from(members).where(eq(members.id, input.contributorId));
     if (!person) throw new TaskRuleError("invalid", "No such contributor", "contributorId");
     if (input.taskId !== undefined) {
       const [task] = await tx.select({ id: tasks.id }).from(tasks).where(eq(tasks.id, input.taskId));

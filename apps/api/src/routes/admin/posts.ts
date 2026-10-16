@@ -36,7 +36,7 @@ import {
   postCreateInput,
   postUpdateInput,
 } from "@nw/contracts";
-import { posts, projects, type Database, type Post, type Project } from "@nw/db";
+import { isMaintainer, posts, projects, type Database, type Post, type Project } from "@nw/db";
 import { lifecycleFacts, nextSeq, upcomingPosts, type PlannedPost } from "@nw/promo/lifecycle";
 
 import { today } from "../../admin/lifecycle.js";
@@ -158,7 +158,7 @@ export async function addPost(
   input: z.output<typeof postCreateInput>,
 ): Promise<AddResult> {
   const { projectId = null, kind } = input;
-  if (!projectId && !member.canAdmin) {
+  if (!projectId && !isMaintainer(member)) {
     return { ok: false, status: 403, body: { error: "Only admins add posts about Novawerk itself" } };
   }
   if (projectId && !(await canSeeProject(db, member, projectId))) return { ok: false, status: 404, body: notFound };
@@ -222,7 +222,7 @@ export function postRoutes(deps: AdminDeps) {
       .get("/", zValidator("query", postFilter, rejectInvalid), async (c) => {
         const { status, projectId } = c.req.valid("query");
         const member = c.get("member");
-        const mine = member.canAdmin ? undefined : await projectIdsOf(db, member.id);
+        const mine = isMaintainer(member) ? undefined : await projectIdsOf(db, member.id);
         if (mine && mine.length === 0) return c.json([] as PostView[], 200);
         return c.json(
           await postViews(
@@ -239,7 +239,7 @@ export function postRoutes(deps: AdminDeps) {
 
       .get("/board", async (c) => {
         const member = c.get("member");
-        const only = member.canAdmin ? undefined : await projectIdsOf(db, member.id);
+        const only = isMaintainer(member) ? undefined : await projectIdsOf(db, member.id);
         return c.json({ today: today(), ...(await board(db, today(), only)) }, 200);
       })
 

@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { contributors, members, taskPosts, tasks, werkLedger, type Database } from "@nw/db";
+import { members, taskPosts, tasks, werkLedger, type Database } from "@nw/db";
 import type { GitHubApi, PullRequestFacts } from "@nw/github";
 
 import { readEnv } from "../src/deps.js";
@@ -26,7 +26,7 @@ beforeEach(async () => {
   await resetDb(db);
   await db.insert(members).values(TEST_MEMBERS);
   const [lena] = await db
-    .insert(contributors)
+    .insert(members)
     .values({ handle: "lena-k", displayName: "Lena", githubId: 90000001, githubLogin: "lena-k" })
     .returning();
   lenaId = lena!.id;
@@ -259,7 +259,7 @@ describe("the assignee's routes, reports and blocks", () => {
   });
 
   it("reports a post, and lists blocks without private handles", async () => {
-    const [jonas] = await db.insert(contributors).values({ handle: "jonas", displayName: "Jonas" }).returning();
+    const [jonas] = await db.insert(members).values({ handle: "jonas", displayName: "Jonas" }).returning();
     const t = await assignedTask({ status: "done", doneAt: new Date() });
     const [post] = await db.insert(taskPosts).values({ taskId: t.id, authorContributorId: lenaId, body: "Hi" }).returning();
     const { app } = makeApp(db);

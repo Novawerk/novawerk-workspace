@@ -26,13 +26,13 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await resetDb(db);
-  await db.insert(members).values({ id: "ada", displayName: "Ada", email: "ada@example.com" });
+  await db.insert(members).values({ id: "ada", handle: "ada", displayName: "Ada", email: "ada@example.com" });
 });
 
 describe("Db.getMember", () => {
   it("returns camelCase fields with defaults applied", async () => {
     const member = await new Db(db).getMember("ada");
-    expect(member).toMatchObject({ id: "ada", displayName: "Ada", canAdmin: false, active: true });
+    expect(member).toMatchObject({ id: "ada", handle: "ada", displayName: "Ada", active: true });
   });
 
   it("returns undefined when no row matches", async () => {

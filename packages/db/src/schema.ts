@@ -30,26 +30,77 @@ const updatedAt = () =>
 
 // ─── People ──────────────────────────────────────────────────────────────────
 
-/** Everyone is a Member — no tiers. `canAdmin` is a permission, not a rank. */
+/** `maintainer` runs Novawerk: the whole admin panel. Everyone else is a `member` (NB-ADR-0014). */
+export const memberRole = pgEnum("member_role", ["member", "maintainer"]);
+
+/**
+ * One account for everyone (NB-ADR-0014). Everyone is a member; `role` = `maintainer` runs
+ * Novawerk (the whole admin panel). Being on a project's team (`project_members`) is a
+ * relationship, not a role: it gives "My projects" in the admin panel.
+ *
+ * Sign-in: GitHub (`githubId`), Google or an emailed code (`email`); an account can link more
+ * than one. Working on a task needs GitHub linked (NB-ADR-0013). The profile is private until
+ * `public` is on; `onWall` lets a public profile leave the contributors wall.
+ *
+ * `id` is text: older accounts keep their kebab handle (`haodong`), new ones get a uuid.
+ * Deleting an account deletes this row: proposals, votes and tokens go with it, and tasks,
+ * posts and Werk rows keep a null author ("a former member").
+ */
 export const members = pgTable("members", {
-  /** kebab handle, e.g. `haodong` */
-  id: text("id").primaryKey(),
+  id: text("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()::text`),
   displayName: text("display_name").notNull(),
-  /** The Google account used to sign in to the admin panel. */
-  email: text("email").notNull().unique(),
-  canAdmin: boolean("can_admin").notNull().default(false),
-  joinedOn: date("joined_on"),
-  active: boolean("active").notNull().default(true),
   /**
-   * Opt-in public profile (NB-ADR-0013), off by default: an Initiator then stands on the
-   * contributors wall with their project. Set only by the member themself. Never the email.
+   * Lower-cased, verified: the address that signs in with Google or an emailed code. Null for
+   * a GitHub-only account. Never public.
    */
-  publicProfile: boolean("public_profile").notNull().default(false),
-  /** /u/<handle>: shares the namespace with contributors' handles. Needed for a public profile. */
-  profileHandle: text("profile_handle").unique(),
-  /** One line on the public profile, up to 160 characters. */
-  profileBio: text("profile_bio"),
+  email: text("email").unique(),
+  role: memberRole("role").notNull().default("member"),
+  joinedOn: date("joined_on"),
+  /** Off: the account can't sign in (a member who left). */
+  active: boolean("active").notNull().default(true),
+  /** kebab-case, unique, shown as @handle; /u/<handle>. */
+  handle: text("profile_handle").notNull().unique(),
+  /** One line, up to 160 characters. */
+  bio: text("profile_bio"),
+  /** Markdown (bold, lists, links), up to 1500 characters. */
+  about: text("about"),
+  /** Up to 4 links. */
+  links: jsonb("links").$type<string[]>().notNull().default([]),
+  /** One of the six profile accent presets (PROFILE_ACCENTS in @nw/contracts). */
+  accent: text("accent").notNull().default("green"),
+  /** One of the banner presets (PROFILE_BANNERS). */
+  banner: text("banner").notNull().default("plain"),
+  avatarUrl: text("avatar_url"),
+  /** Off: the profile page is hidden and the handle shows unlinked on tasks. Set only by its owner. */
+  public: boolean("public_profile").notNull().default(false),
+  /** Show a public profile on /contributors and in the README. */
+  onWall: boolean("on_wall").notNull().default(true),
+  /** GitHub's numeric user id: logins can change, this can't. */
+  githubId: bigint("github_id", { mode: "number" }).unique(),
+  githubLogin: text("github_login"),
+  /**
+   * GitHub's verified primary email, kept for notices only (when `email` is empty). Never a way
+   * to sign in, never public; the owner sees it masked.
+   */
+  notifyEmail: text("notify_email"),
+  /** When they ticked the pledge and DCO sign-off. */
+  pledgeAcceptedAt: timestamp("pledge_accepted_at", { withTimezone: true }),
+  /** Set by a maintainer (moderation): they can still sign in and read, but not write. */
+  suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+  /** Why, for maintainers only. Cleared with the suspension. */
+  suspendedReason: text("suspended_reason"),
+  suspendedBy: text("suspended_by").references((): AnyPgColumn => members.id, { onDelete: "set null" }),
+  lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
+  /** Emails about replies on their posts and tasks. Settings; on by default. */
+  notifyReplies: boolean("notify_replies").notNull().default(true),
+  /** The 7-day inactivity reminder. Settings; on by default. */
+  notifyReminders: boolean("notify_reminders").notNull().default(true),
+  /** Sessions issued before this are refused: set on sign-out and when sign-in methods change. */
+  sessionsRevokedAt: timestamp("sessions_revoked_at", { withTimezone: true }),
   createdAt: createdAt(),
+  updatedAt: updatedAt(),
 });
 
 /**
@@ -75,72 +126,16 @@ export const signInCodes = pgTable(
 );
 
 /**
- * People who help build our own software through the task board. Not Members: no admin panel,
- * no tiers or ranks (NB-ADR-0013). They sign in with GitHub (`githubId`) or an emailed code
- * (`email`); proposing or working on a task needs GitHub linked. The profile is private until
- * they turn `public` on; `onWall` lets a public profile leave the contributors wall.
- * Deleting the account deletes this row: proposals, votes and tokens go with it, and tasks,
- * posts and Werk rows keep a null author ("a former contributor").
- */
-export const contributors = pgTable("contributors", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  /** kebab-case, unique, shown as @handle. Starts as the GitHub login. */
-  handle: text("handle").notNull().unique(),
-  displayName: text("display_name").notNull(),
-  /** One line, up to 160 characters. */
-  bio: text("bio"),
-  /** Markdown (bold, lists, links), up to 1500 characters. */
-  about: text("about"),
-  /** Up to 4 links. */
-  links: jsonb("links").$type<string[]>().notNull().default([]),
-  /** One of the six profile accent presets (PROFILE_ACCENTS in @nw/contracts). */
-  accent: text("accent").notNull().default("green"),
-  /** One of the banner presets (PROFILE_BANNERS). */
-  banner: text("banner").notNull().default("plain"),
-  avatarUrl: text("avatar_url"),
-  /** Off: the profile page is hidden and the handle shows unlinked on tasks. */
-  public: boolean("public").notNull().default(false),
-  /** Show a public profile on /contributors and in the README. */
-  onWall: boolean("on_wall").notNull().default(true),
-  /** GitHub's numeric user id: logins can change, this can't. */
-  githubId: bigint("github_id", { mode: "number" }).unique(),
-  githubLogin: text("github_login"),
-  /** Lower-cased. Set when they sign in by email: the only address that signs in. Never public. */
-  email: text("email").unique(),
-  /**
-   * GitHub's verified primary email, kept for notices only (when `email` is empty). Never a way
-   * to sign in, never public; the owner sees it masked.
-   */
-  notifyEmail: text("notify_email"),
-  /** When they ticked the pledge and DCO sign-off. */
-  pledgeAcceptedAt: timestamp("pledge_accepted_at", { withTimezone: true }),
-  /** Set by a member (moderation): they can still sign in and read, but not write. */
-  suspendedAt: timestamp("suspended_at", { withTimezone: true }),
-  /** Why, for members only. Cleared with the suspension. */
-  suspendedReason: text("suspended_reason"),
-  suspendedBy: text("suspended_by").references(() => members.id, { onDelete: "set null" }),
-  lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
-  /** Emails about replies on their posts and tasks. Settings; on by default. */
-  notifyReplies: boolean("notify_replies").notNull().default(true),
-  /** The 7-day inactivity reminder. Settings; on by default. */
-  notifyReminders: boolean("notify_reminders").notNull().default(true),
-  /** Sessions issued before this are refused: set on sign-out and when sign-in methods change. */
-  sessionsRevokedAt: timestamp("sessions_revoked_at", { withTimezone: true }),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
-
-/**
- * Every suspension and lift, with who and why (members only). contributors.suspended_* holds
+ * Every suspension and lift, with who and why (maintainers only). members.suspended_* holds
  * the current one; this keeps the history.
  */
 export const contributorModeration = pgTable(
   "contributor_moderation",
   {
     id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-    contributorId: uuid("contributor_id")
+    contributorId: text("contributor_id")
       .notNull()
-      .references(() => contributors.id, { onDelete: "cascade" }),
+      .references(() => members.id, { onDelete: "cascade" }),
     /** `suspended` or `unsuspended`. */
     action: text("action").notNull(),
     reason: text("reason").notNull(),
@@ -158,9 +153,9 @@ export const contributorTokens = pgTable(
   "contributor_tokens",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    contributorId: uuid("contributor_id")
+    contributorId: text("contributor_id")
       .notNull()
-      .references(() => contributors.id, { onDelete: "cascade" }),
+      .references(() => members.id, { onDelete: "cascade" }),
     /** Shown on everything the token does: "via agent · <name>". */
     name: text("name").notNull(),
     /** SHA-256 of the secret. */
@@ -732,7 +727,7 @@ export const tasks = pgTable(
     skills: text("skills").array().$type<string[]>().notNull().default(sql`'{}'::text[]`),
     repo: text("repo").notNull().default("Novawerk/novawerk-workspace"),
     status: taskStatus("status").notNull().default("draft"),
-    assigneeId: uuid("assignee_id").references(() => contributors.id, { onDelete: "set null" }),
+    assigneeId: text("assignee_id").references(() => members.id, { onDelete: "set null" }),
     assignedAt: timestamp("assigned_at", { withTimezone: true }),
     /** The assignee's last post, commit or PR event: tasks go back on the board after 14 idle days. */
     lastActivityAt: timestamp("last_activity_at", { withTimezone: true }),
@@ -746,7 +741,7 @@ export const tasks = pgTable(
     /** Why a member closed it, or the note on a declined suggestion. Public. */
     closedReason: text("closed_reason"),
     /** Suggestions: who suggested it. Credit stays on the task for good. */
-    suggestedBy: uuid("suggested_by").references(() => contributors.id, { onDelete: "set null" }),
+    suggestedBy: text("suggested_by").references(() => members.id, { onDelete: "set null" }),
     /** Suggestions: where in the product (SUGGESTION_WHERE), and an optional page or path. */
     where: text("where"),
     wherePath: text("where_path"),
@@ -794,9 +789,9 @@ export const taskProposals = pgTable(
     taskId: integer("task_id")
       .notNull()
       .references(() => tasks.id, { onDelete: "cascade" }),
-    contributorId: uuid("contributor_id")
+    contributorId: text("contributor_id")
       .notNull()
-      .references(() => contributors.id, { onDelete: "cascade" }),
+      .references(() => members.id, { onDelete: "cascade" }),
     /** What you'll change. */
     approach: text("approach").notNull(),
     /** How you'll test it. */
@@ -835,7 +830,7 @@ export const taskPosts = pgTable(
       .references(() => tasks.id, { onDelete: "cascade" }),
     /** The post this one replies to. Replies have no replies. */
     parentId: uuid("parent_id").references((): AnyPgColumn => taskPosts.id, { onDelete: "cascade" }),
-    authorContributorId: uuid("author_contributor_id").references(() => contributors.id, { onDelete: "set null" }),
+    authorContributorId: text("author_contributor_id").references(() => members.id, { onDelete: "set null" }),
     authorMemberId: text("author_member_id").references(() => members.id, { onDelete: "set null" }),
     body: text("body").notNull(),
     /** Written through a personal access token: "via agent · <token name>". */
@@ -861,9 +856,9 @@ export const taskVotes = pgTable(
     taskId: integer("task_id")
       .notNull()
       .references(() => tasks.id, { onDelete: "cascade" }),
-    contributorId: uuid("contributor_id")
+    contributorId: text("contributor_id")
       .notNull()
-      .references(() => contributors.id, { onDelete: "cascade" }),
+      .references(() => members.id, { onDelete: "cascade" }),
     createdAt: createdAt(),
   },
   (t) => [primaryKey({ columns: [t.taskId, t.contributorId] }), index("task_votes_contributor_idx").on(t.contributorId)],
@@ -881,13 +876,13 @@ export const taskEvents = pgTable(
     kind: text("kind").notNull(),
     fromStatus: taskStatus("from_status"),
     toStatus: taskStatus("to_status"),
-    actorContributorId: uuid("actor_contributor_id").references(() => contributors.id, { onDelete: "set null" }),
+    actorContributorId: text("actor_contributor_id").references(() => members.id, { onDelete: "set null" }),
     actorMemberId: text("actor_member_id").references(() => members.id, { onDelete: "set null" }),
     /**
      * The contributor the event is about: the one who got or lost the task, whose suggestion
      * was decided, who earned the Werk. Notices go to them. Never shown publicly.
      */
-    subjectContributorId: uuid("subject_contributor_id").references(() => contributors.id, { onDelete: "set null" }),
+    subjectContributorId: text("subject_contributor_id").references(() => members.id, { onDelete: "set null" }),
     /** Public, except on MEMBER_ONLY_EVENT_KINDS (@nw/contracts). */
     note: text("note"),
     prUrl: text("pr_url"),
@@ -914,9 +909,9 @@ export const postReports = pgTable(
     taskId: integer("task_id")
       .notNull()
       .references(() => tasks.id, { onDelete: "cascade" }),
-    contributorId: uuid("contributor_id")
+    contributorId: text("contributor_id")
       .notNull()
-      .references(() => contributors.id, { onDelete: "cascade" }),
+      .references(() => members.id, { onDelete: "cascade" }),
     /** Optional, up to 500 characters. Members only. */
     reason: text("reason"),
     createdAt: createdAt(),
@@ -946,7 +941,7 @@ export const werkLedger = pgTable(
   {
     id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
     /** Null once the contributor deleted their account. */
-    contributorId: uuid("contributor_id").references(() => contributors.id, { onDelete: "set null" }),
+    contributorId: text("contributor_id").references(() => members.id, { onDelete: "set null" }),
     delta: integer("delta").notNull(),
     reason: text("reason").notNull(),
     taskId: integer("task_id").references(() => tasks.id, { onDelete: "set null" }),
@@ -986,7 +981,7 @@ export const contributorNotices = pgTable(
     /** CONTRIBUTOR_NOTICE_KINDS in @nw/contracts. */
     kind: text("kind").notNull(),
     /** Null only for `account_deleted`, whose account is gone. */
-    contributorId: uuid("contributor_id").references(() => contributors.id, { onDelete: "cascade" }),
+    contributorId: text("contributor_id").references(() => members.id, { onDelete: "cascade" }),
     taskId: integer("task_id").references(() => tasks.id, { onDelete: "cascade" }),
     /** What the template needs besides the task: a member's note, Werk, a date. */
     data: jsonb("data").$type<Record<string, string | number | boolean | null>>().notNull().default({}),
@@ -1071,8 +1066,6 @@ export type NewFinanceEntry = typeof financeLedger.$inferInsert;
 export type OutboxEmail = typeof outbox.$inferSelect;
 export type NewOutboxEmail = typeof outbox.$inferInsert;
 export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
-export type Contributor = typeof contributors.$inferSelect;
-export type NewContributor = typeof contributors.$inferInsert;
 export type ContributorToken = typeof contributorTokens.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type NewTask = typeof tasks.$inferInsert;

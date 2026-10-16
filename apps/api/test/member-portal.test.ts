@@ -6,7 +6,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { documents, members, posts, projectMembers, projects, signInCodes, type Database } from "@nw/db";
 
-import { FakeFiles, TEST_MEMBERS, adminFetch, adminJson, createTestDb, makeApp, postJson, resetDb } from "./helpers.js";
+import { FakeFiles, TEST_MEMBERS, adminFetch, adminJson, createTestDb, joinATeam, makeApp, postJson, resetDb } from "./helpers.js";
 
 let db: Database;
 beforeAll(async () => {
@@ -14,7 +14,7 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   await resetDb(db);
-  await db.insert(members).values([...TEST_MEMBERS, { id: "mara", displayName: "Mara", email: "mara@qq.example" }]);
+  await db.insert(members).values([...TEST_MEMBERS, { id: "mara", handle: "mara", displayName: "Mara", email: "mara@qq.example" }]);
 });
 
 /** `adminFetch` as someone else. */
@@ -45,6 +45,11 @@ async function twoProjects() {
 }
 
 describe("signing in with an emailed code", () => {
+  // Only maintainers and members on a project's team open the admin panel (NB-ADR-0014).
+  beforeEach(async () => {
+    await joinATeam(db, "mara");
+  });
+
   function codeApp() {
     const sent: { to: string; code: string }[] = [];
     const { app, logger } = makeApp(db, { sendSignInCode: async (to, code) => void sent.push({ to, code }) });

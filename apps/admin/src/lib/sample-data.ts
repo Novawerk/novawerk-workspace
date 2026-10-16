@@ -30,6 +30,7 @@ export const SAMPLE_ME: Me = {
   id: "sample-admin",
   displayName: "Sample Admin",
   email: "admin@example.com",
+  role: "maintainer",
   canAdmin: true,
   publicProfile: false,
   profileHandle: null,

@@ -1,5 +1,5 @@
 import type { AgentHooks, ModelProvider } from "@nw/agent-harness";
-import type { Contributor, Database, Member } from "@nw/db";
+import { isMaintainer, type Database, type Member } from "@nw/db";
 import type { Files } from "@nw/object-store";
 import type { CardFontLoader } from "@nw/promo/cards";
 import type { TeamNotification } from "@nw/email";
@@ -169,7 +169,7 @@ export interface AppDeps {
   sendNewsletterConfirmation?: NewsletterConfirmationSender;
   /** Optional: without it POST /webhooks/resend answers 404. */
   inboundMail?: InboundMailOptions;
-  /** Contributor sign-in with GitHub. Optional: without it /auth/contributor/github/* answer 503. */
+  /** Member sign-in with GitHub. Optional: without it /auth/contributor/github/* answer 503. */
   githubOAuth?: GitHubOAuth;
   /**
    * The GitHub App on our repository (comments, labels, the nightly reconcile). Optional: without
@@ -183,14 +183,34 @@ export interface AdminMember {
   id: string;
   displayName: string;
   email: string;
+  role: Member["role"];
+  /** The maintainer role, under its old name until the admin panel reads `role` (NB-ADR-0014). */
   canAdmin: boolean;
 }
 
 export const toAdminMember = (m: Member): AdminMember => ({
   id: m.id,
   displayName: m.displayName,
-  email: m.email,
-  canAdmin: m.canAdmin,
+  email: m.email ?? "",
+  role: m.role,
+  canAdmin: isMaintainer(m),
+});
+
+/**
+ * A member as /admin/members lists them. `canAdmin` is the maintainer role until the admin panel
+ * moves to roles (NB-ADR-0014).
+ */
+export const toMemberRow = (m: Member) => ({
+  id: m.id,
+  displayName: m.displayName,
+  email: m.email ?? "",
+  canAdmin: isMaintainer(m),
+  joinedOn: m.joinedOn,
+  active: m.active,
+  publicProfile: m.public,
+  profileHandle: m.handle as string | null,
+  profileBio: m.bio,
+  createdAt: m.createdAt,
 });
 
 /** Hono env for every router in this app. */
@@ -199,5 +219,5 @@ export interface ApiEnv {
    * `member` on /admin (src/auth.ts), `contributor` on /contrib (src/contributor-auth.ts). Never
    * both. `token` is set when the contributor came with a personal access token (src/token-gate.ts).
    */
-  Variables: { member: AdminMember; contributor: Contributor; token: TokenContext | undefined };
+  Variables: { member: AdminMember; contributor: Member; token: TokenContext | undefined };
 }

@@ -5,9 +5,8 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
-  contributors,
-  memberApplications,
   members,
+  memberApplications,
   outbox,
   projectMembers,
   projectSubmissions,
@@ -157,7 +156,7 @@ describe("accepting a pitch makes the pitcher a Member", () => {
     expect(member).toMatchObject({
       displayName: "Lena Hoffmann",
       email: "lena@example.org",
-      canAdmin: false,
+      role: "member",
       active: true,
       joinedOn: new Date().toISOString().slice(0, 10),
     });
@@ -198,7 +197,7 @@ describe("accepting a pitch makes the pitcher a Member", () => {
     const res = await adminFetch(app, "POST", `/admin/submissions/${id}/accept`, {});
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ error: "Linus (linus) is deactivated. Reactivate them in Members first." });
-    expect((await db.select().from(members).where(eq(members.id, "linus")))[0]).toMatchObject({ active: false, canAdmin: true });
+    expect((await db.select().from(members).where(eq(members.id, "linus")))[0]).toMatchObject({ active: false, role: "maintainer" });
     // Nothing else happened either: the whole accept rolled back.
     expect(await db.select().from(projects)).toEqual([]);
     expect((await db.select().from(projectSubmissions))[0]?.status).toBe("new");
@@ -263,8 +262,8 @@ describe("accepting a pitch makes the pitcher a Member", () => {
   });
 
   it("takes a handle no contributor, member or reserved word has", async () => {
-    await db.insert(contributors).values({ handle: "lena-hoffmann", displayName: "Someone else" });
-    await db.insert(members).values({ id: "lena-hoffmann-2", displayName: "Another Lena", email: "other@example.org" });
+    await db.insert(members).values({ handle: "lena-hoffmann", displayName: "Someone else" });
+    await db.insert(members).values({ id: "lena-hoffmann-2", handle: "lena-hoffmann-2", displayName: "Another Lena", email: "other@example.org" });
     const { id } = await insertPitch();
     const result = await adminJson(makeApp(db).app, "POST", `/admin/submissions/${id}/accept`, {});
     expect(result.initiator.id).toBe("lena-hoffmann-3");
@@ -277,16 +276,16 @@ describe("accepting a pitch makes the pitcher a Member", () => {
     }
   });
 
-  it("keeps a contributor account with the same email separate", async () => {
-    const [contributor] = await db
-      .insert(contributors)
+  it("puts the account that already has the pitch's email on the team (one account, NB-ADR-0014)", async () => {
+    const [lena] = await db
+      .insert(members)
       .values({ handle: "lena-builds", displayName: "Lena", email: "lena@example.org" })
       .returning();
     const { id } = await insertPitch();
-    await adminJson(makeApp(db).app, "POST", `/admin/submissions/${id}/accept`, {});
-    expect(await db.select().from(contributors)).toEqual([contributor]);
+    const result = await adminJson(makeApp(db).app, "POST", `/admin/submissions/${id}/accept`, {});
+    expect(result).toMatchObject({ memberCreated: false, initiator: { id: lena!.id } });
     expect(await db.select({ id: members.id }).from(members).where(eq(members.email, "lena@example.org"))).toEqual([
-      { id: "lena-hoffmann" },
+      { id: lena!.id },
     ]);
   });
 
@@ -341,7 +340,7 @@ describe("POST /admin/applications/:id/accept", () => {
 
   it("counts past a contributor's handle and steps around reserved words when it picks the id", async () => {
     const { app } = makeApp(db);
-    await db.insert(contributors).values({ handle: "lena-k", displayName: "Lena" });
+    await db.insert(members).values({ handle: "lena-k", displayName: "Lena" });
     const lena = await insertApplication({ name: "Lena K", email: "lena@example.org" });
     expect((await adminJson(app, "POST", `/admin/applications/${lena.id}/accept`, {})).member.id).toBe("lena-k-2");
     const admin = await insertApplication({ name: "Admin", email: "admin@example.org" });

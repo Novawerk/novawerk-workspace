@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { contributors, members, signInCodes, tasks, type Database } from "@nw/db";
+import { members, signInCodes, tasks, type Database } from "@nw/db";
 
 import { createGitHubOAuth, type GitHubOAuth } from "../src/contributor-auth.js";
 import { readEnv } from "../src/deps.js";
@@ -18,7 +18,7 @@ import {
   TEST_SECRET,
   WEB_ORIGIN,
   contributorCookie,
-  createTestDb,
+  createTestDb, joinATeam,
   makeApp,
   postJson,
   resetDb,
@@ -83,9 +83,9 @@ async function json(app: TestApp, method: string, path: string, cookie: string |
   return { status: res.status, body: (await res.json()) as any, res };
 }
 
-async function contributor(fields: Partial<typeof contributors.$inferInsert> & { handle: string }) {
+async function contributor(fields: Partial<typeof members.$inferInsert> & { handle: string }) {
   const [row] = await db
-    .insert(contributors)
+    .insert(members)
     .values({ displayName: fields.handle, ...fields })
     .returning();
   return { row: row!, cookie: await contributorCookie(row!.id) };
@@ -135,7 +135,7 @@ describe("signing in with GitHub", () => {
     const mira = await contributor({ handle: "mira", email: "mira@example.com" });
     const { callback, cookie } = await signInWithGitHub(app, "gh:300:mira-gh", { cookie: mira.cookie });
     expect(callback.status).toBe(302);
-    const [row] = await db.select().from(contributors).where(eq(contributors.id, mira.row.id));
+    const [row] = await db.select().from(members).where(eq(members.id, mira.row.id));
     expect(row).toMatchObject({ githubId: 300, githubLogin: "mira-gh", email: "mira@example.com" });
     // A new sign-in method ends the old sessions; the callback's new cookie works.
     expect((await json(app, "GET", "/auth/contributor/me", mira.cookie)).status).toBe(401);
@@ -144,7 +144,7 @@ describe("signing in with GitHub", () => {
     // Another GitHub account never replaces the linked one.
     const other = await signInWithGitHub(app, "gh:301:someone", { cookie: cookie! });
     expect(other.callback.headers.get("location")).toBe(`${WEB_ORIGIN}/settings?error=github-linked-elsewhere`);
-    const [after] = await db.select().from(contributors).where(eq(contributors.id, mira.row.id));
+    const [after] = await db.select().from(members).where(eq(members.id, mira.row.id));
     expect(after?.githubId).toBe(300);
   });
 
@@ -221,6 +221,7 @@ describe("signing in with an emailed code", () => {
   });
 
   it("counts every try, even when guesses arrive together", async () => {
+    await joinATeam(db, "grace");
     for (const [startPath, verifyPath, email] of [
       ["/auth/contributor/email/start", "/auth/contributor/email/verify", "t@example.com"],
       ["/auth/email/start", "/auth/email/verify", "grace@novawerk.io"],

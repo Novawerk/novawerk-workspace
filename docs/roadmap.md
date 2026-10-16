@@ -23,7 +23,8 @@ agents do the repetitive work around it; anything that leaves Novawerk waits for
 - **Two repos** (NB-ADR-0012): code here, public; records and agent workflows in the private repo.
 - **Storage tiers:** narrative → `records/` (private repo); structured → Postgres (Neon); binary → Vercel Blob.
 - **Agents:** logic in tested `packages/*`; `agents/<id>/index.ts` only wires config + packages.
-- **Everyone is a Member.** No titles; `can_admin` is a permission.
+- **Everyone is a member** (NB-ADR-0014): one account each. Maintainers (`role`) run Novawerk;
+  project teams are a relationship, not a role.
 
 ## Status
 

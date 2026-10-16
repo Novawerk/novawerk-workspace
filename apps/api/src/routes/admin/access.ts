@@ -8,7 +8,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 
 import { INITIATOR_ROLE } from "@nw/contracts";
-import { posts, projectMembers, type Database } from "@nw/db";
+import { isMaintainer, posts, projectMembers, type Database } from "@nw/db";
 
 import { notFound } from "../../http.js";
 import type { AdminMember, ApiEnv } from "../../types.js";
@@ -24,7 +24,7 @@ export async function projectIdsOf(db: Database, memberId: string): Promise<stri
 
 /** True for admins, and for members on the project's team. */
 export async function canSeeProject(db: Database, member: AdminMember, projectId: string): Promise<boolean> {
-  if (member.canAdmin) return true;
+  if (isMaintainer(member)) return true;
   const [row] = await db
     .select({ projectId: projectMembers.projectId })
     .from(projectMembers)
@@ -35,7 +35,7 @@ export async function canSeeProject(db: Database, member: AdminMember, projectId
 
 /** True for admins, and for the project's Initiator. */
 export async function canChangeTeam(db: Database, member: AdminMember, projectId: string): Promise<boolean> {
-  if (member.canAdmin) return true;
+  if (isMaintainer(member)) return true;
   const [row] = await db
     .select({ projectId: projectMembers.projectId })
     .from(projectMembers)
@@ -74,7 +74,7 @@ export function projectGuard(db: Database) {
 export function postGuard(db: Database) {
   return createMiddleware<ApiEnv>(async (c, next) => {
     const id = c.req.param("id");
-    if (id && UUID.test(id) && !c.get("member").canAdmin) {
+    if (id && UUID.test(id) && !isMaintainer(c.get("member"))) {
       const [post] = await db.select({ projectId: posts.projectId }).from(posts).where(eq(posts.id, id)).limit(1);
       if (post && (!post.projectId || !(await canSeeProject(db, c.get("member"), post.projectId)))) return c.json(notFound, 404);
     }

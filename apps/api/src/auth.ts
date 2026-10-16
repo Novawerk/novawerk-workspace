@@ -1,10 +1,11 @@
-// Sign-in for every active Member: a Google ID token (or an emailed code, src/sign-in-codes.ts)
-// in, an `nw_session` cookie out. The cookie holds an HS256 JWT whose `sub` is the member id;
-// every /admin request re-checks the member row, so marking someone inactive or taking away
-// `can_admin` takes effect immediately.
+// Sign-in to the admin panel: a Google ID token (or an emailed code, src/sign-in-codes.ts) in, an
+// `nw_session` cookie out. The cookie holds an HS256 JWT whose `sub` is the member id; every
+// /admin request re-checks the member row, so marking someone inactive or taking away the
+// maintainer role takes effect immediately.
 //
-// Two guards: requireSession (any active member: their own projects, posts and files) and
-// requireAdmin on top of it (members with `can_admin`: the inbox, outbox, money, partners…).
+// Everyone is a member (NB-ADR-0014), but only maintainers and members on a project's team open
+// the admin panel. Two guards: requireSession (those: their own projects, posts and files) and
+// requireAdmin on top of it (maintainers: the inbox, outbox, money, partners…).
 
 import { eq, sql } from "drizzle-orm";
 import type { Context } from "hono";
@@ -13,7 +14,7 @@ import type { CookieOptions } from "hono/utils/cookie";
 import { createMiddleware } from "hono/factory";
 import { createRemoteJWKSet, jwtVerify, SignJWT, type JWTVerifyGetKey } from "jose";
 
-import { members, type Database, type Member } from "@nw/db";
+import { isMaintainer, members, projectMembers, type Database, type Member } from "@nw/db";
 
 import { toAdminMember, type ApiEnv, type GoogleVerifier } from "./types.js";
 
@@ -49,14 +50,25 @@ export function createGoogleVerifier(
   };
 }
 
-/** An active member, matched case-insensitively on email. */
+/** An active member who may open the admin panel, matched case-insensitively on email. */
 export async function findMemberByEmail(db: Database, email: string): Promise<Member | undefined> {
   const [row] = await db
     .select()
     .from(members)
     .where(sql`lower(${members.email}) = ${email.trim().toLowerCase()} and ${members.active}`)
     .limit(1);
-  return row;
+  return row && (await mayOpenAdminPanel(db, row)) ? row : undefined;
+}
+
+/** Maintainers, and members on a project's team ("My projects"). Nobody else (NB-ADR-0014). */
+export async function mayOpenAdminPanel(db: Database, member: Member): Promise<boolean> {
+  if (isMaintainer(member)) return true;
+  const [team] = await db
+    .select({ projectId: projectMembers.projectId })
+    .from(projectMembers)
+    .where(eq(projectMembers.memberId, member.id))
+    .limit(1);
+  return Boolean(team);
 }
 
 // ─── Session ─────────────────────────────────────────────────────────────────
@@ -112,14 +124,15 @@ export function requireSession(db: Database, secret: string) {
     const [member] = await db.select().from(members).where(eq(members.id, memberId)).limit(1);
     if (!member) return c.json({ error: "Not signed in" }, 401);
     if (!member.active) return c.json({ error: "This member is not active" }, 403);
+    if (!(await mayOpenAdminPanel(db, member))) return c.json({ error: "Not on a project's team" }, 403);
 
     c.set("member", toAdminMember(member));
     await next();
   });
 }
 
-/** After requireSession: only members with `can_admin`. */
+/** After requireSession: maintainers only. */
 export const requireAdmin = createMiddleware<ApiEnv>(async (c, next) => {
-  if (!c.get("member").canAdmin) return c.json({ error: "Admins only" }, 403);
+  if (!isMaintainer(c.get("member"))) return c.json({ error: "Admins only" }, 403);
   await next();
 });

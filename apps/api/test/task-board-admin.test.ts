@@ -6,15 +6,15 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { proposalInput, suggestionInput } from "@nw/contracts";
-import { members, postReports, taskEvents, tasks, werkLedger, type Contributor, type Database } from "@nw/db";
+import { members, postReports, taskEvents, tasks, werkLedger, type Member, type Database } from "@nw/db";
 import { addPost, propose, signInWithGitHub, suggestTask, vote } from "@nw/tasks";
 
 import { TEST_MEMBERS, adminFetch, adminJson, contributorCookie, createTestDb, makeApp, resetDb, type TestApp } from "./helpers.js";
 
 let db: Database;
 let app: TestApp;
-let lena: Contributor;
-let jonas: Contributor;
+let lena: Member;
+let jonas: Member;
 beforeAll(async () => {
   db = await createTestDb();
 }, 60_000);
@@ -245,7 +245,8 @@ describe("/admin/discussions and /admin/contributors", () => {
 
   it("suspends and unsuspends, and never shows an email", async () => {
     const list = await adminJson(app, "GET", "/admin/contributors");
-    expect(list.map((c: { handle: string }) => c.handle).sort()).toEqual(["jonas", "lena-k"]);
+    // Everyone is a member (NB-ADR-0014): the maintainers are on the list too.
+    expect(list.map((c: { handle: string }) => c.handle).sort()).toEqual(["ada", "grace", "jonas", "lena-k", "linus"]);
     expect(JSON.stringify(list)).not.toContain("email");
     expect(await adminJson(app, "POST", `/admin/contributors/${jonas.id}/suspend`, { reason: "Spam" })).toMatchObject({
       suspended: true,

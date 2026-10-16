@@ -12,7 +12,7 @@ import { streamSSE } from "hono/streaming";
 
 import { Agent, renderTurnContext, SessionBusyError, type AgentErrorCode, type TurnTrace } from "@nw/agent-harness";
 import { adminChatMessageInput, postLabel, type AdminChatEvent, type AdminChatSession } from "@nw/contracts";
-import { agentSessions, posts, type AgentSession } from "@nw/db";
+import { agentSessions, isMaintainer, posts, type AgentSession } from "@nw/db";
 
 import { ADMIN_CHAT_DEFAULTS, toAdminChatEvent, toAdminChatMessages } from "../admin-chat/routes.js";
 import { agentTurnEvent, recordServerEvent } from "../analytics/record.js";
@@ -50,7 +50,7 @@ export function postChatRoutes({ db, logger, adminChat, draftPost }: AdminDeps) 
   async function visiblePost(id: string, member: AdminMember) {
     const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
     if (!post) return undefined;
-    if (member.canAdmin) return post;
+    if (isMaintainer(member)) return post;
     return post.projectId && (await canSeeProject(db, member, post.projectId)) ? post : undefined;
   }
 

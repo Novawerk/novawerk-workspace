@@ -5,7 +5,7 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { TOKEN_LIMITS } from "@nw/contracts";
-import { contributors, members, taskProposals, tasks, type Database } from "@nw/db";
+import { members, taskProposals, tasks, type Database } from "@nw/db";
 
 import { contributorCookie, createTestDb, makeApp, resetDb, sessionCookie, TEST_MEMBERS, type TestApp } from "./helpers.js";
 
@@ -20,7 +20,7 @@ beforeEach(async () => {
   await resetDb(db);
   await db.insert(members).values(TEST_MEMBERS);
   const [lena] = await db
-    .insert(contributors)
+    .insert(members)
     .values({ handle: "lena-k", displayName: "Lena", githubId: 90000001, githubLogin: "lena-k", email: "lena@example.com" })
     .returning();
   lenaId = lena!.id;
@@ -74,7 +74,7 @@ describe("tokens", () => {
     const { app } = makeApp(db);
     const readOnly = await makeToken(app, []);
     const task = await openTask();
-    await db.update(contributors).set({ notifyEmail: "lena@github.example" });
+    await db.update(members).set({ notifyEmail: "lena@github.example" });
     const me = await call(app, "GET", "/contrib/me", { bearer: readOnly.secret });
     // Through a token: no address at all, not even masked.
     expect(me.body).toMatchObject({ handle: "lena-k", email: null, notifyEmail: null });
@@ -212,7 +212,7 @@ describe("/mcp", () => {
     const { app } = makeApp(db);
     const task = await openTask();
     const readOnly = await makeToken(app, []);
-    await db.update(contributors).set({ notifyEmail: "lena@github.example" });
+    await db.update(members).set({ notifyEmail: "lena@github.example" });
     expect((await tool(app, "whoami", {}, readOnly.secret)).json).toMatchObject({ handle: "lena-k", email: null, notifyEmail: null });
     expect((await tool(app, "propose", { task_id: `NW-${task.id}`, approach: "x", eta: "week" }, readOnly.secret)).text).toMatch(/proposals:write/);
 
@@ -300,7 +300,7 @@ describe("review fixes", () => {
     const { app } = makeApp(db);
     const token = await makeToken(app, []);
     expect((await call(app, "GET", "/public/tasks", { bearer: "ghp_someone_elses" })).status).toBe(200);
-    await db.update(contributors).set({ suspendedAt: new Date() });
+    await db.update(members).set({ suspendedAt: new Date() });
     expect((await call(app, "GET", "/contrib/me", { bearer: token.secret })).status).toBe(401);
   });
 
