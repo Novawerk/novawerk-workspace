@@ -12,12 +12,13 @@ import { isMaintainer, members } from "@nw/db";
 import { TaskRuleError, claimMemberId } from "@nw/tasks";
 
 import { linkInitiatorProjects } from "../../admin/accept.js";
+import { tellChat } from "../../chat-sso.js";
 import { requireAdmin } from "../../auth.js";
 import { conflict, isUniqueViolation, notFound, notFoundIfInvalid, rejectInvalid, validationFailed } from "../../http.js";
 import { toMemberRow, type ApiEnv } from "../../types.js";
 import { textIdParam, type AdminDeps } from "./shared.js";
 
-export function memberRoutes({ db }: AdminDeps) {
+export function memberRoutes({ db, env, logger }: AdminDeps) {
   return (
     new Hono<ApiEnv>()
       /** Active members first, then by name. Reviewer pickers filter to active ones. */
@@ -85,8 +86,13 @@ export function memberRoutes({ db }: AdminDeps) {
               return c.json(validationFailed({ active: ["You can't mark yourself inactive"] }), 400);
             }
           }
+          const [before] = await db.select().from(members).where(eq(members.id, id)).limit(1);
           const [row] = await db.update(members).set(patch).where(eq(members.id, id)).returning();
-          return row ? c.json(toMemberRow(row), 200) : c.json(notFound, 404);
+          if (!before || !row) return c.json(notFound, 404);
+          // The chat follows (NB-ADR-0014): out with the account, and the same role.
+          if (before.active && !row.active) await tellChat(env.chatSso, logger, row, "closed");
+          else if (before.role !== row.role) await tellChat(env.chatSso, logger, row, "role");
+          return c.json(toMemberRow(row), 200);
         },
       )
   );

@@ -3,12 +3,12 @@
 
 import { eq } from "drizzle-orm";
 import { jwtVerify } from "jose";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { members, type Database } from "@nw/db";
 
 import { readEnv } from "../src/deps.js";
-import { TEST_MEMBERS, WEB_ORIGIN, createTestDb, makeApp, resetDb, sessionCookie } from "./helpers.js";
+import { TEST_MEMBERS, WEB_ORIGIN, adminFetch, createTestDb, makeApp, resetDb, sessionCookie } from "./helpers.js";
 
 const CHAT = "https://chat.novawerk.io";
 const SECRET = "chat-sso-secret-0123456789-abcdefghij";
@@ -79,6 +79,54 @@ describe("GET /auth/chat", () => {
   it("is a 404 without the chat configured", async () => {
     const res = await makeApp(db).app.request("/auth/chat", { headers: { Cookie: await sessionCookie("ada") } });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("telling the chat about accounts", () => {
+  const sent: { url: string; claims: Record<string, unknown> }[] = [];
+  beforeEach(() => {
+    sent.length = 0;
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      const token = String((init.headers as Record<string, string>).Authorization).replace(/^Bearer /, "");
+      const { payload } = await jwtVerify(token, new TextEncoder().encode(SECRET), { issuer: "nw-api", audience: "novawerk-chat-events" });
+      sent.push({ url, claims: payload });
+      return new Response(null, { status: 204 });
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("on suspending, closing, a role change and a deleted account", async () => {
+    const app = chatApp();
+    await db.insert(members).values({ id: "lena", handle: "lena", displayName: "Lena", email: "lena@example.org", githubId: 9 });
+
+    // An older account's id is a handle, not a uuid: it can be suspended too.
+    expect((await adminFetch(app, "POST", "/admin/contributors/grace/suspend", { reason: "Spam" })).status).toBe(200);
+    expect((await adminFetch(app, "PATCH", "/admin/members/lena", { role: "maintainer" })).status).toBe(200);
+    expect((await adminFetch(app, "PATCH", "/admin/members/lena", { active: false })).status).toBe(200);
+    expect((await adminFetch(app, "PATCH", "/admin/members/lena", { displayName: "Lena K" })).status).toBe(200);
+    await db.update(members).set({ active: true }).where(eq(members.id, "lena"));
+    const gone = await app.request("/contrib/me", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", Origin: WEB_ORIGIN, Cookie: await sessionCookie("lena") },
+      body: JSON.stringify({ confirmHandle: "lena" }),
+    });
+    expect(gone.status).toBe(200);
+
+    expect(sent.map((e) => [e.url, e.claims.sub, e.claims.kind, e.claims.email])).toEqual([
+      [`${CHAT}/sso/novawerk/events`, "grace", "closed", "grace@novawerk.io"],
+      [`${CHAT}/sso/novawerk/events`, "lena", "role", "lena@example.org"],
+      [`${CHAT}/sso/novawerk/events`, "lena", "closed", "lena@example.org"],
+      [`${CHAT}/sso/novawerk/events`, "lena", "deleted", "lena@example.org"],
+    ]);
+    expect(sent[1]!.claims.role).toBe("maintainer");
+    expect(sent.every((e) => (e.claims.exp as number) - (e.claims.iat as number) === 60)).toBe(true);
+  });
+
+  it("never fails the request when the chat is down", async () => {
+    vi.stubGlobal("fetch", async () => {
+      throw new Error("connection refused");
+    });
+    expect((await adminFetch(chatApp(), "POST", "/admin/contributors/grace/suspend", { reason: "Spam" })).status).toBe(200);
   });
 });
 

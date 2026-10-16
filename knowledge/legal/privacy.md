@@ -227,8 +227,9 @@ with your Novawerk account. Each time you open it, we hand it your account's
 number, your email address (the one you sign in with, else the one GitHub
 gave us), your name, handle, picture link, bio and whether you are a
 maintainer, so it can show your profile; it keeps them for as long as you use
-the chat. What you write in the chat stays on that server. A suspended or
-deleted account can't open the chat any more.
+the chat. What you write in the chat stays on that server. When you delete your
+account, or it is suspended, we tell the chat at once and it signs you out
+there; a deleted account is removed from the chat, and its messages stay.
 
 Signing in sets one cookie, `nw_session`, on api.novawerk.io. It keeps you
 signed in for 30 days, on the website, in the admin panel and in the team chat. Signing in with GitHub also sets `nw_github_state` for
