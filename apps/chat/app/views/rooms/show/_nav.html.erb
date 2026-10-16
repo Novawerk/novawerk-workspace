@@ -16,7 +16,7 @@
 
   <% unless room.direct? %>
     <% members = room.users.active.ordered.limit(3) %>
-    <%= link_to [ :edit, room ], class: "btn nw-hdr-members", title: "Members" do %>
+    <%= link_to room_members_path(room), class: "btn nw-hdr-members", title: "Members" do %>
       <span class="nw-stack-avatars">
         <% members.each do |member| %>
           <span class="avatar"><%= image_tag fresh_user_avatar_path(member), size: 20, alt: "" %></span>
@@ -36,7 +36,7 @@
         <%= link_to [ :edit, room ], class: "nw-menu__item" do %><%= image_tag "settings.svg" %><span>Room settings</span><% end %>
       <% end %>
       <% unless room.direct? %>
-        <%= link_to [ :edit, room ], class: "nw-menu__item" do %><%= image_tag "users.svg" %><span>Members</span><span class="nw-menu__short"><%= room.users.active.count %></span><% end %>
+        <%= link_to room_members_path(room), class: "nw-menu__item" do %><%= image_tag "users.svg" %><span>Members</span><span class="nw-menu__short"><%= room.users.active.count %></span><% end %>
       <% end %>
       <button type="button" class="nw-menu__item" data-controller="copy-to-clipboard" data-action="copy-to-clipboard#copy popup#close"
           data-copy-to-clipboard-success-class="btn--success" data-copy-to-clipboard-content-value="<%= room_url(room) %>">

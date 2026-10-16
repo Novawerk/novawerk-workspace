@@ -79,6 +79,7 @@ Rails.application.routes.draw do
       resource :refresh, only: :show
       resource :settings, only: :show
       resource :involvement, only: %i[ show update ]
+      resource :members, only: :show
     end
 
     get "@:message_id", to: "rooms#show", as: :at_message

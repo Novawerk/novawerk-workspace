@@ -2369,3 +2369,16 @@ suggestion-option[selected]:not(.flashing-off) .autocomplete__btn { background: 
 /* The header's ghost-button rule doesn't reach the dialog's own buttons. */
 .nw-notice-dialog .nw-dialog__actions .btn { --btn-background: #fff; --btn-border-color: #e5e5e5; --btn-color: #0a0a0a; background: var(--btn-background); border: 1px solid var(--btn-border-color); color: var(--btn-color); height: 32px; padding: 0 12px; }
 .nw-notice-dialog .nw-dialog__actions .btn--reversed { --btn-background: var(--primary); --btn-border-color: var(--primary); --btn-color: var(--primary-foreground); }
+
+/* --- Room members (Members in the room header, "…" menu and intro) --------- */
+.nw-room-members { list-style: none; margin: 0; padding: 0; }
+.nw-room-members__row { border-block-start: 1px solid var(--border); gap: 10px; padding: 10px 20px; }
+.nw-room-members__row[hidden] { display: none; }
+.nw-room-members__person { align-items: center; color: inherit; display: flex; flex: 1; gap: 10px; min-inline-size: 0; text-decoration: none; }
+.nw-room-members__person .avatar img { border-radius: 999px; height: 32px; width: 32px; }
+.nw-room-members__person strong { font-size: 14px; font-weight: 500; }
+.nw-room-members__message { margin: 0; }
+@media (max-width: 100ch) {
+  .nw-room-members__row { padding: 10px 16px; }
+  .nw-card:has(.nw-room-members) .nw-card__head--split { flex-direction: column; align-items: stretch; }
+}

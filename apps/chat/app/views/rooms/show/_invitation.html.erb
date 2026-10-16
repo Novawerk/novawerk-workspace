@@ -12,7 +12,7 @@
       <% end %>
     </p>
     <div class="nw-intro__actions">
-      <%= link_to [ :edit, room ], class: "btn nw-btn-outline nw-btn-sm" do %>
+      <%= link_to room_members_path(room), class: "btn nw-btn-outline nw-btn-sm" do %>
         <%= image_tag "users.svg" %><span>Members</span>
       <% end %>
       <%= link_to user_profile_path, class: "btn nw-btn-outline nw-btn-sm" do %>
