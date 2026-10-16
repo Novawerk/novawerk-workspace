@@ -1,21 +1,20 @@
 <% @page_title = "Edit settings for #{room.name}" %>
-<% page_header "Room settings" do %>
-  <%= link_back_to_last_room_visited %>
-<% end %>
+<% page_header "Settings", crumb: room_display_name(room) %>
 
 <div class="nw-page">
-  <div class="nw-page__narrow">
+  <div class="nw-page__narrow nw-page__narrow--form">
+    <div class="nw-page__intro">
+      <h2 class="nw-h1">Room settings</h2>
+      <p class="nw-lead">Created<%= " by #{room.creator.name}" if room.creator %> on <%= room.created_at.strftime("%-d %b %Y") %>.</p>
+    </div>
     <div class="nw-card nw-room-form" style="view-transition-name: edit-room-<%= room.id %>">
       <%= yield %>
     </div>
 
     <% if Current.user.can_administer?(@room) %>
-      <div class="nw-card nw-card--rows nw-card--danger">
-        <div class="nw-card__row">
-          <span class="nw-card__icon nw-card__icon--danger"><%= image_tag "trash.svg" %></span>
-          <div class="nw-card__text"><strong>Delete this room</strong><span>Deletes the room and all its messages for everyone. This can't be undone.</span></div>
-          <%= button_to_delete_room room %>
-        </div>
+      <div class="nw-card nw-card--danger">
+        <div class="nw-card__head"><h3 class="nw-card__title">Delete this room</h3><p class="nw-card__desc">Removes #<%= room.name %> and all its messages for everyone. This can't be undone.</p></div>
+        <div class="nw-card__body nw-card__body--tight"><%= button_to_delete_room room %></div>
       </div>
     <% end %>
   </div>

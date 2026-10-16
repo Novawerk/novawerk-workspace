@@ -1,10 +1,10 @@
-<%# Novawerk Chat: account settings, bots and custom styles as tabs under one header. %>
+<%# Novawerk Chat: account settings, bots and custom styles as one segmented control (Account board). %>
 <% if Current.user.administrator? %>
-  <% content_for :nav do %>
-    <nav class="nw-tabs" aria-label="Account settings">
-      <%= link_to "General", edit_account_path, class: "nw-tab", aria: { current: (current == :general ? "page" : nil) } %>
-      <%= link_to "Bots", account_bots_path, class: "nw-tab", aria: { current: (current == :bots ? "page" : nil) } %>
-      <%= link_to "Custom styles", edit_account_custom_styles_path, class: "nw-tab", aria: { current: (current == :custom_styles ? "page" : nil) } %>
-    </nav>
-  <% end %>
+  <nav class="nw-tabs" aria-label="Account settings">
+    <%= link_to "General", edit_account_path, class: "nw-tab", aria: { current: (current == :general ? "page" : nil) } %>
+    <%= link_to account_bots_path, class: "nw-tab", aria: { current: (current == :bots ? "page" : nil) } do %>
+      Bots<% if (bots = User.active_bots.count) > 0 %><span class="nw-badge"><%= bots %></span><% end %>
+    <% end %>
+    <%= link_to "Custom styles", edit_account_custom_styles_path, class: "nw-tab", aria: { current: (current == :custom_styles ? "page" : nil) } %>
+  </nav>
 <% end %>

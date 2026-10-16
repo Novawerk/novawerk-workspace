@@ -1,5 +1,7 @@
 <%= link_to_room room,
       id: dom_id(room, :list), data: { sorted_list_name: room.name },
-      style: "--column-gap: 0.5em", class: [ "align-center gap room btn txt-nowrap", "unread": local_assigns[:unread] ] do %>
-  <span class="overflow-ellipsis"><%= room.name %></span>
+      class: [ "room", "unread": local_assigns[:unread] ] do %>
+  <%= image_tag(room.is_a?(Rooms::Closed) ? "lock.svg" : "hash.svg") %>
+  <span class="room__name"><%= room.name %></span>
+  <span class="room__dot" aria-label="Unread"></span>
 <% end %>

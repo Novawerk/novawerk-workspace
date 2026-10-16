@@ -22,8 +22,9 @@ module MessagesHelper
 
   def messages_tag(room, &)
     tag.div id: dom_id(room, :messages), class: "messages", data: {
-      controller: "maintain-scroll refresh-room",
-      action: [ maintain_scroll_actions, refresh_room_actions ].join(" "),
+      controller: "maintain-scroll refresh-room nw-long-press",
+      action: [ maintain_scroll_actions, refresh_room_actions,
+        "touchstart->nw-long-press#start touchmove->nw-long-press#move touchend->nw-long-press#cancel touchcancel->nw-long-press#cancel" ].join(" "),
       messages_target: "messages",
       refresh_room_loaded_at_value: room.updated_at.to_fs(:epoch),
       refresh_room_url_value: room_refresh_url(room)
@@ -81,7 +82,7 @@ module MessagesHelper
     return capture(&block) unless controller.perform_caching && !message.attachment?
 
     key = fragment_name_with_digest([
-      "message-actions-v1", request.base_url, request.script_name, I18n.locale, message.id, message.room_id
+      "message-actions-v2-novawerk", request.base_url, request.script_name, I18n.locale, message.id, message.room_id
     ], nil)
     FragmentCache.store.fetch(key) { capture(&block) }
   end

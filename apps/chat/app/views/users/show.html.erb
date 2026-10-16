@@ -1,5 +1,5 @@
 <% @page_title = @user.name %>
-<% page_header @user.name do %>
+<% page_header @user.name, crumb: "People" do %>
   <% if Current.user == @user %>
     <%= link_to user_profile_path, class: "btn btn--plain" do %>
       <%= image_tag "pencil.svg" %><span>My profile</span>
@@ -47,9 +47,9 @@
       <div class="nw-divider-label"><span>Maintainer only</span></div>
 
       <div class="nw-card nw-card--rows">
-        <div class="nw-card__row">
+        <div class="nw-card__row nw-card__row--email">
           <span class="nw-card__icon"><%= image_tag "email.svg" %></span>
-          <div class="nw-card__text"><strong>Email</strong><span><%= mail_to @user.email_address %></span></div>
+          <div class="nw-card__text"><strong>Email</strong><span><%= @user.email_address %></span></div>
           <%= button_to_copy_to_clipboard(@user.email_address) do %><span>Copy</span><% end %>
         </div>
 
@@ -59,17 +59,18 @@
 
         <% if Current.user != @user %>
           <div class="nw-card__row">
-            <span class="nw-card__icon nw-card__icon--danger"><%= image_tag "cancel.svg" %></span>
+            <span class="nw-card__icon nw-card__icon--danger"><%= image_tag "ban.svg" %></span>
             <div class="nw-card__text">
               <strong><%= @user.banned? ? "Banned from the chat" : "Ban from the chat" %></strong>
-              <span><%= @user.banned? ? "Lift the ban to let #{@user.name} back in." : "Signs #{@user.name} out, deletes their messages and blocks their IP addresses." %></span>
+              <span class="nw-desktop-only"><%= @user.banned? ? "Lift the ban to let #{@user.name} back in." : "Signs #{@user.name} out, deletes their messages and blocks their IP addresses." %></span>
+              <span class="nw-phone-only">Asks you to confirm first</span>
             </div>
             <%= render "users/ban_button", user: @user %>
           </div>
         <% end %>
       </div>
 
-      <p class="nw-hint nw-row"><%= image_tag "lock.svg" %>Roles (Maintainer, Member) come from the Novawerk account. Change them in the admin panel.</p>
+      <p class="nw-hint nw-row"><%= image_tag "shield.svg" %>Roles (Maintainer, Member) come from the Novawerk account. To change one, use the admin panel.</p>
     <% end %>
   </div>
 </div>

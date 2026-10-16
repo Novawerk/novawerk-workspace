@@ -1,26 +1,27 @@
 <%= form_with model: room do |form| %>
-  <div class="flex align-center gap">
+  <div class="nw-room-form__body">
     <% if Current.user.can_administer?(room) %>
-      <%= translation_button(:room_name) %>
-
-      <label class="nw-field flex-item-grow">
-        <span class="nw-label">Name</span>
-        <%= form.text_field :name, name: "room[name]", id: "room_name", class: "input full-width",
-              required: true, autofocus: true, placeholder: "Name the room",
-              data: { turbo_permanent: true, action: "keydown.enter->form#submit:prevent" } %>
-      </label>
+      <div class="nw-field">
+        <label class="nw-label" for="room_name">Name</label>
+        <span class="input nw-input-group nw-input-group--lg">
+          <%= image_tag "hash.svg", class: "nw-muted" %>
+          <%= form.text_field :name, name: "room[name]", id: "room_name",
+                required: true, autofocus: true, placeholder: "design-crit",
+                data: { turbo_permanent: true, action: "keydown.enter->form#submit:prevent" } %>
+        </span>
+        <span class="nw-hint">Short and lowercase works best, like "task-board".</span>
+      </div>
     <% else %>
-      <h1 class="flex-item-grow txt-x-large">
-        <%= room.name %>
-      </h1>
+      <h3 class="nw-card__title">#<%= room.name %></h3>
     <% end %>
+
+    <%= yield %>
   </div>
 
-  <hr class="margin-block borderless">
-
-  <section class="room-access margin-block pad-inline fill-shade border-radius">
-    <%= yield %>
-  </section>
-
-  <%= submit_room_button_tag if Current.user.can_administer?(room) %>
+  <% if Current.user.can_administer?(room) %>
+    <div class="nw-card__foot">
+      <%= link_to "Cancel", (room.persisted? ? room_path(room) : root_path), class: "btn nw-btn-outline" %>
+      <%= submit_room_button_tag(room) %>
+    </div>
+  <% end %>
 <% end %>

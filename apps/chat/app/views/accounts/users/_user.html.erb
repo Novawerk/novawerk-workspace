@@ -1,42 +1,51 @@
-<li class="nw-members__row <%= "banned" if user.banned? %>">
-  <div class="nw-members__person">
-    <figure class="avatar flex-item-no-shrink"><%= avatar_tag user, loading: :lazy %></figure>
+<div class="nw-table__row <%= "banned" if user.banned? %>" role="row" data-nw-filter-target="item" data-nw-filter-text="<%= [ user.name, user.novawerk_handle ].compact.join(" ").downcase %>">
+  <span class="nw-table__person" role="cell">
+    <span class="avatar"><%= image_tag fresh_user_avatar_path(user), alt: "", size: 32, loading: :lazy %></span>
     <span class="nw-stack">
-      <strong><%= link_to user.name, user_path(user), target: "_top" %><%= tag.span(" (you)", class: "nw-muted") if user == Current.user %></strong>
-      <%= novawerk_handle_tag(user, class: "nw-small nw-muted") %>
+      <span class="nw-table__name"><%= link_to user.name, user_path(user), target: "_top" %><%= tag.span(" (you)", class: "nw-muted nw-small") if user == Current.user %></span>
+      <% if user.novawerk_handle.present? %><span class="nw-small nw-muted">@<%= user.novawerk_handle %></span><% end %>
     </span>
-  </div>
+  </span>
 
-  <span class="nw-members__role">
+  <span role="cell">
     <% if user.banned? %>
       <span class="nw-badge nw-badge--danger">Banned</span>
-    <% elsif user.bot? %>
-      <span class="nw-badge">Bot</span>
     <% elsif user.administrator? %>
-      <span class="nw-badge nw-badge--soft">Maintainer</span>
+      <span class="nw-badge nw-badge--soft"><%= image_tag "shield.svg", size: 12 %>Maintainer</span>
     <% else %>
       <span class="nw-badge">Member</span>
     <% end %>
   </span>
 
-  <span class="nw-members__actions">
-    <% if Current.user.can_administer? && user.active? %>
-      <% unless user.bot? || NovawerkSso.configured? %>
-        <%# Without Novawerk sign-in, roles are set here; with it they come from the Novawerk account. %>
-        <%= form_with model: user, url: account_user_path(user), data: { controller: "form" }, method: :patch do | form | %>
-          <label class="btn" for="<%= dom_id(user, :role) %>" title="Toggle maintainer">
-            <%= image_tag "crown.svg", alt: "Role: #{user.administrator? ? "Maintainer" : "Member"}" %>
-            <%= form.check_box :role, { data: { action: "form#submit" }, hidden: true, id: dom_id(user, :role), disabled: user == Current.user }, "administrator", "member" %>
-          </label>
-        <% end %>
-      <% end %>
+  <span role="cell" class="nw-muted nw-table__date"><%= user.created_at.strftime("%-d %b %Y") %></span>
 
-      <% unless user == Current.user %>
-        <%= button_to account_user_path(user), method: :delete, class: "btn btn--negative", title: "Remove from the chat", data: {
-              turbo_confirm: "Remove #{user.name} from the chat for good? This can't be undone.", confirm_label: "Remove #{user.name}" } do %>
-          <%= image_tag "trash.svg", alt: "Remove #{user.name}" %>
-        <% end %>
-      <% end %>
+  <span role="cell" class="nw-table__actions">
+    <% if Current.user.can_administer? && user != Current.user %>
+      <details class="nw-row-menu" data-controller="popup" data-action="keydown.esc->popup#close toggle->popup#toggle click@document->popup#closeOnClickOutside">
+        <summary class="nw-toolbar__btn" title="Actions for <%= user.name %>"><%= image_tag "menu-dots-horizontal.svg" %><span class="for-screen-reader">Actions for <%= user.name %></span></summary>
+        <div class="nw-menu nw-row-menu__menu" data-popup-target="menu">
+          <%= link_to user_path(user), class: "nw-menu__item", target: "_top" do %><%= image_tag "person.svg" %><span>View profile</span><% end %>
+          <% if NovawerkSso.configured? %>
+            <%= link_to "#{NovawerkSso.admin_url}/members", class: "nw-menu__item", target: "_blank", rel: "noopener" do %><%= image_tag "info.svg" %><span>Change role in admin panel</span><% end %>
+          <% elsif !user.bot? %>
+            <%= button_to account_user_path(user), method: :patch, params: { user: { role: user.administrator? ? "member" : "administrator" } }, class: "nw-menu__item", form_class: "nw-menu__form" do %>
+              <%= image_tag "crown.svg" %><span><%= user.administrator? ? "Make member" : "Make maintainer" %></span>
+            <% end %>
+          <% end %>
+          <div class="nw-menu__sep"></div>
+          <% if user.active? %>
+            <%= button_to user_ban_path(user), method: :post, class: "nw-menu__item nw-menu__item--danger btn--negative", form_class: "nw-menu__form",
+                  data: { turbo_confirm: "Ban #{user.name}? This signs them out everywhere, deletes their messages and blocks their IP addresses.", confirm_label: "Ban #{user.name}" } do %>
+              <%= image_tag "ban.svg" %><span>Ban…</span>
+            <% end %>
+          <% else %>
+            <%= button_to user_ban_path(user), method: :delete, class: "nw-menu__item", form_class: "nw-menu__form",
+                  data: { turbo_confirm: "Lift the ban on #{user.name}?", confirm_label: "Lift ban" } do %>
+              <%= image_tag "ban.svg" %><span>Lift ban…</span>
+            <% end %>
+          <% end %>
+        </div>
+      </details>
     <% end %>
   </span>
-</li>
+</div>

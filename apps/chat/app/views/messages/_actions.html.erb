@@ -1,62 +1,86 @@
 <%# Be sure to check/update messages/_template.html.erb when changing this file %>
+<%# Novawerk Chat: a hover toolbar (react · reply · copy link · edit · more), as in the design. "React" and
+    "More" open the same menu: quick reactions on top, then the actions with words. On phones a long
+    press on the message opens it (nw-long-press). %>
 
 <%= cache_message_actions(message) do %>
-<div class="message__actions" data-controller="soft-keyboard">
-  <%= tag.details class: "position-relative",
-      data: { controller: "popup", action: "keydown.esc->popup#close toggle->popup#toggle click@document->popup#closeOnClickOutside", popup_orientation_top_class: "popup-orientation-top" } do %>
-    <summary class="btn message__action-btn message__options-btn">
-      <%= image_tag "menu-dots-horizontal.svg", size: 20, class: "colorize--black", aria: { hidden: "true" } %>
-      <span class="for-screen-reader">Message options</span>
-    </summary>
+<div class="message__actions" data-controller="soft-keyboard nw-menu">
+  <div class="nw-toolbar" role="toolbar" aria-label="Message actions">
+    <button type="button" class="nw-toolbar__btn" title="Add reaction" data-action="nw-menu#open">
+      <%= image_tag "boost.svg" %><span class="for-screen-reader">Add reaction</span>
+    </button>
+    <% unless message.attachment? %>
+      <button type="button" class="nw-toolbar__btn" title="Reply" data-action="reply#reply">
+        <%= image_tag "reply.svg" %><span class="for-screen-reader">Reply</span>
+      </button>
+    <% end %>
+    <button type="button" class="nw-toolbar__btn" title="Copy link"
+        data-controller="copy-to-clipboard" data-action="copy-to-clipboard#copy"
+        data-copy-to-clipboard-success-class="btn--success" data-copy-to-clipboard-content-value="<%= url %>">
+      <%= image_tag "link.svg" %><span class="for-screen-reader">Copy link</span>
+    </button>
+    <%= link_to edit_room_message_path(message.room, message), class: "nw-toolbar__btn message__edit-btn", title: "Edit",
+          data: { turbo_frame: dom_id(message, :edit) } do %>
+      <%= image_tag "pencil.svg" %><span class="for-screen-reader">Edit</span>
+    <% end %>
 
-    <div class="message__actions-menu border shadow" data-popup-target="menu">
-      <div class="quick-boosts">
-        <% boost_path = message_boosts_path(message) %>
-        <% boost_frame = dom_id(message, :boosting) %>
-        <% EmojiHelper::REACTIONS.each do |character, title| %>
-          <form data-turbo-frame="<%= boost_frame %>" data-action="popup#close" action="<%= boost_path %>" accept-charset="UTF-8" method="post">
-            <%= hidden_field_tag "boost[content]", character %>
-            <button name="button" type="submit" title="<%= title %>" class="btn message__action-btn" data-emoji="<%= character %>">
-              <figure class="margin-none boost-character"><%= character %></figure>
-              <span class="for-screen-reader"><%= title %></span>
-            </button>
-          </form>
-        <% end %>
+    <%= tag.details class: "nw-toolbar__more",
+        data: { nw_menu_target: "details", controller: "popup", action: "keydown.esc->popup#close toggle->popup#toggle click@document->popup#closeOnClickOutside", popup_orientation_top_class: "popup-orientation-top" } do %>
+      <summary class="nw-toolbar__btn message__options-btn" title="More">
+        <%= image_tag "menu-dots-horizontal.svg" %><span class="for-screen-reader">Message options</span>
+      </summary>
 
-        <%= link_to new_message_boost_path(message),
-              class: "btn message__action-btn message__boost-btn",
-              data: { turbo_frame: dom_id(message, :new_boost), action: "soft-keyboard#open popup#close" } do %>
-          <%= image_tag "boost.svg", class: "colorize--black", size: 20, aria: { hidden: "true" } %>
-          <span class="for-screen-reader">New boost</span>
-        <% end %>
-      </div>
-
-      <div class="flex flex-wrap border-top margin-block-start-half pad-block-start-half message__actions-grid">
-        <% if message.attachment? %>
-          <%= link_to rails_blob_path(message.attachment, disposition: "attachment", only_path: true), class: "btn message__action-btn center full-width hide-in-ios-pwa", title: "Download", aria: { label: "Download" } do %>
-            <%= image_tag "download.svg", class: "colorize--black", size: 20, aria: { hidden: "true" } %>
+      <div class="message__actions-menu nw-menu" data-popup-target="menu">
+        <div class="quick-boosts nw-menu__reactions">
+          <% boost_path = message_boosts_path(message) %>
+          <% boost_frame = dom_id(message, :boosting) %>
+          <% EmojiHelper::REACTIONS.each do |character, title| %>
+            <form data-turbo-frame="<%= boost_frame %>" data-action="popup#close" action="<%= boost_path %>" accept-charset="UTF-8" method="post">
+              <%= hidden_field_tag "boost[content]", character %>
+              <button name="button" type="submit" title="<%= title %>" class="nw-menu__emoji" data-emoji="<%= character %>">
+                <%= character %><span class="for-screen-reader"><%= title %></span>
+              </button>
+            </form>
           <% end %>
+          <%= link_to new_message_boost_path(message), class: "nw-menu__emoji message__boost-btn", title: "More reactions",
+                data: { turbo_frame: dom_id(message, :new_boost), action: "soft-keyboard#open popup#close" } do %>
+            <%= image_tag "boost.svg" %><span class="for-screen-reader">More reactions</span>
+          <% end %>
+        </div>
 
-          <%= tag.button class: "btn message__action-btn center full-width",
-              data: { controller: "web-share", action: "web-share#share", web_share_files_value: rails_blob_path(message.attachment, only_path: true), web_share_title_value: message.attachment.filename.to_s }, title: "Share", aria: { label: "Share" } do %>
-            <%= image_tag "share.svg", class: "colorize--black", size: 20, aria: { hidden: "true" } %>
+        <div class="nw-menu__sep"></div>
+
+        <% if message.attachment? %>
+          <%= link_to rails_blob_path(message.attachment, disposition: "attachment", only_path: true), class: "nw-menu__item hide-in-ios-pwa" do %>
+            <%= image_tag "download.svg" %><span>Download file</span>
+          <% end %>
+          <%= tag.button class: "nw-menu__item", type: "button",
+              data: { controller: "web-share", action: "web-share#share", web_share_files_value: rails_blob_path(message.attachment, only_path: true), web_share_title_value: message.attachment.filename.to_s } do %>
+            <%= image_tag "share.svg" %><span>Share…</span>
           <% end %>
         <% else %>
-          <%= tag.button class: "btn message__action-btn center full-width", data: { action: "reply#reply" }, title: "Reply", aria: { label: "Reply" } do %>
-            <%= image_tag "reply.svg", class: "colorize--black", size: 20, aria: { hidden: "true" } %>
+          <%= tag.button class: "nw-menu__item", type: "button", data: { action: "reply#reply popup#close" } do %>
+            <%= image_tag "reply.svg" %><span>Reply</span>
           <% end %>
         <% end %>
 
-        <%= tag.button class: "btn message__action-btn center full-width", title: "Copy link", aria: { label: "Copy link" }, data: { controller: "copy-to-clipboard", action: "copy-to-clipboard#copy", copy_to_clipboard_success_class: "btn--success", copy_to_clipboard_content_value: url } do %>
-          <%= image_tag "link.svg", class: "colorize--black", size: 20, aria: { hidden: "true" } %>
+        <%= tag.button class: "nw-menu__item", type: "button", data: { controller: "copy-to-clipboard", action: "copy-to-clipboard#copy popup#close", copy_to_clipboard_success_class: "btn--success", copy_to_clipboard_content_value: url } do %>
+          <%= image_tag "link.svg" %><span>Copy link</span>
         <% end %>
 
-        <%= link_to edit_room_message_path(message.room, message), class: "btn message__action-btn center full-width message__edit-btn",
-              data: { turbo_frame: dom_id(message, :edit) }, title: "Edit", aria: { label: "Edit"} do %>
-          <%= image_tag "pencil.svg", class: "colorize--black", size: 20, aria: { hidden: "true" } %>
+        <%= link_to edit_room_message_path(message.room, message), class: "nw-menu__item message__edit-btn",
+              data: { turbo_frame: dom_id(message, :edit) } do %>
+          <%= image_tag "pencil.svg" %><span>Edit message</span>
+        <% end %>
+
+        <div class="nw-menu__sep message__edit-btn"></div>
+        <%= button_to room_message_path(message.room, message), method: :delete, class: "nw-menu__item nw-menu__item--danger btn--negative",
+              form_class: "message__edit-btn nw-menu__form",
+              data: { turbo_confirm: "Delete this message? This can't be undone.", confirm_label: "Delete message" } do %>
+          <%= image_tag "trash.svg" %><span>Delete message</span>
         <% end %>
       </div>
-    </div>
-  <% end %>
+    <% end %>
+  </div>
 </div>
 <% end %>

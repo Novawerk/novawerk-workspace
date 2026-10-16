@@ -1,7 +1,7 @@
 <% if user.active? %>
   <%= button_to user_ban_path(user), method: :post, class: "btn btn--negative",
         data: { turbo_confirm: "Ban #{user.name}? This signs them out everywhere, deletes their messages and blocks their IP addresses. You can lift the ban later from this page.", confirm_label: "Ban #{user.name}" } do %>
-    <%= image_tag "cancel.svg" %><span>Ban <%= user.name.split.first %>…</span>
+    <%= image_tag "ban.svg" %><span>Ban <%= user.name.split.first %>…</span>
   <% end %>
 <% else %>
   <%= button_to user_ban_path(user), method: :delete, class: "btn",

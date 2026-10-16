@@ -1,26 +1,27 @@
 <% @page_title = "Chat bots" %>
-
 <% page_header "Account settings" %>
-<%= render "accounts/tabs", current: :bots %>
 
-<section class="panel panel--wide txt-align-center flex flex-column position-relative" style="view-transition-name: chat-bots">
-  <div class="flex align-center gap">
-    <div class="panel__button">
-      <%= translation_button(:chat_bots) %>
+<div class="nw-page">
+  <div class="nw-page__narrow nw-page__narrow--wide" style="view-transition-name: chat-bots">
+    <%= render "accounts/tabs", current: :bots %>
+
+    <div class="nw-card">
+      <div class="nw-card__head nw-card__head--split">
+        <div class="nw-stack"><h2 class="nw-card__title">Bots</h2><p class="nw-card__desc">Let other services post into rooms, and get a webhook call when someone mentions the bot.</p></div>
+        <%= link_to new_account_bot_path, class: "btn btn--reversed nw-btn-sm" do %><%= image_tag "add.svg" %><span>New bot</span><% end %>
+      </div>
+      <div class="nw-bots">
+        <%= render partial: "accounts/bots/bot", collection: @bots %>
+        <% if @bots.empty? %><p class="nw-muted nw-bots__empty">No bots yet.</p><% end %>
+      </div>
     </div>
-    <div class="pad-inline-double center">
-      <h1 class="margin-none">Chat bots</h1>
-      <p class="margin-none-block-start">With Chat bots, other sites and services can post updates directly to Novawerk Chat.</p>
 
-      <%= link_to new_account_bot_path, class: "btn btn--reversed" do %>
-        <%= image_tag "add.svg" %><span>New bot</span>
-      <% end %>
+    <div class="nw-card">
+      <div class="nw-card__head"><h2 class="nw-card__title">Post as a bot</h2><p class="nw-card__desc">Send plain text or a file to a room's bot URL. Find the room ID in its address.</p></div>
+      <div class="nw-card__body">
+        <pre class="nw-code">curl -d 'Deployed web to production' \
+  <%= request.base_url %>/rooms/1/&lt;bot-key&gt;/messages</pre>
+      </div>
     </div>
   </div>
-
-  <div class="pad-inline pad-block-start ">
-    <menu class="flex flex-column gap margin-none pad">
-      <%= render partial: "accounts/bots/bot", collection: @bots %>
-    </menu>
-  </div>
-</section>
+</div>

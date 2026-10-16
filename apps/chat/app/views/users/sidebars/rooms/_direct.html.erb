@@ -3,29 +3,18 @@
 
   <%= link_to_room membership.room, class: [ "direct", "unread": membership.unread? ], id: dom_id(membership.room, :list),
         data: { sorted_list_number: membership.room.updated_at.to_fs(:epoch) } do %>
-    <% if members.many? %>
-      <div class="avatar__group">
-        <% members.first(4).each do |member| %>
-          <span class="avatar">
-            <%= image_tag fresh_user_avatar_path(member), size: 20, aria: { hidden: "true" } %>
-          </span>
-        <% end %>
-      </div>
-    <% else %>
-      <span class="avatar">
-        <%= image_tag fresh_user_avatar_path(members.first), size: 48, aria: { hidden: "true" } %>
-      </span>
-    <% end %>
+    <span class="avatar"><%= image_tag fresh_user_avatar_path(members.first), size: 20, alt: "" %></span>
 
-    <span class="direct__author flex align-center gap max-width min-width border-radius txt-small">
-      <span class="txt-nowrap overflow-ellipsis">
+    <span class="direct__author">
+      <span class="direct__name">
         <span class="for-screen-reader">Ping with</span>
         <% if members.many? %>
-          <%= members.map { |member| member.name.split(' ')[0, 3].map { |str| str[0].capitalize }.join }.to_sentence(two_words_connector: '+') %>
+          <%= members.map(&:name).join(", ") %>
         <% else %>
-          <%= members.first.name.split(' ')[0] %>
+          <%= members.first.name %>
         <% end %>
       </span>
     </span>
+    <span class="room__dot" aria-label="Unread"></span>
   <% end %>
 <% end %>

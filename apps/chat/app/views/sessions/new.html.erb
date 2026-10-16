@@ -16,7 +16,7 @@
       <% elsif params[:problem] %>
         <p class="nw-alert nw-alert--danger" role="alert"><%= image_tag "alert.svg" %><span>That sign-in didn't work. Please try again.</span></p>
       <% elsif params[:signed_out] %>
-        <p class="nw-alert"><%= image_tag "circle-check.svg" %><span>You signed out of the chat.</span></p>
+        <p class="nw-alert nw-alert--info"><%= image_tag "circle-check.svg" %><span>You signed out of the chat.</span></p>
       <% end %>
 
       <%= link_to NovawerkSso.sign_in_url, class: "btn btn--reversed nw-btn-block" do %>

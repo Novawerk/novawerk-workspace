@@ -9,13 +9,13 @@
   <g>
     <rect width="100%" height="100%" rx="50" fill="<%= avatar_background_color(@user) %>" />
 
-    <text x="50%" y="50%" fill="#FFFFFF"
+    <text x="50%" y="50%" fill="<%= avatar_tint(@user).last %>"
       text-anchor="middle" dy="0.35em"
       <%=raw 'textLength="85%" lengthAdjust="spacingAndGlyphs"' if @user.initials.size >= 3 %>
-      font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
-      font-size="230"
-      font-weight="800"
-      letter-spacing="-5">
+      font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+      font-size="185"
+      font-weight="600"
+      letter-spacing="0">
       <%= @user.initials %>
     </text>
   </g>

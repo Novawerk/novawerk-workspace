@@ -1,25 +1,42 @@
 <% @page_title = "Edit bot" %>
+<% page_header @bot.name, crumb: "Bots" %>
 
-<% page_header "Edit bot" do %><%= link_to "Back to bots", account_bots_path, class: "btn btn--plain" %><% end %>
+<div class="nw-page">
+  <div class="nw-page__narrow nw-page__narrow--form">
+    <h2 class="nw-h1">Edit bot</h2>
 
-<section class="panel" style="view-transition-name: chat-bot-<%= @bot.id %>">
-  <%= form_with model: @bot, url: account_bot_path(@bot), class: "flex flex-column gap" do |form| %>
-    <%= render "accounts/bots/form", form: form, bot: @bot %>
-  <% end %>
+    <div class="nw-card nw-room-form" style="view-transition-name: chat-bot-<%= @bot.id %>">
+      <%= form_with model: @bot, url: account_bot_path(@bot) do |form| %>
+        <%= render "accounts/bots/form", form: form, bot: @bot %>
+      <% end %>
+    </div>
 
-  <hr class="separator full-width margin-block-double">
+    <div class="nw-card">
+      <div class="nw-card__head"><h3 class="nw-card__title">Bot key</h3><p class="nw-card__desc">Anyone with this key can post as the bot. Keep it in a secret store.</p></div>
+      <div class="nw-card__body" data-controller="nw-reveal">
+        <div class="nw-row nw-row--nowrap">
+          <input type="password" class="input nw-input nw-mono" value="<%= @bot.bot_key %>" readonly aria-label="Bot key" data-nw-reveal-target="field">
+          <button type="button" class="btn btn--plain nw-btn-icon" title="Show key" data-action="nw-reveal#toggle"><%= image_tag "eye-off.svg" %><span class="for-screen-reader">Show key</span></button>
+          <%= button_to_copy_to_clipboard(@bot.bot_key) do %><%= image_tag "copy-paste.svg" %><span>Copy</span><% end %>
+        </div>
+        <div class="nw-row nw-row--between">
+          <span class="nw-hint">Resetting breaks anything that uses the old key.</span>
+          <%= button_to account_bot_key_path(@bot), method: :put, class: "btn nw-btn-outline nw-btn-sm",
+                data: { turbo_confirm: "Reset the key for #{@bot.name}? Anything using the old key stops working.", confirm_label: "Reset key" } do %>
+            <%= image_tag "refresh.svg" %><span>Reset key…</span>
+          <% end %>
+        </div>
+      </div>
+    </div>
 
-  <div class="flex align-center gap justify-space-between">
-    <%= button_to account_bot_path(@bot), method: :delete, class: "btn txt--small btn--negative", aria: { label: "Delete this chat bot" },
-          data: { turbo_confirm: "Are you sure you want to permanently remove this bot from the account? This can’t be undone." } do %>
-      <%= image_tag "trash.svg", aria: { hidden: "true" }, size: 20 %>
-      <%= image_tag "bot.svg", aria: { hidden: "true" }, size: 20 %>
-    <% end %>
-
-    <%= button_to account_bot_key_path(@bot), method: :put, class: "btn full-width txt--small btn--negative", aria: { label: "Generate a new key" },
-          data: { turbo_confirm: "Are you sure you want to change the bot key? All usage of this bot must be updated." } do %>
-      <%= image_tag "refresh.svg", aria: { hidden: "true" }, size: 20 %>
-      <%= image_tag "key.svg", aria: { hidden: "true" }, size: 20 %>
-    <% end %>
+    <div class="nw-card nw-card--danger">
+      <div class="nw-card__row">
+        <span class="nw-card__text"><strong>Delete this bot</strong><span>Its messages stay; it can't post any more.</span></span>
+        <%= button_to account_bot_path(@bot), method: :delete, class: "btn btn--negative",
+              data: { turbo_confirm: "Delete #{@bot.name}? Its messages stay, but it can't post any more.", confirm_label: "Delete bot" } do %>
+          <%= image_tag "trash.svg" %><span>Delete bot…</span>
+        <% end %>
+      </div>
+    </div>
   </div>
-</section>
+</div>

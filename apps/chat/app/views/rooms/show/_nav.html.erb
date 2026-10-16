@@ -1,24 +1,36 @@
 <% content_for :nav do %>
-  <%= account_logo_tag if Current.account.logo.attached? %>
+  <h1 class="nw-hdr-title room--current">
+    <% if room.direct? %>
+      <span class="for-screen-reader">Ping with</span>
+    <% else %>
+      <%= image_tag(room.is_a?(Rooms::Closed) ? "lock.svg" : "hash.svg", class: "nw-muted") %>
+    <% end %>
+    <span class="room__contents"><%= room_display_name(room) %></span>
+  </h1>
 
-  <%= tag.span class: "btn btn--reversed btn--faux room--current" do %>
-    <h1 class="room__contents txt-medium overflow-ellipsis">
-      <% if room.direct? %>
-        <span class="for-screen-reader">Ping with</span>
-      <% end %>
-
-      <%= room_display_name(room) %>
-    </h1>
-  <% end %>
+  <span class="nw-hdr-sub nw-hdr-sub--phone"><%= pluralize(room.users.active.count, "member") %></span>
 
   <span class="nw-hdr-sub">
     <%= room.direct? ? "Direct message" : (room.is_a?(Rooms::Closed) ? "Closed room · #{pluralize(room.users.size, "member")}" : "Open room · everyone in #{Current.account.name}") %>
   </span>
 
-  <%= link_to_edit_room(room) do %>
-    <%= image_tag "menu-dots-horizontal.svg", size: 20, aria: { hidden: "true" } %>
-    <span class="for-screen-reader">Settings for this <%= room.direct? ? "Ping" : "room" %></span>
+  <% unless room.direct? %>
+    <% members = room.users.active.ordered.limit(3) %>
+    <%= link_to [ :edit, room ], class: "btn nw-hdr-members", title: "Members" do %>
+      <span class="nw-stack-avatars">
+        <% members.each do |member| %>
+          <span class="avatar"><%= image_tag fresh_user_avatar_path(member), size: 20, alt: "" %></span>
+        <% end %>
+      </span>
+      <span class="nw-hdr-count"><%= room.users.active.count %></span>
+      <span class="for-screen-reader">Members</span>
+    <% end %>
   <% end %>
 
   <%= render "rooms/involvements/bell", room: room %>
+
+  <%= link_to_edit_room(room) do %>
+    <%= image_tag "menu-dots-horizontal.svg" %>
+    <span class="for-screen-reader">Settings for this <%= room.direct? ? "Ping" : "room" %></span>
+  <% end %>
 <% end %>

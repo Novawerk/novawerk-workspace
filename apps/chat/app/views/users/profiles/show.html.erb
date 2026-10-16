@@ -32,7 +32,7 @@
     </div>
 
     <% unless @user.novawerk_public? %>
-      <p class="nw-alert"><%= image_tag "info.svg" %><span>Your Novawerk profile is private. People here see your name, @handle, picture and bio, not your Werk. Make it public on novawerk.io to show it.</span></p>
+      <p class="nw-alert nw-alert--info"><%= image_tag "eye-off.svg" %><span>Your Novawerk profile is private. People here see your name, @handle, picture and bio, not your Werk. Make it public on novawerk.io to show it.</span></p>
     <% end %>
   <% else %>
   <div class="align-center center avatar__form gap" data-controller="upload-preview">
@@ -123,15 +123,35 @@
 </div>
 
 <aside class="nw-page__aside">
-  <% if (install = render(partial: "pwa/install_instructions")).present? %>
-    <div class="nw-card">
-      <div class="nw-card__head"><h3 class="nw-card__title">This device</h3></div>
-      <div class="nw-card__body"><%= install %></div>
+  <div class="nw-card">
+    <div class="nw-card__head nw-card__head--tight"><h3 class="nw-card__title">This device</h3></div>
+    <div class="nw-card__body nw-card__body--tight">
+      <div class="nw-device-row" data-controller="nw-notification-state">
+        <%= image_tag "notification-bell-everything.svg", class: "nw-muted" %>
+        <span class="nw-grow">Notifications</span>
+        <span class="nw-badge nw-badge--soft" data-nw-notification-state-target="badge">On</span>
+      </div>
+      <details class="nw-device-row nw-device-row--details">
+        <summary>
+          <%= image_tag "download.svg", class: "nw-muted" %>
+          <span class="nw-grow">Install as an app</span>
+          <span class="btn nw-btn-outline nw-btn-xs">How?</span>
+        </summary>
+        <div class="nw-device-help"><%= render partial: "pwa/install_instructions" %></div>
+      </details>
     </div>
-  <% end %>
+  </div>
 
-  <div class="nw-card nw-card--rows">
-    <%= render "users/profiles/transfer", user: @user %>
+  <div class="nw-card">
+    <div class="nw-card__head nw-card__head--tight">
+      <h3 class="nw-card__title">Sign in on another device</h3>
+      <p class="nw-card__desc">Open the chat on your phone and sign in with Novawerk, or scan a one-time link.</p>
+    </div>
+    <div class="nw-card__body nw-card__body--tight">
+      <%= link_to_zoom_qr_code(session_transfer_url(@user.transfer_id)) do %>
+        <%= image_tag "mobile-phone.svg" %><span>Show QR code…</span>
+      <% end %>
+    </div>
   </div>
 
   <% if Rails.env.development? %>
@@ -142,7 +162,7 @@
       <%= link_to "Push Notifications Dev Mode", user_push_subscriptions_url, class: "btn txt-small center" %>
     </fieldset>
   <% end %>
-  <p class="nw-hint">Name, picture, @handle and bio come from your Novawerk account and update when you change them there.</p>
+  <p class="nw-small nw-muted nw-aside-note">Name, picture, @handle and bio come from your Novawerk account and update each time you sign in.</p>
 </aside>
 </div>
 </div>

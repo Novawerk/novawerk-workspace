@@ -35,15 +35,11 @@
     </nav>
 
     <% if notice = flash[:notice] || flash[:alert] %>
-      <div class="flash" data-controller="element-removal" data-action="animationend->element-removal#remove">
-        <div class="flash__inner shadow" style="<%= "--flash-background: var(--color-negative)" if flash[:alert] %>">
-          <% if flash[:alert] %>
-            <%= image_tag "alert.svg", aria: { hidden: true }, size: 24, class: "colorize--white" %>
-          <% else %>
-            <%= image_tag "check.svg", aria: { hidden: true }, size: 24, class: "colorize--white" %>
-          <% end %>
-        </div>
-        <span class="for-screen-reader" role="alert" aria-atomic="true"><%= notice %></span>
+      <%# Novawerk Chat: a toast with words (States board), not a bare green circle. %>
+      <div class="flash nw-toast <%= "nw-toast--error" if flash[:alert] %>" role="<%= flash[:alert] ? "alert" : "status" %>"
+          data-controller="element-removal" data-action="animationend->element-removal#remove">
+        <%= image_tag(flash[:alert] ? "alert.svg" : "circle-check.svg") %>
+        <span><%= notice == "✓" ? "Saved" : notice %></span>
       </div>
     <% end %>
 

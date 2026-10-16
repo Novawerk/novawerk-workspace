@@ -1,10 +1,12 @@
 <% @page_title = "New room" %>
-<% page_header "New room" do %>
-  <%= link_back_to_last_room_visited %>
-<% end %>
+<% page_header "New room", crumb: "Channels" %>
 
 <div class="nw-page">
-  <div class="nw-page__narrow">
+  <div class="nw-page__narrow nw-page__narrow--form">
+    <div class="nw-page__intro">
+      <h2 class="nw-h1">New room</h2>
+      <p class="nw-lead">Rooms are where a project or topic talks. You can change all of this later.</p>
+    </div>
     <div class="nw-card nw-room-form" style="view-transition-name: <%= local_assigns[:view_transition_name] || "new-room" %>">
       <%= yield %>
     </div>

@@ -11,7 +11,10 @@ module Rooms::InvolvementsHelper
       role: "checkbox", aria: { checked: true, labelledby: dom_id(room, :involvement_label) }, tabindex: 0,
       class: "btn #{involvement}" do
         image_tag("notification-bell-#{involvement}.svg", aria: { hidden: "true" }, size: 20) +
-        tag.span(HUMANIZE_INVOLVEMENT[involvement], class: "for-screen-reader", id: dom_id(room, :involvement_label))
+        tag.span(HUMANIZE_INVOLVEMENT[involvement], class: "for-screen-reader", id: dom_id(room, :involvement_label)) +
+        # Novawerk Chat: a short visible label, shown where there's room for words (My profile).
+        tag.span(SHORT_INVOLVEMENT[involvement], class: "involvement-label", aria: { hidden: "true" }) +
+        image_tag("chevron-down.svg", class: "involvement-chevron", size: 12)
     end
   end
 
@@ -21,6 +24,13 @@ module Rooms::InvolvementsHelper
       "everything" => "Notifying about all messages",
       "nothing" => "Notifications are off",
       "invisible" => "Notifications are off and room invisible in sidebar"
+    }
+
+    SHORT_INVOLVEMENT = {
+      "mentions" => "Mentions only",
+      "everything" => "All messages",
+      "nothing" => "Nothing",
+      "invisible" => "Hidden"
     }
 
     SHARED_INVOLVEMENT_ORDER = %w[ mentions everything nothing invisible ]

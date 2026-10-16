@@ -18,13 +18,14 @@
 
     <%= link_to searches_path, class: "sidebar__search", data: { turbo_frame: "_top" } do %>
       <%= image_tag "search.svg", size: 14 %>
-      <span>Search messages</span>
+      <span class="sidebar__search-label">Search messages</span>
+      <kbd class="nw-kbd">⌘K</kbd>
     <% end %>
 
     <turbo-frame id="direct_rooms_control" target="_top">
       <h2 class="sidebar__section-title">
         Direct messages
-        <%= link_to new_rooms_direct_path, class: "sidebar__section-add", title: "New direct message", data: { turbo_frame: "_self" } do %>
+        <%= link_to new_rooms_direct_path, class: "sidebar__section-add", title: "New direct message", data: { turbo_frame: "_top" } do %>
           <%= image_tag "add.svg", size: 14, alt: "New direct message" %>
         <% end %>
       </h2>
@@ -73,7 +74,8 @@
     </div>
 
     <button class="btn sidebar__toggle" data-action="toggle-class#toggle">
-      <%= image_tag "menu.svg", size: 20, aria: { hidden: "true" } %>
+      <%= image_tag "menu.svg", size: 20, aria: { hidden: "true" }, class: "sidebar__toggle-open" %>
+      <%= image_tag "remove.svg", size: 20, aria: { hidden: "true" }, class: "sidebar__toggle-close" %>
       <span class="for-screen-reader">Open menu</span>
     </button>
   </div>
@@ -88,7 +90,7 @@
         <% if Current.user.novawerk_handle.present? %>
           <span class="sidebar__me-email"><%= novawerk_handle_tag Current.user %></span>
         <% else %>
-          <span class="sidebar__me-email"><%= Current.user.email_address %></span>
+          <span class="sidebar__me-email"><%= Current.user.novawerk_handle.present? ? "@#{Current.user.novawerk_handle}" : Current.user.email_address %></span>
         <% end %>
       </span>
       <span class="for-screen-reader">My Settings</span>
