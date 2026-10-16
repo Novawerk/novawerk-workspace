@@ -15,9 +15,9 @@ beforeAll(async () => {
 beforeEach(async () => {
   await resetDb(db);
   await db.insert(members).values([
-    { id: "haodong", displayName: "Haodong", email: "h@novawerk.io", canAdmin: true },
-    { id: "grace", displayName: "Grace", email: "grace@novawerk.io" },
-    { id: "gone", displayName: "Gone", email: "g@novawerk.io", active: false, canAdmin: true },
+    { id: "haodong", handle: "haodong", displayName: "Haodong", email: "h@novawerk.io", role: "maintainer" },
+    { id: "grace", handle: "grace", displayName: "Grace", email: "grace@novawerk.io" },
+    { id: "gone", handle: "gone", displayName: "Gone", email: "g@novawerk.io", active: false, role: "maintainer" },
   ]);
 });
 
@@ -63,11 +63,11 @@ describe("importTasks", () => {
 
     await resetDb(db);
     await db.insert(members).values([
-      { id: "gone", displayName: "Gone", email: "g@novawerk.io", active: false, canAdmin: true },
-      { id: "grace", displayName: "Grace", email: "grace@novawerk.io" },
+      { id: "gone", handle: "gone", displayName: "Gone", email: "g@novawerk.io", active: false, role: "maintainer" },
+      { id: "grace", handle: "grace", displayName: "Grace", email: "grace@novawerk.io" },
     ]);
-    await expect(importTasks(db, "gone", list)).rejects.toThrow(/active member with admin rights/);
-    await expect(importTasks(db, "grace", list)).rejects.toThrow(/active member with admin rights/); // active, not an admin
+    await expect(importTasks(db, "gone", list)).rejects.toThrow(/active maintainer/);
+    await expect(importTasks(db, "grace", list)).rejects.toThrow(/active maintainer/); // active, not a maintainer
     expect(await db.select().from(tasks)).toEqual([]);
   });
 
@@ -77,7 +77,7 @@ describe("importTasks", () => {
       { title: "Typo", area: "web", size: "S", reviewerId: "haodogn" },
     ]);
     expect(await importProblems(db, "haodong", typo)).toEqual(['"Typo": no member "haodogn" to review it']);
-    expect(await importProblems(db, "nobody", list)).toEqual(['"nobody" isn\'t an active member with admin rights: only they may file tasks']);
+    expect(await importProblems(db, "nobody", list)).toEqual(['"nobody" isn\'t an active maintainer: only they may file tasks']);
     expect(await importProblems(db, "haodong", list)).toEqual([]);
   });
 

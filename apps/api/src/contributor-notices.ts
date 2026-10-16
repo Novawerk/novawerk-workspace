@@ -16,7 +16,7 @@
 //   3. tidy(): rows stuck `sending` for 15 minutes become `failed` (unknown outcome); finished
 //      rows go after 30 days; a deleted account's address after 7 days at the latest.
 //
-// The address is the contributor's own `contributors.email` (set when they sign in with an emailed
+// The address is the contributor's own `members.email` (set when they sign in with an emailed
 // code, so verified), else `notify_email` (GitHub's verified primary email; never a sign-in). `account_deleted` keeps the address on its row until
 // that last mail is sent.
 
@@ -28,7 +28,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { OPTIONAL_CONTRIBUTOR_NOTICES, type ContributorNoticeKind } from "@nw/contracts";
 import {
   contributorNotices,
-  contributors,
+  members,
   taskEvents,
   taskPosts,
   taskProposals,
@@ -329,7 +329,7 @@ export async function turnNoticesOff(
   const expected = Buffer.from(noticeSignature(q.c, setting, secret));
   const given = Buffer.from(q.sig);
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return false;
-  await db.update(contributors).set({ [setting]: false }).where(eq(contributors.id, q.c));
+  await db.update(members).set({ [setting]: false }).where(eq(members.id, q.c));
   return true;
 }
 
@@ -345,15 +345,15 @@ const select = (db: Database) =>
   db
     .select({
       notice: contributorNotices,
-      email: sql<string | null>`coalesce(${contributors.email}, ${contributors.notifyEmail})`,
-      suspendedAt: contributors.suspendedAt,
-      notifyReplies: contributors.notifyReplies,
-      notifyReminders: contributors.notifyReminders,
+      email: sql<string | null>`coalesce(${members.email}, ${members.notifyEmail})`,
+      suspendedAt: members.suspendedAt,
+      notifyReplies: members.notifyReplies,
+      notifyReminders: members.notifyReminders,
       title: tasks.title,
       assigneeId: tasks.assigneeId,
     })
     .from(contributorNotices)
-    .leftJoin(contributors, eq(contributors.id, contributorNotices.contributorId))
+    .leftJoin(members, eq(members.id, contributorNotices.contributorId))
     .leftJoin(tasks, eq(tasks.id, contributorNotices.taskId));
 
 /** Sends what is pending. Without a sender (no Resend key in production) nothing moves. */

@@ -28,8 +28,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   await resetDb(db);
   await db.insert(members).values([
-    { id: "jonas", displayName: "Jonas Weber", email: "jonas@novawerk.io" },
-    { id: "mara", displayName: "Mara Lindqvist", email: "mara@novawerk.io" },
+    { id: "jonas", handle: "jonas", displayName: "Jonas Weber", email: "jonas@novawerk.io" },
+    { id: "mara", handle: "mara", displayName: "Mara Lindqvist", email: "mara@novawerk.io" },
   ]);
   const [quiet, draft] = await db
     .insert(projects)
@@ -58,11 +58,11 @@ async function code(fn: () => Promise<unknown>): Promise<string> {
 }
 
 describe("a member's public profile", () => {
-  it("is off by default and needs a handle to switch on", async () => {
+  it("is off by default; switching it on keeps the handle every account has", async () => {
     expect(await wall()).toEqual([]);
-    expect(await code(() => updateMemberProfile(db, "jonas", { publicProfile: true }))).toBe("invalid");
+    expect(await updateMemberProfile(db, "jonas", { publicProfile: true })).toMatchObject({ public: true, handle: "jonas" });
     const row = await updateMemberProfile(db, "jonas", { publicProfile: true, profileHandle: "jonas-w", profileBio: "Wished for Quiet Desk" });
-    expect(row).toMatchObject({ publicProfile: true, profileHandle: "jonas-w" });
+    expect(row).toMatchObject({ public: true, handle: "jonas-w" });
   });
 
   it("shares the handle namespace with contributors, both ways", async () => {
@@ -138,9 +138,9 @@ describe("review fixes", () => {
     }
   });
 
-  it("shows an initiator's profile only with a public project, and matches the role loosely", async () => {
+  it("shows an initiator only with a public project, and matches the role loosely", async () => {
     await updateMemberProfile(db, "mara", { publicProfile: true, profileHandle: "mara-l" }); // a draft project only
-    expect(await getPublicContributor(db, "mara-l")).toBeNull();
+    expect(await getPublicContributor(db, "mara-l")).toMatchObject({ kind: "contributor", projects: [] });
     await db.update(projectMembers).set({ role: " initiator " }).where(eq(projectMembers.memberId, "jonas"));
     await updateMemberProfile(db, "jonas", { publicProfile: true, profileHandle: "j-weber" });
     expect((await wall()).map((c) => c.handle)).toEqual(["j-weber"]);

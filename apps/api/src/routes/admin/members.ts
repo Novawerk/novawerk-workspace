@@ -1,4 +1,5 @@
-// /admin/members: everyone in Novawerk. No tiers; `canAdmin` is a permission to run this panel.
+// /admin/members: everyone in Novawerk. `canAdmin` is the maintainer role (NB-ADR-0014) until the
+// admin panel reads `role`.
 // Every member can list them (team and owner pickers), without their email addresses; only admins
 // add or change members.
 
@@ -7,13 +8,13 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 
 import { memberCreateInput, memberUpdateInput } from "@nw/contracts";
-import { members } from "@nw/db";
+import { isMaintainer, members } from "@nw/db";
 import { TaskRuleError, claimMemberId } from "@nw/tasks";
 
 import { linkInitiatorProjects } from "../../admin/accept.js";
 import { requireAdmin } from "../../auth.js";
 import { conflict, isUniqueViolation, notFound, notFoundIfInvalid, rejectInvalid, validationFailed } from "../../http.js";
-import type { ApiEnv } from "../../types.js";
+import { toMemberRow, type ApiEnv } from "../../types.js";
 import { textIdParam, type AdminDeps } from "./shared.js";
 
 export function memberRoutes({ db }: AdminDeps) {
@@ -22,8 +23,8 @@ export function memberRoutes({ db }: AdminDeps) {
       /** Active members first, then by name. Reviewer pickers filter to active ones. */
       .get("/", async (c) => {
         const rows = await db.select().from(members).orderBy(desc(members.active), asc(members.displayName));
-        const admin = c.get("member").canAdmin;
-        return c.json(admin ? rows : rows.map((m) => ({ ...m, email: "" })), 200);
+        const admin = isMaintainer(c.get("member"));
+        return c.json(rows.map((m) => (admin ? toMemberRow(m) : { ...toMemberRow(m), email: "" })), 200);
       })
 
       .post("/", requireAdmin, zValidator("json", memberCreateInput, rejectInvalid), async (c) => {
@@ -49,15 +50,16 @@ export function memberRoutes({ db }: AdminDeps) {
               .insert(members)
               .values({
                 id: input.id,
+                handle: input.id,
                 displayName: input.displayName,
                 email,
-                canAdmin: input.canAdmin ?? false,
+                role: input.canAdmin ? "maintainer" : "member",
                 joinedOn: input.joinedOn ?? new Date().toISOString().slice(0, 10),
               })
               .returning();
             // Someone whose pitch we accepted becomes its Initiator now (see src/admin/accept.ts).
             const initiatorOf = await linkInitiatorProjects(tx, row!);
-            return { ...row!, initiatorOf };
+            return { ...toMemberRow(row!), initiatorOf };
           });
           return c.json(member, 201);
         } catch (err) {
@@ -83,8 +85,13 @@ export function memberRoutes({ db }: AdminDeps) {
               return c.json(validationFailed({ active: ["You can't mark yourself inactive"] }), 400);
             }
           }
-          const [row] = await db.update(members).set(patch).where(eq(members.id, id)).returning();
-          return row ? c.json(row, 200) : c.json(notFound, 404);
+          const { canAdmin, ...fields } = patch;
+          const [row] = await db
+            .update(members)
+            .set({ ...fields, ...(canAdmin === undefined ? {} : { role: canAdmin ? "maintainer" : "member" }) })
+            .where(eq(members.id, id))
+            .returning();
+          return row ? c.json(toMemberRow(row), 200) : c.json(notFound, 404);
         },
       )
   );

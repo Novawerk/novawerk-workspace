@@ -13,13 +13,13 @@ import {
   suggestionInput,
 } from "@nw/contracts";
 import {
-  contributors,
+  members,
   taskEvents,
   taskPosts,
   taskProposals,
   taskVotes,
   tasks,
-  type Contributor,
+  type Member,
   type Database,
   type Task,
   type TaskPost,
@@ -34,11 +34,11 @@ const DAY_MS = 24 * 3_600_000;
 type ParsedProposal = ReturnType<typeof proposalInput.parse>;
 type ParsedSuggestion = ReturnType<typeof suggestionInput.parse>;
 
-function notSuspended(c: Contributor) {
+function notSuspended(c: Member) {
   if (c.suspendedAt) throw new TaskRuleError("suspended", "This account is suspended");
 }
 
-function mayWork(c: Contributor) {
+function mayWork(c: Member) {
   notSuspended(c);
   if (!canWork(c)) throw new TaskRuleError("github_required", "Link your GitHub account first: we match pull requests by it");
 }
@@ -55,7 +55,7 @@ async function publicTask(db: Database, taskId: number, lock = false): Promise<T
 }
 
 /** Your own proposal that is still open to change: pending, or an agent's draft. */
-async function ownPendingProposal(db: Database, c: Contributor, proposalId: string): Promise<TaskProposal> {
+async function ownPendingProposal(db: Database, c: Member, proposalId: string): Promise<TaskProposal> {
   const [proposal] = await db.select().from(taskProposals).where(eq(taskProposals.id, proposalId)).limit(1);
   if (!proposal || proposal.status === "withdrawn") throw new TaskRuleError("not_found", "No such proposal");
   if (proposal.contributorId !== c.id) throw new TaskRuleError("forbidden", "Not your proposal");
@@ -83,9 +83,9 @@ const touch = (db: Database, taskId: number, now: Date) =>
  * Run `fn` with the contributor's row locked: two requests from one person run one after the
  * other, so a count-then-insert limit can't be passed twice at once. `fn` gets the fresh row.
  */
-async function asContributor<T>(db: Database, c: Contributor, fn: (tx: Database, me: Contributor) => Promise<T>): Promise<T> {
+async function asContributor<T>(db: Database, c: Member, fn: (tx: Database, me: Member) => Promise<T>): Promise<T> {
   return db.transaction(async (tx) => {
-    const [me] = await tx.select().from(contributors).where(eq(contributors.id, c.id)).for("update");
+    const [me] = await tx.select().from(members).where(eq(members.id, c.id)).for("update");
     if (!me) throw new TaskRuleError("not_found", "Not signed in");
     return fn(tx, me);
   });
@@ -98,7 +98,7 @@ async function asContributor<T>(db: Database, c: Contributor, fn: (tx: Database,
  */
 export async function propose(
   db: Database,
-  c: Contributor,
+  c: Member,
   taskId: number,
   input: ParsedProposal,
   at?: Date,
@@ -158,7 +158,7 @@ const ALREADY_PROPOSED = "You already proposed on this task. Edit that proposal 
  * Confirm an agent's draft in the browser: it becomes a pending proposal, under the same rules
  * as one written by hand (task open, GitHub linked, one pending per task).
  */
-export async function confirmDraftProposal(db: Database, c: Contributor, proposalId: string, now = new Date()): Promise<TaskProposal> {
+export async function confirmDraftProposal(db: Database, c: Member, proposalId: string, now = new Date()): Promise<TaskProposal> {
   return asContributor(db, c, async (tx, me) => {
     const proposal = await ownPendingProposal(tx, me, proposalId);
     if (proposal.status !== "draft") throw new TaskRuleError("invalid_state", "This proposal isn't a draft");
@@ -187,7 +187,7 @@ export async function confirmDraftProposal(db: Database, c: Contributor, proposa
  */
 export async function updateProposal(
   db: Database,
-  c: Contributor,
+  c: Member,
   proposalId: string,
   patch: ProposalUpdateInput,
   now = new Date(),
@@ -212,7 +212,7 @@ export async function updateProposal(
  * Withdraw your own pending proposal: the row stays (it counts towards the daily limit). A draft
  * is simply deleted: it never counted. Through a token only drafts can go.
  */
-export async function withdrawProposal(db: Database, c: Contributor, proposalId: string, now = new Date(), via?: Via): Promise<void> {
+export async function withdrawProposal(db: Database, c: Member, proposalId: string, now = new Date(), via?: Via): Promise<void> {
   notSuspended(c);
   const proposal = await ownPendingProposal(db, c, proposalId);
   if (proposal.status === "draft") {
@@ -227,7 +227,7 @@ export async function withdrawProposal(db: Database, c: Contributor, proposalId:
 /** Post on a task, or reply to a post (one level). 30 a day; not on a locked thread. */
 export async function addPost(
   db: Database,
-  c: Contributor,
+  c: Member,
   taskId: number,
   input: PostInput,
   at?: Date,
@@ -275,7 +275,7 @@ export async function addPost(
 /** Suggest an improvement or a bug. At most 3 waiting for triage per person. No size, no Werk. */
 export async function suggestTask(
   db: Database,
-  c: Contributor,
+  c: Member,
   input: ParsedSuggestion,
   now = new Date(),
   via?: Via,
@@ -326,7 +326,7 @@ export async function suggestTask(
   });
 }
 
-async function suggestionToVoteOn(db: Database, c: Contributor, taskId: number): Promise<Task> {
+async function suggestionToVoteOn(db: Database, c: Member, taskId: number): Promise<Task> {
   const task = await publicTask(db, taskId);
   notSuspended(c);
   if (task.status !== "suggested") throw new TaskRuleError("invalid_state", "Votes are only open while a task is suggested");
@@ -334,14 +334,14 @@ async function suggestionToVoteOn(db: Database, c: Contributor, taskId: number):
 }
 
 /** +1 a suggestion. Not your own. Doing it twice is the same as once. */
-export async function vote(db: Database, c: Contributor, taskId: number, now = new Date()): Promise<void> {
+export async function vote(db: Database, c: Member, taskId: number, now = new Date()): Promise<void> {
   const task = await suggestionToVoteOn(db, c, taskId);
   if (task.suggestedBy === c.id) throw new TaskRuleError("forbidden", "You can't +1 your own suggestion");
   await db.insert(taskVotes).values({ taskId, contributorId: c.id, createdAt: now }).onConflictDoNothing();
 }
 
 /** Take a +1 back, while the task is still suggested (votes are kept after triage). */
-export async function unvote(db: Database, c: Contributor, taskId: number): Promise<void> {
+export async function unvote(db: Database, c: Member, taskId: number): Promise<void> {
   await suggestionToVoteOn(db, c, taskId);
   await db.delete(taskVotes).where(and(eq(taskVotes.taskId, taskId), eq(taskVotes.contributorId, c.id)));
 }

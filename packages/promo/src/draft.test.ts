@@ -33,8 +33,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   await resetDb(db);
   await db.insert(members).values([
-    { id: "min", displayName: "Min Z.", email: "min@example.org" },
-    { id: "yu", displayName: "Yu", email: "yu@example.org" },
+    { id: "min", handle: "min", displayName: "Min Z.", email: "min@example.org" },
+    { id: "yu", handle: "yu", displayName: "Yu", email: "yu@example.org" },
   ]);
 });
 

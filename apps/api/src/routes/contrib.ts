@@ -65,7 +65,7 @@ import {
   type SuggestionScreenshotTicket,
 } from "@nw/contracts";
 import { safeFilename, type Files } from "@nw/object-store";
-import type { Contributor, TaskProposal } from "@nw/db";
+import type { Member, TaskProposal } from "@nw/db";
 import { parsePullRequestUrl } from "@nw/github";
 import {
   TaskRuleError,
@@ -124,7 +124,7 @@ async function checkScreenshot(files: Files | undefined, contributorId: string, 
 }
 
 /** Your own view of a proposal you just wrote: says whether it is a draft. */
-function proposalResult(row: TaskProposal, me: Contributor, viaAgent: string | null): ProposalResult {
+function proposalResult(row: TaskProposal, me: Member, viaAgent: string | null): ProposalResult {
   return { ...toPublicProposal(row, me, viaAgent), status: row.status as ProposalResult["status"], draft: row.status === "draft" };
 }
 

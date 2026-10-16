@@ -33,9 +33,9 @@ export async function importProblems(db: Database, memberId: string | undefined,
     const [member] = await db
       .select({ id: members.id })
       .from(members)
-      .where(and(eq(members.id, memberId), eq(members.active, true), eq(members.canAdmin, true)))
+      .where(and(eq(members.id, memberId), eq(members.active, true), eq(members.role, "maintainer")))
       .limit(1);
-    if (!member) problems.push(`"${memberId}" isn't an active member with admin rights: only they may file tasks`);
+    if (!member) problems.push(`"${memberId}" isn't an active maintainer: only they may file tasks`);
   }
   const reviewers = [...new Set(list.map((t) => t.reviewerId).filter((id): id is string => Boolean(id)))];
   if (reviewers.length) {

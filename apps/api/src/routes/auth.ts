@@ -60,9 +60,9 @@ export function authRoutes({
       // The same answer either way, so nobody can use this to find out who is a member.
       const member = await findMemberByEmail(db, email);
       if (member) {
-        const code = await issueCode(db, member.email, env.sessionSecret);
+        const code = await issueCode(db, member.email!, env.sessionSecret);
         if (code) {
-          await sendSignInCode(member.email, code).catch((err) =>
+          await sendSignInCode(member.email!, code).catch((err) =>
             logger.error(`[api] could not email a sign-in code to member ${member.id}:`, err),
           );
         }

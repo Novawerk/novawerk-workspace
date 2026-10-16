@@ -3,7 +3,7 @@
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { contributors, members, projectMembers, projects, type Database } from "@nw/db";
+import { members, projectMembers, projects, type Database } from "@nw/db";
 
 import { TEST_MEMBERS, adminFetch, createTestDb, makeApp, resetDb } from "./helpers.js";
 
@@ -19,14 +19,10 @@ beforeEach(async () => {
 });
 
 describe("PATCH /admin/me", () => {
-  it("lets any member switch on their own public profile, with a handle", async () => {
+  it("lets any member switch on their own public profile, and change its handle", async () => {
     const { app } = makeApp(db);
     const me = await adminFetch(app, "GET", "/admin/me", undefined, "grace");
-    expect(await me.json()).toMatchObject({ id: "grace", publicProfile: false, profileHandle: null });
-
-    const noHandle = await adminFetch(app, "PATCH", "/admin/me", { publicProfile: true }, "grace");
-    expect(noHandle.status).toBe(400);
-    expect(((await noHandle.json()) as any).issues.profileHandle).toBeDefined();
+    expect(await me.json()).toMatchObject({ id: "grace", publicProfile: false, profileHandle: "grace" });
 
     const on = await adminFetch(app, "PATCH", "/admin/me", { publicProfile: true, profileHandle: "grace-h", profileBio: "Started Quiet Desk" }, "grace");
     expect(await on.json()).toMatchObject({ publicProfile: true, profileHandle: "grace-h", profileBio: "Started Quiet Desk" });
@@ -48,7 +44,7 @@ describe("PATCH /admin/me", () => {
     expect((await adminFetch(app, "PATCH", "/admin/me", { publicProfile: false }, null)).status).toBe(401);
     await adminFetch(app, "PATCH", "/admin/me", { profileHandle: "ada" }, "ada");
     const grace = (await (await adminFetch(app, "GET", "/admin/me", undefined, "grace")).json()) as any;
-    expect(grace.profileHandle).toBeNull();
+    expect(grace.profileHandle).toBe("grace");
   });
 });
 
@@ -71,7 +67,7 @@ describe("website cache", () => {
 
 describe("member ids share the handle namespace", () => {
   it("refuses a new member id a contributor already has, and counts up when accepting", async () => {
-    await db.insert(contributors).values({ handle: "lena-k", displayName: "Lena" });
+    await db.insert(members).values({ handle: "lena-k", displayName: "Lena" });
     const { app } = makeApp(db);
     const clash = await adminFetch(app, "POST", "/admin/members", { id: "lena-k", displayName: "Lena Member", email: "lena@novawerk.io" });
     expect(clash.status).toBe(409);
@@ -85,7 +81,7 @@ describe("suspending someone", () => {
     const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     try {
-      const [lena] = await db.insert(contributors).values({ handle: "lena-k", displayName: "Lena" }).returning();
+      const [lena] = await db.insert(members).values({ handle: "lena-k", displayName: "Lena" }).returning();
       const { app } = makeApp(db, { env: { webRevalidate: { url: "https://novawerk.io/api/revalidate", secret: "r" } } });
       const res = await adminFetch(app, "POST", `/admin/contributors/${lena!.id}/suspend`, { reason: "Spam" });
       expect(res.status).toBe(200);

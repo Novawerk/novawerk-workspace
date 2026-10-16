@@ -120,6 +120,41 @@
       "when": 1792061496078,
       "tag": "0016_suggestion_screenshots",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792159988662,
+      "tag": "0017_one_account_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792159992113,
+      "tag": "0018_merge_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792160048560,
+      "tag": "0019_members_own_everything",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792160052168,
+      "tag": "0020_move_merged_rows",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792160060972,
+      "tag": "0021_drop_contributors",
+      "breakpoints": true
     }
   ]
 }

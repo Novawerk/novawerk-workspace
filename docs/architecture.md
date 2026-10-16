@@ -175,11 +175,13 @@ days.
 
 ## Who sees what in the admin panel
 
-Every active member signs in, with Google or a 6-digit code we email. Admins (`can_admin`) see
-everything. Any other member sees the projects they are on and those projects' posts: they edit
+Everyone is a member, with one account (`members`, NB-ADR-0014). Maintainers (`role =
+maintainer`) and members on a project's team sign in, with Google or a 6-digit code we email;
+nobody else opens the panel. Maintainers see everything. Any other member sees the projects they
+are on and those projects' posts: they edit
 the content, deliverables, posts and files; the Initiator also changes the team. The stage,
-featured, order and slug stay with admins. The API enforces all of it (`apps/api/src/routes/admin/access.ts`):
-admin-only routes answer 403, and a project a member isn't on answers 404. Project files live in
+featured, order and slug stay with maintainers. The API enforces all of it (`apps/api/src/routes/admin/access.ts`):
+maintainer-only routes answer 403, and a project a member isn't on answers 404. Project files live in
 the private Blob store with a `documents.project_id`. Decision:
 NB-ADR-0008.
 
@@ -194,7 +196,9 @@ Anyone can help build the software Novawerk runs on through an open task board (
 `docs/contributor-board-design.md`; decision: NB-ADR-0013). This is the foundation: tables, rules
 and the API. The pages, the admin side, the GitHub webhook, tokens and emails come next.
 
-- **Contributors are not Members.** Their own table (`contributors`), no admin panel, no tiers.
+- **One account** (NB-ADR-0014). Contributors are members: one row in `members` per person
+  (migrations 0017–0021 merged the old `contributors` table in by verified email). The board's
+  columns keep their names (`contributor_id`, `author_contributor_id`…) and point at `members`.
   They sign in with GitHub (our GitHub App's user authorization with PKCE; we keep GitHub's
   numeric id and login, never the token) or an emailed 6-digit code (`sign_in_codes` with
   `kind = contributor`: hashed, 10 minutes, 5 tries each claimed atomically, 3 per address per
@@ -207,7 +211,7 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
   `nw_contributor` (audience `nw-contributor`, 30 days), httpOnly on the API's domain, sent from
   the website's origins only (`CONTRIBUTOR_ORIGINS`, default: the web origins). Neither cookie
   opens the other's routes. Every request re-reads the row, so a deleted account is out at once;
-  sessions issued before `contributors.sessions_revoked_at` (set on sign-out and when GitHub is
+  sessions issued before `members.sessions_revoked_at` (set on sign-out and when GitHub is
   linked) are refused.
 - **Tasks** are `NW-<n>`. Sizes S/M/L/XL are worth 1/3/8/20 **Werk**: recognition, never money.
   Statuses: `draft` (members only) → `open` → `assigned` → `in_review` → `done`, or `closed`;

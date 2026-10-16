@@ -6,14 +6,13 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { contributorListQuery, proposalInput, suggestionInput, taskListQuery } from "@nw/contracts";
 import {
-  contributors,
   members,
   taskEvents,
   taskPosts,
   taskProposals,
   tasks,
   werkLedger,
-  type Contributor,
+  type Member,
   type Database,
 } from "@nw/db";
 import { createTestDb, resetDb } from "@nw/db/testing";
@@ -47,11 +46,11 @@ beforeAll(async () => {
   db = await createTestDb();
 }, 60_000);
 
-let lena: Contributor;
-let jonas: Contributor;
+let lena: Member;
+let jonas: Member;
 beforeEach(async () => {
   await resetDb(db);
-  await db.insert(members).values({ id: "ada", displayName: "Ada", email: "ada@novawerk.io", canAdmin: true });
+  await db.insert(members).values({ id: "ada", handle: "ada", displayName: "Ada", email: "ada@novawerk.io", role: "maintainer" });
   lena = await signInWithGitHub(db, { id: 101, login: "Lena-K", name: "Lena Krause", avatarUrl: "https://avatars.example/101" });
   jonas = await signInWithGitHub(db, { id: 102, login: "jonas", name: null, avatarUrl: null });
 });
@@ -104,7 +103,7 @@ describe("accounts", () => {
     // Linking again with the same account is fine; another one never replaces it.
     await signInWithGitHub(db, { id: 300, login: "mira-gh", name: null, avatarUrl: null }, mira.id);
     expect(await code(() => signInWithGitHub(db, { id: 301, login: "other", name: null, avatarUrl: null }, mira.id))).toBe("conflict");
-    expect((await db.select().from(contributors).where(eq(contributors.id, mira.id)))[0]?.githubId).toBe(300);
+    expect((await db.select().from(members).where(eq(members.id, mira.id)))[0]?.githubId).toBe(300);
   });
 
   it("keeps GitHub's verified email for notices only: never a way to sign in", async () => {
@@ -289,7 +288,7 @@ describe("contributor rules", () => {
     await updateProfile(db, lena.id, { public: true });
     expect(await wallOf({})).toHaveLength(1);
 
-    const [suspended] = await db.update(contributors).set({ suspendedAt: new Date() }).where(eq(contributors.id, lena.id)).returning();
+    const [suspended] = await db.update(members).set({ suspendedAt: new Date() }).where(eq(members.id, lena.id)).returning();
     expect(await code(() => addPost(db, suspended!, task.id, { body: "Hi" }))).toBe("suspended");
     const another = await openTask();
     expect(await code(() => propose(db, suspended!, another.id, plan()))).toBe("suspended");
@@ -440,7 +439,7 @@ describe("deleting an account", () => {
     expect((await getPublicTask(db, merged.id))?.assignee).toEqual({ kind: "former" });
     await deleteContributor(db, lena.id, "LENA-K");
 
-    expect(await db.select().from(contributors)).toHaveLength(0);
+    expect((await db.select().from(members)).map((m) => m.id)).toEqual(["ada"]);
     expect(await db.select().from(taskProposals)).toEqual([]);
     const [task] = await db.select().from(tasks).where(eq(tasks.id, held.id));
     expect(task).toMatchObject({ status: "open", assigneeId: null });

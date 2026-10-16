@@ -50,12 +50,14 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
 - Change a table → edit `packages/db/src/schema.ts` → `pnpm db:generate` → commit the migration.
   Never hand-edit files in `packages/db/migrations/`.
 - Validate input with `@nw/contracts` at both ends (browser and API).
-- **Contributors are not Members** (NB-ADR-0013): their own `contributors` table, GitHub or
-  emailed-code sign-in, the `nw_contributor` cookie, no admin panel. Task board rules live in
-  `@nw/tasks`; see `docs/architecture.md`, "Contributor task board".
-- Everyone is a **Member**. There are no tiers. `members.can_admin` is a permission, not a rank.
-  Every active member signs in to the admin panel (Google or an emailed code); without
-  `can_admin` they see only the projects they are on (NB-ADR-0008). The API enforces it.
+- **One account for everyone** (NB-ADR-0014): everyone is a member, one row in `members`.
+  `members.role = maintainer` runs Novawerk (the whole admin panel); there are no other ranks.
+  Being on a project's team (`project_members`) is a relationship: it gives the admin panel's
+  "My projects". Only maintainers and team members open the admin panel; the API enforces it
+  (`isMaintainer()` in `@nw/db`, `mayOpenAdminPanel()` in `apps/api/src/auth.ts`). The board's
+  `contributor_*` columns point at `members`. Task board rules live in `@nw/tasks`; see
+  `docs/architecture.md`, "Contributor task board". Sign-in still has two cookies until the
+  next step of NB-ADR-0014: `nw_session` (admin panel) and `nw_contributor` (the site).
 - **Outbound email is gated.** Anything sent to someone outside Novawerk goes into `outbox`
   and waits for a member's approval:
   - agents only call `queueEmail()`; agent workflows never get `RESEND_API_KEY` (a test enforces it);
@@ -120,7 +122,7 @@ ln -s ../novawerk/records records      # members: link the private repo's record
 pnpm new:record <category> <slug> ["Title"]   # a record with the right frontmatter (needs the link)
 pnpm post new|check|render|sync|pull   # posts written in the repo (posts/README.md)
 pnpm video list|new|<project> render   # videos in videos/projects (videos/README.md)
-pnpm provision:member <id> "<Name>" <google-email> [--admin]   # prints SQL; runs nothing
+pnpm provision:member <id> "<Name>" <google-email> [--admin]   # prints SQL; runs nothing (--admin: maintainer)
 pnpm import:tasks <file.json> [--member <id>] [--apply]   # publish a list of tasks; dry-run by default
 pnpm demo:pipeline                     # sponsor pipeline + outbox gate, offline (PGlite, stubbed Claude)
 DATABASE_URL=… pnpm backup             # pg_dump; restore by hand (docs/runbook.md)

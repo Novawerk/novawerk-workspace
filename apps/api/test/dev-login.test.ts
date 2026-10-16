@@ -3,7 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { members, type Database } from "@nw/db";
 
 import { readEnv } from "../src/deps.js";
-import { createTestDb, makeApp, postJson, resetDb } from "./helpers.js";
+import { createTestDb, joinATeam, makeApp, postJson, resetDb } from "./helpers.js";
 
 let db: Database;
 beforeAll(async () => {
@@ -12,9 +12,10 @@ beforeAll(async () => {
 beforeEach(async () => {
   await resetDb(db);
   await db.insert(members).values([
-    { id: "ada", displayName: "Ada", email: "ada@novawerk.io", canAdmin: true },
-    { id: "grace", displayName: "Grace", email: "grace@novawerk.io" },
+    { id: "ada", handle: "ada", displayName: "Ada", email: "ada@novawerk.io", role: "maintainer" },
+    { id: "grace", handle: "grace", displayName: "Grace", email: "grace@novawerk.io" },
   ]);
+  await joinATeam(db, "grace");
 });
 
 describe("POST /auth/dev", () => {

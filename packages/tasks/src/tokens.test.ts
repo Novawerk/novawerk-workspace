@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { proposalInput, suggestionInput, tokenCreateInput } from "@nw/contracts";
-import { contributorTokens, members, taskProposals, tasks, type Contributor, type Database } from "@nw/db";
+import { contributorTokens, members, taskProposals, tasks, type Member, type Database } from "@nw/db";
 import { createTestDb, resetDb } from "@nw/db/testing";
 
 import {
@@ -38,8 +38,8 @@ beforeAll(async () => {
   db = await createTestDb();
 }, 60_000);
 
-let lena: Contributor;
-let jonas: Contributor;
+let lena: Member;
+let jonas: Member;
 beforeEach(async () => {
   await resetDb(db);
   lena = await signInWithGitHub(db, { id: 101, login: "lena-k", name: "Lena", avatarUrl: null });
@@ -47,7 +47,7 @@ beforeEach(async () => {
 });
 
 const DAY = 24 * 3_600_000;
-const newToken = (c: Contributor, fields: Record<string, unknown> = {}) =>
+const newToken = (c: Member, fields: Record<string, unknown> = {}) =>
   createToken(db, c.id, tokenCreateInput.parse({ name: "Claude Code", scopes: ["proposals:write"], expiresInDays: 30, ...fields }));
 const plan = proposalInput.parse({ approach: "Toggle in the header", eta: "week", readCriteria: true });
 
@@ -175,7 +175,7 @@ describe("what an agent writes", () => {
     const { id: tokenId } = await newToken(lena);
     await propose(db, lena, task.id, plan, undefined, { tokenId });
     expect((await db.select().from(tasks).where(eq(tasks.id, task.id)))[0]?.updatedAt.toISOString()).toBe("2026-10-01T00:00:00.000Z");
-    await db.insert(members).values({ id: "ada", displayName: "Ada", email: "ada@novawerk.io" }).onConflictDoNothing();
+    await db.insert(members).values({ id: "ada", handle: "ada", displayName: "Ada", email: "ada@novawerk.io" }).onConflictDoNothing();
     await transitionTask(db, { taskId: task.id, action: "close", actor: { kind: "member", id: "ada" }, note: "Not needed" });
     expect(await db.select().from(taskProposals).where(eq(taskProposals.status, "draft"))).toEqual([]);
   });

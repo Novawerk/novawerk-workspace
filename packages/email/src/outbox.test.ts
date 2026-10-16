@@ -39,8 +39,8 @@ beforeEach(async () => {
   sendMock.mockResolvedValue({ data: { id: "re_msg_1" }, error: null });
   await resetDb(db);
   await db.insert(members).values([
-    { id: "haodong", displayName: "Haodong", email: "haodong@novawerk.io" },
-    { id: "gone", displayName: "Gone", email: "gone@novawerk.io", active: false },
+    { id: "haodong", handle: "haodong", displayName: "Haodong", email: "haodong@novawerk.io" },
+    { id: "gone", handle: "gone", displayName: "Gone", email: "gone@novawerk.io", active: false },
   ]);
 });
 

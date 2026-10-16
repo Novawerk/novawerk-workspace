@@ -67,8 +67,8 @@ describe("CORS on public routes", () => {
 describe("GET /public/projects", () => {
   beforeEach(async () => {
     await db.insert(members).values([
-      { id: "ada", displayName: "Ada", email: "ada@novawerk.io" },
-      { id: "grace", displayName: "Grace", email: "grace@novawerk.io" },
+      { id: "ada", handle: "ada", displayName: "Ada", email: "ada@novawerk.io" },
+      { id: "grace", handle: "grace", displayName: "Grace", email: "grace@novawerk.io" },
     ]);
     const rows = await db
       .insert(projects)

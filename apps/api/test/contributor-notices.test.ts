@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { proposalInput, suggestionInput } from "@nw/contracts";
-import { contributorNotices, contributors, members, taskEvents, tasks, type Contributor, type Database } from "@nw/db";
+import { contributorNotices, members, taskEvents, tasks, type Member, type Database } from "@nw/db";
 import type { ContributorNoticeMail } from "@nw/email";
 import { addPost, chooseProposal, deleteContributor, propose, suggestTask, transitionTask } from "@nw/tasks";
 
@@ -20,9 +20,9 @@ beforeAll(async () => {
   db = await createTestDb();
 }, 60_000);
 
-let lena: Contributor;
-let jonas: Contributor;
-let mila: Contributor;
+let lena: Member;
+let jonas: Member;
+let mila: Member;
 let mails: { to: string; mail: ContributorNoticeMail }[];
 let sendOpts: { idempotencyKey: string; unsubscribeUrl?: string }[];
 const send = async (to: string, mail: ContributorNoticeMail, opts: { idempotencyKey: string; unsubscribeUrl?: string }) => {
@@ -39,7 +39,7 @@ beforeEach(async () => {
   sendOpts = [];
   const person = (handle: string, githubId: number | null, email: string | null) =>
     db
-      .insert(contributors)
+      .insert(members)
       .values({ handle, displayName: handle, githubId, email, pledgeAcceptedAt: new Date() })
       .returning()
       .then((r) => r[0]!);
@@ -58,7 +58,7 @@ const ada = { kind: "member", id: "ada" } as const;
 
 describe("collect and send", () => {
   it("reaches a GitHub-only person at GitHub's verified email (notify_email), the last mail too", async () => {
-    await db.update(contributors).set({ notifyEmail: "mila@github.example" }).where(eq(contributors.id, mila.id));
+    await db.update(members).set({ notifyEmail: "mila@github.example" }).where(eq(members.id, mila.id));
     const task = await openTask();
     const chosen = await propose(db, mila, task.id, plan);
     await chooseProposal(db, { proposalId: chosen.id, memberId: "ada" });
@@ -137,8 +137,8 @@ describe("collect and send", () => {
   });
 
   it("respects settings, suspensions and missing addresses", async () => {
-    await db.update(contributors).set({ notifyReplies: false }).where(eq(contributors.id, lena.id));
-    await db.update(contributors).set({ suspendedAt: new Date() }).where(eq(contributors.id, jonas.id));
+    await db.update(members).set({ notifyReplies: false }).where(eq(members.id, lena.id));
+    await db.update(members).set({ suspendedAt: new Date() }).where(eq(members.id, jonas.id));
     const task = await openTask();
     const p = await propose(db, lena, task.id, plan);
     await chooseProposal(db, { proposalId: p.id, memberId: "ada" });
@@ -319,7 +319,7 @@ describe("review fixes", () => {
       { key: "test:old", kind: "werk_awarded", contributorId: lena.id, taskId: task.id, data: { werk: 1 }, createdAt: new Date(Date.now() - 3 * 86_400_000) },
       { key: "test:not-yours", kind: "proposal_chosen", contributorId: jonas.id, taskId: task.id },
     ]);
-    await db.update(contributors).set({ suspendedAt: null }).where(eq(contributors.id, jonas.id));
+    await db.update(members).set({ suspendedAt: null }).where(eq(members.id, jonas.id));
     await runContributorNotices(db, send, logger);
     const skipped = await db.select({ key: contributorNotices.key, reason: contributorNotices.reason }).from(contributorNotices).where(eq(contributorNotices.status, "skipped"));
     expect(skipped).toEqual(expect.arrayContaining([{ key: "test:old", reason: "stale" }, { key: "test:not-yours", reason: "outdated" }]));
@@ -371,7 +371,7 @@ describe("review fixes", () => {
     expect((await app.request(`${forged.pathname}${forged.search}`, { method: "POST" })).status).toBe(400);
     expect((await app.request(`${url.pathname}${url.search}`)).headers.get("location")).toBe("https://novawerk.io/settings");
     expect((await app.request(`${url.pathname}${url.search}`, { method: "POST", body: "List-Unsubscribe=One-Click" })).status).toBe(200);
-    expect((await db.select().from(contributors).where(eq(contributors.id, lena.id)))[0]!.notifyReplies).toBe(false);
+    expect((await db.select().from(members).where(eq(members.id, lena.id)))[0]!.notifyReplies).toBe(false);
   });
 });
 

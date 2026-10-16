@@ -13,7 +13,7 @@ import { createHash } from "node:crypto";
 
 import { jwtVerify, SignJWT } from "jose";
 
-import type { Contributor, Database } from "@nw/db";
+import type { Member, Database } from "@nw/db";
 import { getContributor, type GitHubUser } from "@nw/tasks";
 
 
@@ -96,7 +96,7 @@ export async function verifyGitHubState(token: string, secret: string): Promise<
  * The signed-in contributor: a valid cookie, a row that still exists, and a session issued after
  * any revocation. Undefined otherwise.
  */
-export async function currentContributor(db: Database, cookie: string | undefined, secret: string): Promise<Contributor | undefined> {
+export async function currentContributor(db: Database, cookie: string | undefined, secret: string): Promise<Member | undefined> {
   const session = cookie ? await verifyContributorSession(cookie, secret) : null;
   if (!session) return undefined;
   const contributor = await getContributor(db, session.id);

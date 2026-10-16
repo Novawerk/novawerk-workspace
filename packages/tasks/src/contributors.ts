@@ -1,5 +1,5 @@
-// Contributor accounts: signing in (GitHub or an emailed code), the profile, deleting the account.
-// Contributors are not Members (NB-ADR-0013): nothing here touches `members`.
+// Member accounts: signing in (GitHub or an emailed code), the profile, deleting the account.
+// One account for everyone (NB-ADR-0014): these are rows in `members`, as every account is.
 
 import { randomBytes } from "node:crypto";
 
@@ -13,7 +13,7 @@ import {
   type ProfileBanner,
   type ProfileUpdateInput,
 } from "@nw/contracts";
-import { contributorNotices, contributors, members, taskEvents, tasks, type Contributor, type Database } from "@nw/db";
+import { contributorNotices, members, taskEvents, tasks, type Member, type Database } from "@nw/db";
 
 import { TaskRuleError, isUniqueViolation } from "./errors.js";
 import { claimHandle, handleIsFree, lockHandle } from "./handles.js";
@@ -48,8 +48,7 @@ export async function freeHandle(db: Database, base: string, opts: { neutral?: b
   if (!opts.neutral && isReservedHandle(stem)) stem = `gh-${stem}`.slice(0, MAX_HANDLE - 4);
   const like = `${stem}-%`;
   const taken = new Set([
-    ...(await db.select({ h: contributors.handle }).from(contributors).where(sql`${contributors.handle} = ${stem} or ${contributors.handle} like ${like}`)).map((r) => r.h),
-    ...(await db.select({ h: members.profileHandle }).from(members).where(sql`${members.profileHandle} = ${stem} or ${members.profileHandle} like ${like}`)).map((r) => r.h!),
+    ...(await db.select({ h: members.handle }).from(members).where(sql`${members.handle} = ${stem} or ${members.handle} like ${like}`)).map((r) => r.h),
     ...(await db.select({ h: members.id }).from(members).where(sql`${members.id} = ${stem} or ${members.id} like ${like}`)).map((r) => r.h),
   ]);
   const free = (h: string) => !taken.has(h) && (opts.neutral || !isReservedHandle(h));
@@ -61,8 +60,8 @@ export async function freeHandle(db: Database, base: string, opts: { neutral?: b
 /** How far freeHandle counts ("lena-k-2" … "lena-k-1000") before it gives up. */
 const MAX_HANDLE_TRIES = 1000;
 
-export async function getContributor(db: Database, id: string): Promise<Contributor | undefined> {
-  const [row] = await db.select().from(contributors).where(eq(contributors.id, id)).limit(1);
+export async function getContributor(db: Database, id: string): Promise<Member | undefined> {
+  const [row] = await db.select().from(members).where(eq(members.id, id)).limit(1);
   return row;
 }
 
@@ -76,8 +75,8 @@ export async function signInWithGitHub(
   gh: GitHubUser,
   linkTo?: string,
   now = new Date(),
-): Promise<Contributor> {
-  const [owner] = await db.select().from(contributors).where(eq(contributors.githubId, gh.id)).limit(1);
+): Promise<Member> {
+  const [owner] = await db.select().from(members).where(eq(members.githubId, gh.id)).limit(1);
   if (linkTo) {
     if (owner && owner.id !== linkTo) {
       throw new TaskRuleError("conflict", "That GitHub account is linked to another contributor account");
@@ -89,7 +88,7 @@ export async function signInWithGitHub(
       throw new TaskRuleError("conflict", "This account is already linked to a different GitHub account");
     }
     const [linked] = await db
-      .update(contributors)
+      .update(members)
       .set({
         githubId: gh.id,
         githubLogin: gh.login,
@@ -98,7 +97,7 @@ export async function signInWithGitHub(
         // A new sign-in method: earlier sessions end; the caller issues a new one.
         ...(target.githubId === null ? { sessionsRevokedAt: now } : {}),
       })
-      .where(and(eq(contributors.id, linkTo), sql`(${contributors.githubId} is null or ${contributors.githubId} = ${gh.id})`))
+      .where(and(eq(members.id, linkTo), sql`(${members.githubId} is null or ${members.githubId} = ${gh.id})`))
       .returning()
       .catch((err: unknown) => {
         if (isUniqueViolation(err)) throw new TaskRuleError("conflict", "That GitHub account is linked to another contributor account");
@@ -109,9 +108,9 @@ export async function signInWithGitHub(
   }
   if (owner) {
     const [updated] = await db
-      .update(contributors)
+      .update(members)
       .set({ githubLogin: gh.login, avatarUrl: gh.avatarUrl, lastSignInAt: now })
-      .where(eq(contributors.id, owner.id))
+      .where(eq(members.id, owner.id))
       .returning();
     return keepGitHubEmail(db, updated!, gh.email);
   }
@@ -127,7 +126,7 @@ export async function signInWithGitHub(
     return keepGitHubEmail(db, created, gh.email);
   } catch (err) {
     // Two callbacks for the same new person at once: the other one created the row.
-    const [raced] = isUniqueViolation(err) ? await db.select().from(contributors).where(eq(contributors.githubId, gh.id)) : [];
+    const [raced] = isUniqueViolation(err) ? await db.select().from(members).where(eq(members.githubId, gh.id)) : [];
     if (raced) return raced;
     throw err;
   }
@@ -140,15 +139,15 @@ export async function signInWithGitHub(
 async function insertWithFreeHandle(
   db: Database,
   base: string,
-  row: (handle: string) => typeof contributors.$inferInsert,
+  row: (handle: string) => typeof members.$inferInsert,
   opts: { neutral?: boolean } = {},
-): Promise<Contributor> {
+): Promise<Member> {
   for (let attempt = 0; ; attempt++) {
     const created = await db.transaction(async (tx) => {
       const handle = await freeHandle(tx, base, opts);
       await lockHandle(tx, handle);
       if (!(await handleIsFree(tx, handle))) return null;
-      const [inserted] = await tx.insert(contributors).values(row(handle)).returning();
+      const [inserted] = await tx.insert(members).values(row(handle)).returning();
       return inserted!;
     });
     if (created) return created;
@@ -161,10 +160,10 @@ async function insertWithFreeHandle(
  * to sign in: signInWithEmail reads `email` only, so whoever controls an old GitHub address
  * (a former employer's mailbox, say) can't get into a GitHub-only account with it.
  */
-async function keepGitHubEmail(db: Database, c: Contributor, email: string | null | undefined): Promise<Contributor> {
+async function keepGitHubEmail(db: Database, c: Member, email: string | null | undefined): Promise<Member> {
   // notify_email only ever comes from GitHub, so it follows their current verified primary.
   if (!email || c.notifyEmail === email) return c;
-  const [updated] = await db.update(contributors).set({ notifyEmail: email }).where(eq(contributors.id, c.id)).returning();
+  const [updated] = await db.update(members).set({ notifyEmail: email }).where(eq(members.id, c.id)).returning();
   return updated ?? c;
 }
 
@@ -181,14 +180,14 @@ export function maskEmail(email: string): string {
 export const neutralHandle = () => `contributor-${randomBytes(2).toString("hex")}`;
 
 /** Sign in with an emailed code (already checked): the contributor with this address, or a new one. */
-export async function signInWithEmail(db: Database, email: string, now = new Date()): Promise<Contributor> {
+export async function signInWithEmail(db: Database, email: string, now = new Date()): Promise<Member> {
   const address = email.trim().toLowerCase();
-  const [existing] = await db.select().from(contributors).where(eq(contributors.email, address)).limit(1);
+  const [existing] = await db.select().from(members).where(eq(members.email, address)).limit(1);
   if (existing) {
     const [updated] = await db
-      .update(contributors)
+      .update(members)
       .set({ lastSignInAt: now })
-      .where(eq(contributors.id, existing.id))
+      .where(eq(members.id, existing.id))
       .returning();
     return updated!;
   }
@@ -200,17 +199,17 @@ export async function signInWithEmail(db: Database, email: string, now = new Dat
       { neutral: true },
     );
   } catch (err) {
-    const [raced] = isUniqueViolation(err) ? await db.select().from(contributors).where(eq(contributors.email, address)) : [];
+    const [raced] = isUniqueViolation(err) ? await db.select().from(members).where(eq(members.email, address)) : [];
     if (raced) return raced;
     throw err;
   }
 }
 
 /** May propose and work on tasks: GitHub linked (to match pull requests), not suspended. */
-export const canWork = (c: Contributor) => c.githubId !== null && c.suspendedAt === null;
+export const canWork = (c: Member) => c.githubId !== null && c.suspendedAt === null;
 
 /** For the signed-in contributor only. */
-export function toContributorMe(c: Contributor): ContributorMe {
+export function toContributorMe(c: Member): ContributorMe {
   return {
     id: c.id,
     handle: c.handle,
@@ -242,7 +241,7 @@ export async function updateProfile(
   contributorId: string,
   patch: ProfileUpdateInput,
   now = new Date(),
-): Promise<Contributor> {
+): Promise<Member> {
   const { acceptPledge, ...fields } = patch;
   const me = await getContributor(db, contributorId);
   if (!me) throw new TaskRuleError("not_found", "Not signed in");
@@ -251,12 +250,12 @@ export async function updateProfile(
     // A new handle: not reserved, not a Member's or another contributor's, held while we write.
     if (fields.handle && fields.handle !== me.handle) await claimHandle(tx, fields.handle, "handle", { contributorId });
     return tx
-      .update(contributors)
+      .update(members)
       .set({
         ...Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined)),
-        ...(acceptPledge ? { pledgeAcceptedAt: sql`coalesce(${contributors.pledgeAcceptedAt}, ${now})` } : {}),
+        ...(acceptPledge ? { pledgeAcceptedAt: sql`coalesce(${members.pledgeAcceptedAt}, ${now})` } : {}),
       })
-      .where(eq(contributors.id, contributorId))
+      .where(eq(members.id, contributorId))
       .returning()
       .catch((err: unknown) => {
         if (isUniqueViolation(err)) throw new TaskRuleError("conflict", "That handle is taken", "handle");
@@ -269,7 +268,7 @@ export async function updateProfile(
 
 /** Ends every session issued before now: sign-out, and later a suspension or a changed sign-in. */
 export async function revokeSessions(db: Database, contributorId: string, now = new Date()): Promise<void> {
-  await db.update(contributors).set({ sessionsRevokedAt: now }).where(eq(contributors.id, contributorId));
+  await db.update(members).set({ sessionsRevokedAt: now }).where(eq(members.id, contributorId));
 }
 
 /**
@@ -281,7 +280,7 @@ export async function deleteContributor(db: Database, contributorId: string, con
   await db.transaction(async (tx) => {
     // Locked first (the board's lock order: contributor, then task), so nobody assigns them a
     // task while the account goes.
-    const [me] = await tx.select().from(contributors).where(eq(contributors.id, contributorId)).for("update");
+    const [me] = await tx.select().from(members).where(eq(members.id, contributorId)).for("update");
     if (!me) throw new TaskRuleError("not_found", "Not signed in");
     if (confirmHandle.trim().toLowerCase() !== me.handle) {
       throw new TaskRuleError("invalid", "Type your handle to confirm", "confirmHandle");
@@ -308,7 +307,7 @@ export async function deleteContributor(db: Database, contributorId: string, con
     // Their suggestions keep their text ("a former contributor") but lose any private screenshot:
     // the API deletes their folder, and nothing should point into it.
     await tx.update(tasks).set({ screenshotPathname: null }).where(eq(tasks.suggestedBy, contributorId));
-    await tx.delete(contributors).where(eq(contributors.id, contributorId));
+    await tx.delete(members).where(eq(members.id, contributorId));
     // One last email, to the address the account had (NB-ADR-0013): the one they sign in with,
     // else GitHub's for notices. The notices cron sends it, then clears the address; it is
     // cleared after 7 days at the latest.

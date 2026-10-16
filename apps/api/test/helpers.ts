@@ -3,7 +3,7 @@
 
 import { vi } from "vitest";
 
-import type { Database } from "@nw/db";
+import { projectMembers, projects, type Database, type NewMember } from "@nw/db";
 import type { GitHubApi } from "@nw/github";
 import type { TeamNotification } from "@nw/email";
 import type { FileAccess, Files, ListedFile, OpenedFile, StoredFile, TicketRequest, UploadTicket } from "@nw/object-store";
@@ -135,10 +135,23 @@ export async function adminJson<T = any>(
 
 /** The admins and members most tests start from. */
 export const TEST_MEMBERS = [
-  { id: "ada", displayName: "Ada", email: "ada@novawerk.io", canAdmin: true },
-  { id: "grace", displayName: "Grace", email: "grace@novawerk.io" },
-  { id: "linus", displayName: "Linus", email: "linus@novawerk.io", canAdmin: true, active: false },
-];
+  { id: "ada", handle: "ada", displayName: "Ada", email: "ada@novawerk.io", role: "maintainer" },
+  { id: "grace", handle: "grace", displayName: "Grace", email: "grace@novawerk.io" },
+  { id: "linus", handle: "linus", displayName: "Linus", email: "linus@novawerk.io", role: "maintainer", active: false },
+] satisfies NewMember[];
+
+/**
+ * Put a member on a project's team: besides maintainers, only they open the admin panel
+ * (NB-ADR-0014). Returns the new project's id.
+ */
+export async function joinATeam(db: Database, memberId: string, role = "Team member"): Promise<string> {
+  const [project] = await db
+    .insert(projects)
+    .values({ slug: `team-of-${memberId}`, title: `${memberId}'s project` })
+    .returning({ id: projects.id });
+  await db.insert(projectMembers).values({ projectId: project!.id, memberId, role });
+  return project!.id;
+}
 
 export function postJson(body: unknown, headers: Record<string, string> = {}): RequestInit {
   return {

@@ -21,12 +21,13 @@ import { and, eq, like, or, sql } from "drizzle-orm";
 
 import { INITIATOR_ROLE, toHandle, type ApplicationAcceptInput, type SubmissionAcceptInput } from "@nw/contracts";
 import {
+  isMaintainer,
   memberApplications,
   members,
   projectMembers,
+  projects,
   projectStatusChanges,
   projectSubmissions,
-  projects,
   type Database,
   type Member,
   type MemberApplication,
@@ -88,7 +89,7 @@ export async function linkInitiatorProjects(db: Database, member: Pick<Member, "
     .where(
       and(
         eq(projectSubmissions.status, "accepted"),
-        sql`lower(${projectSubmissions.email}) = ${member.email.trim().toLowerCase()}`,
+        sql`lower(${projectSubmissions.email}) = ${(member.email ?? "").trim().toLowerCase()}`,
       ),
     );
   if (pitched.length === 0) return [];
@@ -161,6 +162,7 @@ export async function acceptApplication(
         .insert(members)
         .values({
           id,
+          handle: id,
           displayName: input.displayName ?? application.name.trim(),
           email: application.email.trim().toLowerCase(),
           joinedOn: today(),
@@ -182,7 +184,7 @@ export async function acceptApplication(
 /** What accepting would do about the pitcher, for the accept dialog (GET /admin/submissions/:id). */
 export type PitcherPreview =
   | { kind: "create"; handle: string }
-  | { kind: "link"; member: Pick<Member, "id" | "displayName" | "active" | "canAdmin"> };
+  | { kind: "link"; member: Pick<Member, "id" | "displayName" | "active"> & { canAdmin: boolean } };
 
 /** A Member id for someone with this name and email: from the name, else the email's local part. */
 function wantedId(name: string, email: string): string {
@@ -204,7 +206,7 @@ async function lockEmail(tx: Database, email: string) {
 export async function previewPitcher(db: Database, submission: Pick<ProjectSubmission, "name" | "email">): Promise<PitcherPreview> {
   const member = await memberByEmail(db, submission.email);
   if (member) {
-    return { kind: "link", member: { id: member.id, displayName: member.displayName, active: member.active, canAdmin: member.canAdmin } };
+    return { kind: "link", member: { id: member.id, displayName: member.displayName, active: member.active, canAdmin: isMaintainer(member) } };
   }
   // A read-only transaction: the handle's lock ends with it; nothing is written.
   const handle = await db.transaction((tx) =>
@@ -322,9 +324,9 @@ export async function acceptSubmission(
         .insert(members)
         .values({
           id,
+          handle: id,
           displayName: submission.name.trim(),
           email: submission.email.trim().toLowerCase(),
-          canAdmin: false,
           active: true,
           joinedOn: today(),
         })

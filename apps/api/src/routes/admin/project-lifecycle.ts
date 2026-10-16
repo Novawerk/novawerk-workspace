@@ -17,13 +17,14 @@ import { z } from "zod";
 
 import { POST_STATUSES, deliverableInput, deliverableUpdateInput, projectPostCreateInput, type PostStatus } from "@nw/contracts";
 import {
+  isMaintainer,
   members,
   posts,
   projectDeliverables,
   projectMembers,
+  projects,
   projectStatusChanges,
   projectSubmissions,
-  projects,
   type Database,
 } from "@nw/db";
 import { lifecycleFacts, upcomingPosts, type PlannedPost } from "@nw/promo/lifecycle";
@@ -156,7 +157,7 @@ export function projectLifecycleRoutes(deps: AdminDeps) {
       // A member sees their own projects and no pitches.
       .get("/board", async (c) => {
         const member = c.get("member");
-        const only = member.canAdmin ? undefined : await projectIdsOf(db, member.id);
+        const only = isMaintainer(member) ? undefined : await projectIdsOf(db, member.id);
         return c.json({ today: today(), ...(await stageBoard(db, today(), only)) }, 200);
       })
 

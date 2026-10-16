@@ -16,7 +16,7 @@
 import { and, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { TASK_LIMITS, TASK_SIZE_WERK, formatTaskId } from "@nw/contracts";
-import { contributors, githubDeliveries, taskEvents, tasks, type Database, type Task } from "@nw/db";
+import { members, githubDeliveries, taskEvents, tasks, type Database, type Task } from "@nw/db";
 
 import { TaskRuleError } from "./errors.js";
 import { idleReleaseAt, idleSince } from "./idle.js";
@@ -113,9 +113,9 @@ export async function applyPullRequest(
   if (!n) return nothing();
 
   const [row] = await db
-    .select({ task: tasks, githubId: contributors.githubId })
+    .select({ task: tasks, githubId: members.githubId })
     .from(tasks)
-    .leftJoin(contributors, eq(contributors.id, tasks.assigneeId))
+    .leftJoin(members, eq(members.id, tasks.assigneeId))
     .where(eq(tasks.id, n))
     .limit(1);
   if (!row || row.task.repo.toLowerCase() !== pr.repo.toLowerCase()) return nothing();
@@ -333,9 +333,9 @@ export async function tasksInReview(db: Database): Promise<{ id: number; prUrl: 
  */
 export async function whyPullRequestDoesNotCount(db: Database, taskId: number, pr: PullRequestInput): Promise<string | null> {
   const [row] = await db
-    .select({ task: tasks, githubId: contributors.githubId })
+    .select({ task: tasks, githubId: members.githubId })
     .from(tasks)
-    .leftJoin(contributors, eq(contributors.id, tasks.assigneeId))
+    .leftJoin(members, eq(members.id, tasks.assigneeId))
     .where(eq(tasks.id, taskId))
     .limit(1);
   if (!row) return `${formatTaskId(taskId)} doesn't exist`;

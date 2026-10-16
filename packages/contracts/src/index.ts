@@ -1708,7 +1708,7 @@ export interface AdminMetrics {
 
 // ─── Contributor task board ──────────────────────────────────────────────────
 // Open tasks about our own software (docs/contributor-board-design.md). Anyone reads them;
-// contributors (not Members: their own account type, NB-ADR-0013) propose, discuss, suggest
+// signed-in members (one account for everyone, NB-ADR-0014) propose, discuss, suggest
 // and +1. The rules are enforced in the API (@nw/tasks), never only in the browser.
 
 /** Every stored status. `draft` is members only and never public. */

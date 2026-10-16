@@ -44,7 +44,6 @@ import {
 import {
   PUBLIC_PROJECT_STATUSES,
   contributorTokens,
-  contributors,
   members,
   projectMembers,
   projects,
@@ -72,8 +71,10 @@ const STATUS_FILTERS: Record<Exclude<TaskStatusFilter, "proposals">, readonly Pu
   all: PUBLIC_TASK_STATUSES,
 };
 
-const assignee = alias(contributors, "assignee");
-const suggester = alias(contributors, "suggester");
+/** The account on the contributor side of a row (author, proposer, voter), next to a member's own columns. */
+const contributors = alias(members, "contributors");
+const assignee = alias(members, "assignee");
+const suggester = alias(members, "suggester");
 
 const person = (t: typeof contributors | typeof assignee | typeof suggester) => ({
   handle: t.handle,
@@ -430,27 +431,29 @@ type WallRow = {
 /**
  * GET /public/contributors: one wall of
  * - contributors: public, on the wall, not suspended, with a merged task or an accepted idea;
- * - initiators: Members with a public profile who started a public project (NB-ADR-0013).
+ * - initiators: anyone else public and on the wall who started a public project (NB-ADR-0013).
  * Newest contribution (or project) first, or A–Z, a page at a time. Never ordered by Werk. An
  * area filter shows contributors only: initiators have no areas.
  */
 export async function listPublicContributors(db: Database, query: ContributorListQuery): Promise<PublicContributorPage> {
   const statuses = sql.join(PUBLIC_PROJECT_STATUSES.map((st) => sql`${st}`), sql`, `);
   const contributorRows = sql`
-    select 'contributor' as kind, c.id::text as id, c.handle, c.display_name as name, c.avatar_url, c.bio,
+    select 'contributor' as kind, c.id as id, c.profile_handle as handle, c.display_name as name, c.avatar_url, c.profile_bio as bio,
       greatest(
         (select max(t.done_at) from tasks t where t.assignee_id = c.id and t.status = 'done'),
         (select max(t.accepted_at) from tasks t where t.suggested_by = c.id)
       ) as last
-    from contributors c
-    where c.public and c.on_wall and c.suspended_at is null
+    from members c
+    where c.public_profile and c.on_wall and c.suspended_at is null and c.active
       ${query.area ? sql`and exists (select 1 from tasks t where t.assignee_id = c.id and t.status = 'done' and t.area = ${query.area})` : sql``}`;
   const initiatorRows = sql`
-    select 'initiator' as kind, m.id as id, m.profile_handle as handle, m.display_name as name, null as avatar_url, m.profile_bio as bio,
+    select 'initiator' as kind, m.id as id, m.profile_handle as handle, m.display_name as name, m.avatar_url, m.profile_bio as bio,
       (select max(p.created_at) from project_members pm join projects p on p.id = pm.project_id
         where pm.member_id = m.id and lower(trim(pm.role)) = ${INITIATOR_ROLE.toLowerCase()} and p.status in (${statuses})) as last
     from members m
-    where m.public_profile and m.active and m.profile_handle is not null`;
+    where m.public_profile and m.on_wall and m.suspended_at is null and m.active
+      -- One card each: someone with merged work or an accepted idea stands there as a contributor.
+      and not exists (select 1 from tasks t where (t.assignee_id = m.id and t.status = 'done') or (t.suggested_by = m.id and t.accepted_at is not null))`;
   const union = query.area ? contributorRows : sql`${contributorRows} union all ${initiatorRows}`;
 
   let after = sql``;
@@ -502,9 +505,9 @@ export async function listPublicContributors(db: Database, query: ContributorLis
 /** GET /public/initiators: Members with a public profile, one row per public project they started. */
 export async function listPublicInitiators(db: Database): Promise<PublicInitiator[]> {
   const people = await db
-    .select({ id: members.id, handle: members.profileHandle, name: members.displayName })
+    .select({ id: members.id, handle: members.handle, name: members.displayName })
     .from(members)
-    .where(and(eq(members.publicProfile, true), eq(members.active, true), isNotNull(members.profileHandle)));
+    .where(and(eq(members.public, true), eq(members.active, true), isNull(members.suspendedAt)));
   const started = await projectsStartedBy(db, people.map((p) => p.id));
   return started.map((s) => {
     const who = people.find((p) => p.id === s.member_id)!;
@@ -513,18 +516,19 @@ export async function listPublicInitiators(db: Database): Promise<PublicInitiato
 }
 
 /**
- * GET /public/contributors/:handle: a public contributor profile, or a Member's opted-in one
- * (kind "initiator", with the public projects they started). Anything private is "not found".
+ * GET /public/contributors/:handle: a public profile, with the public projects they started
+ * (kind "initiator" when that is all they have done so far). Anything private is "not found".
  */
 export async function getPublicContributor(db: Database, handle: string): Promise<PublicContributorProfile | null> {
   const wanted = handle.toLowerCase();
   const [c] = await db
     .select()
-    .from(contributors)
-    .where(and(eq(contributors.handle, wanted), eq(contributors.public, true), isNull(contributors.suspendedAt)))
+    .from(members)
+    .where(and(eq(members.handle, wanted), eq(members.public, true), eq(members.active, true), isNull(members.suspendedAt)))
     .limit(1);
-  if (!c) return getPublicMemberProfile(db, wanted);
+  if (!c) return null;
   const work = await contributionsOf(db, [c.id]);
+  const started = await projectsStartedBy(db, [c.id]);
   const [werk] = await db
     .select({ total: sql<number>`coalesce(sum(${werkLedger.delta}), 0)::int` })
     .from(werkLedger)
@@ -533,7 +537,8 @@ export async function getPublicContributor(db: Database, handle: string): Promis
   const inProgress = work.filter((t) => t.assigneeId === c.id && t.status !== "done");
   const ideas = work.filter((t) => t.suggestedBy === c.id && t.acceptedAt);
   return {
-    kind: "contributor",
+    // Someone who started a project and hasn't worked on the board yet stands as its initiator.
+    kind: started.length && !work.length && c.githubId === null ? "initiator" : "contributor",
     handle: c.handle,
     name: c.displayName,
     avatarUrl: c.avatarUrl,
@@ -548,36 +553,6 @@ export async function getPublicContributor(db: Database, handle: string): Promis
     inProgress: inProgress.map(refOf),
     done: done.map((t) => ({ ...refOf(t), mergedAt: t.doneAt ? iso(t.doneAt) : null })),
     ideasAccepted: ideas.map(refOf),
-    projects: [],
-  };
-}
-
-async function getPublicMemberProfile(db: Database, handle: string): Promise<PublicContributorProfile | null> {
-  const [m] = await db
-    .select({ id: members.id, name: members.displayName, bio: members.profileBio, handle: members.profileHandle, since: members.createdAt })
-    .from(members)
-    .where(and(eq(members.profileHandle, handle), eq(members.publicProfile, true), eq(members.active, true)))
-    .limit(1);
-  if (!m) return null;
-  const started = await projectsStartedBy(db, [m.id]);
-  // The profile is an initiator's: without a public project it isn't shown yet.
-  if (!started.length) return null;
-  return {
-    kind: "initiator",
-    handle: m.handle!,
-    name: m.name,
-    avatarUrl: null,
-    bio: m.bio,
-    about: null,
-    links: [],
-    accent: "green",
-    banner: "plain",
-    githubLogin: null,
-    since: iso(m.since),
-    stats: { done: 0, inProgress: 0, werk: 0 },
-    inProgress: [],
-    done: [],
-    ideasAccepted: [],
     projects: started.map((s) => ({ slug: s.slug, title: s.title })),
   };
 }

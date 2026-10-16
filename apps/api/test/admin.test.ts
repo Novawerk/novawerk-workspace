@@ -7,6 +7,7 @@ import {
   ADMIN_ORIGIN,
   WEB_ORIGIN,
   createTestDb,
+  joinATeam,
   makeApp,
   postJson,
   resetDb,
@@ -20,10 +21,11 @@ beforeAll(async () => {
 beforeEach(async () => {
   await resetDb(db);
   await db.insert(members).values([
-    { id: "ada", displayName: "Ada", email: "Ada@Novawerk.io", canAdmin: true },
-    { id: "grace", displayName: "Grace", email: "grace@novawerk.io" },
-    { id: "linus", displayName: "Linus", email: "linus@novawerk.io", canAdmin: true, active: false },
+    { id: "ada", handle: "ada", displayName: "Ada", email: "Ada@Novawerk.io", role: "maintainer" },
+    { id: "grace", handle: "grace", displayName: "Grace", email: "grace@novawerk.io" },
+    { id: "linus", handle: "linus", displayName: "Linus", email: "linus@novawerk.io", role: "maintainer", active: false },
   ]);
+  await joinATeam(db, "grace");
 });
 
 const get = async (app: ReturnType<typeof makeApp>["app"], path: string, memberId?: string) =>
@@ -153,9 +155,10 @@ describe("session guard on /admin/*", () => {
       id: "ada",
       displayName: "Ada",
       email: "Ada@Novawerk.io",
+      role: "maintainer",
       canAdmin: true,
       publicProfile: false,
-      profileHandle: null,
+      profileHandle: "ada",
       profileBio: null,
     });
   });
@@ -197,10 +200,18 @@ describe("POST /auth/google", () => {
     expect(res.headers.get("set-cookie")).toContain("Secure");
   });
 
-  it("signs in members without admin rights too", async () => {
+  it("signs in members without admin rights too, when they are on a project's team", async () => {
     const res = await makeApp(db).app.request("/auth/google", postJson({ credential: "google:grace@novawerk.io" }));
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ id: "grace", canAdmin: false });
+    expect(await res.json()).toMatchObject({ id: "grace", role: "member", canAdmin: false });
+  });
+
+  it("keeps members on no project's team out of the admin panel (NB-ADR-0014)", async () => {
+    const { app } = makeApp(db);
+    await db.insert(members).values({ id: "lena", handle: "lena", displayName: "Lena", email: "lena@example.org" });
+    expect((await app.request("/auth/google", postJson({ credential: "google:lena@example.org" }))).status).toBe(403);
+    expect((await get(app, "/admin/me", "lena")).status).toBe(403);
+    expect((await get(app, "/admin/members", "lena")).status).toBe(403);
   });
 
   it("answers 403 to inactive members and strangers", async () => {

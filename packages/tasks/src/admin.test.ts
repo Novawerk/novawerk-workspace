@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { proposalInput, suggestionInput } from "@nw/contracts";
-import { contributors, members, taskEvents, taskPosts, taskProposals, tasks, werkLedger, type Contributor, type Database } from "@nw/db";
+import { members, taskEvents, taskPosts, taskProposals, tasks, werkLedger, type Member, type Database } from "@nw/db";
 import { createTestDb, resetDb } from "@nw/db/testing";
 
 import {
@@ -41,14 +41,14 @@ beforeAll(async () => {
   db = await createTestDb();
 }, 60_000);
 
-let lena: Contributor;
-let jonas: Contributor;
-let mira: Contributor;
+let lena: Member;
+let jonas: Member;
+let mira: Member;
 beforeEach(async () => {
   await resetDb(db);
   await db.insert(members).values([
-    { id: "ada", displayName: "Ada", email: "ada@novawerk.io", canAdmin: true },
-    { id: "grace", displayName: "Grace", email: "grace@novawerk.io", canAdmin: true },
+    { id: "ada", handle: "ada", displayName: "Ada", email: "ada@novawerk.io", role: "maintainer" },
+    { id: "grace", handle: "grace", displayName: "Grace", email: "grace@novawerk.io", role: "maintainer" },
   ]);
   lena = await signInWithGitHub(db, { id: 101, login: "lena-k", name: "Lena", avatarUrl: null });
   jonas = await signInWithGitHub(db, { id: 102, login: "jonas", name: null, avatarUrl: null });
@@ -323,12 +323,12 @@ describe("moderation and Werk", () => {
   it("suspends and lifts it, keeping who and why", async () => {
     await setContributorSuspended(db, "ada", jonas.id, true, "Spam in three threads");
     expect(await code(() => setContributorSuspended(db, "ada", jonas.id, true, "again"))).toBe("invalid_state");
-    let [row] = await db.select().from(contributors).where(eq(contributors.id, jonas.id));
+    let [row] = await db.select().from(members).where(eq(members.id, jonas.id));
     expect(row).toMatchObject({ suspendedBy: "ada", suspendedReason: "Spam in three threads" });
     expect(row!.suspendedAt).not.toBeNull();
     expect((await listAdminContributors(db)).find((c) => c.id === jonas.id)).toMatchObject({ suspended: true });
     await setContributorSuspended(db, "ada", jonas.id, false, "Talked it through");
-    [row] = await db.select().from(contributors).where(eq(contributors.id, jonas.id));
+    [row] = await db.select().from(members).where(eq(members.id, jonas.id));
     expect(row).toMatchObject({ suspendedAt: null, suspendedBy: null, suspendedReason: null });
   });
 

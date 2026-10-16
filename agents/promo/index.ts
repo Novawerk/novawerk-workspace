@@ -45,7 +45,7 @@ export default defineAgent({
   services: (cfg, ctx) => ({ ...postgres(cfg.database.url), claude: claude(cfg.anthropic.apiKey, ctx) }),
   dryRunServices: async (ctx) => ({
     ...(await memoryDb(async (db) => {
-      await db.insert(members).values({ id: "ada", displayName: "Ada", email: "ada@novawerk.io" });
+      await db.insert(members).values({ id: "ada", handle: "ada", displayName: "Ada", email: "ada@novawerk.io" });
       const [project] = await db
         .insert(projects)
         .values({ slug: "kiez-pantry", title: "Kiez Pantry", description: "Surplus food from small shops.", status: "building" })

@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 // Provision a new member. Prints the SQL to run — it does NOT execute it, so you review before
-// touching the live DB. Everyone is a Member; there are no titles. `can_admin` is a permission
-// (approve outbox emails, edit content in the admin panel), not a rank.
+// touching the live DB. Everyone is a member; `--admin` makes them a maintainer, who runs
+// Novawerk (approves outbox emails, edits content in the admin panel; NB-ADR-0014).
 //
 // Usage: pnpm provision:member <id> "<Display Name>" <google-email> [--admin]
 
@@ -21,8 +21,9 @@ function main(): void {
 
   console.log(`# 1. Insert the member row (run against the app DB):`);
   console.log(
-    `psql "$DATABASE_URL" -c "insert into members (id, display_name, email, can_admin, joined_on, active) ` +
-      `values (${q(id)}, ${q(displayName)}, ${q(email)}, ${admin}, '${today}', true) on conflict (id) do nothing;"`,
+    `psql "$DATABASE_URL" -c "insert into members (id, profile_handle, display_name, email, role, joined_on, active) ` +
+      `values (${q(id)}, ${q(id)}, ${q(displayName)}, ${q(email.toLowerCase())}, '${admin ? "maintainer" : "member"}', '${today}', true) ` +
+      `on conflict (id) do nothing;"`,
   );
   console.log("");
   console.log(`# 2. Their private file prefix '${id}/...' and owner-scoped rows are enforced in code`);

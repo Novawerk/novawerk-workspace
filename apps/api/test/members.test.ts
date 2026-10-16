@@ -3,7 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { members, projectMembers, projectSubmissions, projects, type Database } from "@nw/db";
 
-import { TEST_MEMBERS, adminFetch, adminJson, createTestDb, makeApp, resetDb } from "./helpers.js";
+import { TEST_MEMBERS, adminFetch, adminJson, createTestDb, joinATeam, makeApp, resetDb } from "./helpers.js";
 
 let db: Database;
 beforeAll(async () => {
@@ -93,7 +93,7 @@ describe("POST /admin/members", () => {
       makeApp(db).app,
       "POST",
       "/admin/members",
-      { id: "lena", displayName: "Lena", email: "lena@example.org" },
+      { id: "lena", handle: "lena", displayName: "Lena", email: "lena@example.org" },
       201,
     );
     expect(created.initiatorOf).toEqual([project!.id]);
@@ -115,7 +115,7 @@ describe("PATCH /admin/members/:id", () => {
 
     await adminJson(app, "PATCH", "/admin/members/grace", { active: false });
     const [row] = await db.select().from(members).where(eq(members.id, "grace"));
-    expect(row).toMatchObject({ active: false, canAdmin: true });
+    expect(row).toMatchObject({ active: false, role: "maintainer" });
   });
 
   it("does not let you lock yourself out", async () => {
@@ -136,6 +136,7 @@ describe("PATCH /admin/members/:id", () => {
 
   it("revoking admin access closes the admin areas at once; the member can still sign in", async () => {
     const { app } = makeApp(db);
+    await joinATeam(db, "grace");
     await adminJson(app, "PATCH", "/admin/members/grace", { canAdmin: true });
     expect((await adminFetch(app, "GET", "/admin/outbox", undefined, "grace")).status).toBe(200);
     await adminJson(app, "PATCH", "/admin/members/grace", { canAdmin: false });

@@ -35,9 +35,10 @@ text, account ids or addresses into this repo, an issue or a pull request.
 - **Sign-in codes are short-lived.** An emailed code lives 10 minutes, allows 5 tries, works
   once, and only its keyed hash is stored; at most 3 per address per 15 minutes. Asking for one
   doesn't reveal who is a member. Tested in `apps/api/test/member-portal.test.ts`.
-- **Members see their own projects only.** Without `can_admin`, a member reaches only the
-  projects they are on (404 for the rest) and none of the admin pages (403): no pitches,
-  applications, outbox, partners, finance, documents or assistant. Same test file.
+- **Members see their own projects only.** Without the maintainer role, a member reaches only
+  the projects they are on (404 for the rest) and none of the admin pages (403): no pitches,
+  applications, outbox, partners, finance, documents or assistant. A member on no project's team
+  doesn't open the admin panel at all (NB-ADR-0014). Same test file and `apps/api/test/admin.test.ts`.
 - **Agents cannot reach Resend.** Agent workflows never receive `RESEND_API_KEY`;
   `agents/agents.test.ts` fails if one does.
 - **Least secrets per job.** Each workflow passes only the secrets its agent declares, and
@@ -84,8 +85,8 @@ Run this list and write the result into a dated record under `records/operations
 
 - [ ] Collaborators on the private repo, write access on this one, and org members match the
       roster. Remove anyone who left.
-- [ ] `members` rows: `active` and `can_admin` are right for everyone. Everyone active can sign
-      in, so take people who left off (`active = false`) and off project teams.
+- [ ] `members` rows: `active` and `role` are right for everyone. Maintainers and project teams
+      sign in to the admin panel, so take people who left off (`active = false`) and off teams.
 - [ ] Repository secrets: only the ones in the runbook; none unused. No agent workflow references
       `RESEND_API_KEY` (the test also checks).
 - [ ] Anthropic / Jira / Resend / Vercel Blob / Neon keys: rotate on the runbook schedule; revoke unused.

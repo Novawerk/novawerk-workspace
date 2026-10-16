@@ -20,13 +20,13 @@ on conflict (slug) do nothing;
 -- Fictional people (example.com) and made-up progress, so the Projects and Posts boards have
 -- something on every column. Dates are relative to today. Safe to re-run.
 
-insert into members (id, display_name, email, can_admin, joined_on, active)
+insert into members (id, display_name, email, profile_handle, joined_on, active)
 values
-  ('mara', 'Mara Lindqvist', 'mara@example.com', false, current_date - 300, true),
-  ('jonas', 'Jonas Weber', 'jonas@example.com', false, current_date - 260, true),
-  ('aiko', 'Aiko Tanaka', 'aiko@example.com', false, current_date - 200, true),
-  ('lin', 'Lin Chen', 'lin@example.com', false, current_date - 90, true),
-  ('yu', 'Yu Wang', 'yu@example.com', false, current_date - 150, true)
+  ('mara', 'Mara Lindqvist', 'mara@example.com', 'mara', current_date - 300, true),
+  ('jonas', 'Jonas Weber', 'jonas@example.com', 'jonas', current_date - 260, true),
+  ('aiko', 'Aiko Tanaka', 'aiko@example.com', 'aiko', current_date - 200, true),
+  ('lin', 'Lin Chen', 'lin@example.com', 'lin', current_date - 90, true),
+  ('yu', 'Yu Wang', 'yu@example.com', 'yu', current_date - 150, true)
 on conflict (id) do nothing;
 
 -- Pitches: one new, one under discussion, one declined, two accepted (they became projects).
@@ -194,7 +194,7 @@ on conflict do nothing;
 -- (fictional, example.com): Lena with a public profile and one merged task, and someone who signed in by
 -- email, has no GitHub yet and still has the neutral handle. Task numbers are fixed so links like /tasks/NW-3 stay stable.
 
-insert into contributors (id, handle, display_name, bio, public, github_id, github_login, email, created_at)
+insert into members (id, profile_handle, display_name, profile_bio, public_profile, github_id, github_login, email, created_at)
 values
   ('c1000000-0000-4000-8000-000000000001', 'lena-k', 'Lena Krause', 'Frontend, accessibility, small fixes.', true,
    90000001, 'lena-k', null, now() - interval '40 days'),
@@ -295,4 +295,4 @@ on conflict do nothing;
 -- An initiator who opted in to a public profile (NB-ADR-0013): Jonas stands on the contributors
 -- wall with the project he started.
 update members set public_profile = true, profile_handle = 'jonas-weber', profile_bio = 'Wished for a quiet place to write.'
-where id = 'jonas' and profile_handle is null;
+where id = 'jonas' and not public_profile;

@@ -16,7 +16,7 @@ import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 
 import { TOKEN_LIMITS, type TokenScope } from "@nw/contracts";
-import type { Contributor, Database } from "@nw/db";
+import type { Member, Database } from "@nw/db";
 import { TaskRuleError, authenticateToken, requireScope, type TokenContext } from "@nw/tasks";
 
 import { FixedWindowLimiter, clientIp } from "./intake-chat/rate-limit.js";
@@ -25,7 +25,7 @@ import type { ApiEnv } from "./types.js";
 export type TokenAuth =
   | { kind: "none" }
   | { kind: "invalid" }
-  | { kind: "ok"; contributor: Contributor; token: TokenContext };
+  | { kind: "ok"; contributor: Member; token: TokenContext };
 
 const HOUR = 60 * 60_000;
 const INVALID = "That token isn't valid: it may be revoked or expired. Make a new one at novawerk.io/settings/tokens.";
@@ -105,7 +105,7 @@ function sameSiteWrite(c: Context, origins: readonly string[]): boolean {
  */
 export function contributorOrToken(
   gate: TokenGate,
-  session: (c: Context) => Promise<Contributor | undefined>,
+  session: (c: Context) => Promise<Member | undefined>,
   origins: readonly string[],
 ) {
   return createMiddleware<ApiEnv>(async (c, next) => {

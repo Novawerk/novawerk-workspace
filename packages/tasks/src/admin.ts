@@ -25,7 +25,6 @@ import {
 } from "@nw/contracts";
 import {
   contributorModeration,
-  contributors,
   members,
   postReports,
   taskEvents,
@@ -220,8 +219,10 @@ export interface AdminWerkRow {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const assignee = alias(contributors, "assignee");
-const suggester = alias(contributors, "suggester");
+/** The account on the contributor side of a row (author, proposer, voter), next to a member's own columns. */
+const contributors = alias(members, "contributors");
+const assignee = alias(members, "assignee");
+const suggester = alias(members, "suggester");
 
 const personCols = (t: typeof contributors | typeof assignee | typeof suggester) => ({
   id: t.id,
@@ -922,13 +923,13 @@ export async function setContributorSuspended(
       throw new TaskRuleError("invalid_state", suspended ? "Already suspended" : "Not suspended");
     }
     await tx
-      .update(contributors)
+      .update(members)
       .set(
         suspended
           ? { suspendedAt: now, suspendedReason: reason.trim(), suspendedBy: memberId, updatedAt: now }
           : { suspendedAt: null, suspendedReason: null, suspendedBy: null, updatedAt: now },
       )
-      .where(eq(contributors.id, contributorId));
+      .where(eq(members.id, contributorId));
     await tx.insert(contributorModeration).values({
       contributorId,
       action: suspended ? "suspended" : "unsuspended",

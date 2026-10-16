@@ -4,7 +4,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { contributors, members, tasks, type Database } from "@nw/db";
+import { members, tasks, type Database } from "@nw/db";
 
 import { deleteUnsentScreenshots, finishTriagedScreenshots } from "../src/screenshot-cleanup.js";
 import { FakeFiles, TEST_MEMBERS, WEB_ORIGIN, adminFetch, contributorCookie, createTestDb, makeApp, resetDb, type TestApp } from "./helpers.js";
@@ -19,7 +19,7 @@ let cookie: string;
 beforeEach(async () => {
   await resetDb(db);
   await db.insert(members).values(TEST_MEMBERS);
-  const [lena] = await db.insert(contributors).values({ handle: "lena-k", displayName: "Lena", githubId: 1 }).returning();
+  const [lena] = await db.insert(members).values({ handle: "lena-k", displayName: "Lena", githubId: 1 }).returning();
   lenaId = lena!.id;
   cookie = await contributorCookie(lenaId);
 });

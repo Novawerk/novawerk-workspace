@@ -17,7 +17,7 @@ beforeEach(async () => {
   await resetDb(db);
   await db.insert(members).values([
     ...TEST_MEMBERS,
-    { id: "mara", displayName: "Mara", email: "mara@novawerk.io", canAdmin: true },
+    { id: "mara", handle: "mara", displayName: "Mara", email: "mara@novawerk.io", role: "maintainer" },
   ]);
 });
 
