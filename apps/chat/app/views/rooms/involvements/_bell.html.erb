@@ -15,6 +15,13 @@
     </summary>
 
     <div class="nw-menu nw-hdr-menu__menu nw-hdr-menu__menu--wide" data-popup-target="menu">
+      <div data-notifications-target="blocked" hidden>
+        <button type="button" class="nw-menu__item nw-menu__item--tall nw-menu__item--warning" data-action="notifications#showBlockedNotice">
+          <%= image_tag "notification-bell-nothing.svg" %>
+          <span class="nw-stack"><span class="nw-menu__title">Notifications are off</span><span class="nw-small nw-muted">Blocked by this browser. Fix…</span></span>
+        </button>
+        <div class="nw-menu__sep"></div>
+      </div>
       <div class="nw-menu__label">Notify me about</div>
       <% levels.each do |value, title, text| %>
         <%= button_to room_involvement_path(room), method: :put, params: { involvement: value, return_to_room: 1 },

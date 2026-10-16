@@ -250,7 +250,7 @@ body {
       }
     }
 
-    .btn:not(.room--current) {
+    .btn:not(.room--current):not(dialog *) {
       --btn-background: transparent;
       --btn-border-color: transparent;
       --btn-size: 2rem;
@@ -1478,7 +1478,7 @@ body.sidebar { @media (min-width: 100ch) { --sidebar-width: 256px; } }
   max-width: 520px;
   padding-inline-start: 12px;
 }
-#nav:has(.nw-hdr-title) .btn:not(.room--current):not(.nw-hdr-title) {
+#nav:has(.nw-hdr-title) .btn:not(.room--current):not(.nw-hdr-title):not(dialog *) {
   --btn-background: transparent;
   --btn-border-color: transparent;
   border-radius: 8px;
@@ -1488,7 +1488,7 @@ body.sidebar { @media (min-width: 100ch) { --sidebar-width: 256px; } }
   min-width: 32px;
   padding: 0;
 }
-#nav:has(.nw-hdr-title) .btn:hover { --btn-background: #f5f5f5; }
+#nav:has(.nw-hdr-title) .btn:not(dialog *):hover { --btn-background: #f5f5f5; }
 #nav:has(.nw-hdr-title) .btn.nw-hdr-members { gap: 4px; padding: 0 10px; }
 .nw-stack-avatars { display: flex; }
 .nw-stack-avatars .avatar { --avatar-size: 20px; block-size: 20px; border: 2px solid #fff; border-radius: 999px; box-sizing: content-box; inline-size: 20px; margin-left: -6px; }
@@ -2343,3 +2343,29 @@ suggestion-option[selected]:not(.flashing-off) .autocomplete__btn { background: 
 .message:has(+ .message--threaded) { padding-block-end: 0; }
 .message + .message--threaded { padding-block-start: 2px; row-gap: 0; }
 .message:has(+ .message--threaded) .message__body-content { margin-block-end: 0; }
+
+/* --- Acceptance round 2 fixes ----------------------------------------------- */
+/* Attachments never make the message column scroll sideways (phone, search). */
+.message__body, .message__body-content { min-inline-size: 0; }
+.message__body-content .max-inline-size { aspect-ratio: auto !important; height: auto; max-inline-size: 100%; }
+.message__body-content .message__attachment { block-size: auto; max-inline-size: 100%; }
+.message-area, .messages { overflow-x: clip; }
+/* Link sits between Strikethrough and Quote. */
+.nw-composer__editor lexxy-toolbar lexxy-link-dropdown { display: inline-flex !important; }
+/* "Notifications are off" row on top of the bell menu. */
+.nw-menu__item--warning { color: #9a5b00; }
+[data-notifications-target="blocked"][hidden] { display: none; }
+/* The lightbox image starts under its 64px bar. */
+.nw-lightbox .lightbox__image { margin-block-start: 64px; max-block-size: calc(100dvh - 96px); }
+/* The edit box spans the message column. */
+.message:has(.nw-edit) .message__body, .message:has(.nw-edit) .message__body-content, .nw-edit .nw-composer { inline-size: 100%; }
+/* The Werk line lines up with the name and @handle. */
+.nw-profile__body .novawerk-profile { justify-content: flex-start; }
+/* Row menus near the bottom of the page open upward. */
+.nw-table > :last-child .nw-row-menu__menu, .nw-table > :nth-last-child(2) .nw-row-menu__menu { bottom: 34px; top: auto; }
+/* Search results: the room badge only, without the old arrows. */
+.nw-search__results .message__room::before, .nw-search__results .message__room::after { content: none !important; }
+.nw-composer__editor lexxy-toolbar [name="link"] { margin: 0; }
+/* The header's ghost-button rule doesn't reach the dialog's own buttons. */
+.nw-notice-dialog .nw-dialog__actions .btn { --btn-background: #fff; --btn-border-color: #e5e5e5; --btn-color: #0a0a0a; background: var(--btn-background); border: 1px solid var(--btn-border-color); color: var(--btn-color); height: 32px; padding: 0 12px; }
+.nw-notice-dialog .nw-dialog__actions .btn--reversed { --btn-background: var(--primary); --btn-border-color: var(--primary); --btn-color: var(--primary-foreground); }
