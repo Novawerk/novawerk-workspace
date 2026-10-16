@@ -8,13 +8,11 @@ import {
   xiaohongshuLinks,
   toHandle,
   isReservedHandle,
-  memberSelfUpdateInput,
   type DocumentUploadInput,
   type ImageUploadInput,
 } from "@nw/contracts"
 
 import { ApiError, call, callText } from "./api"
-import { SAMPLE_CONTRIBUTOR_HANDLES } from "./board-source"
 import { client } from "./api-client"
 import { API_URL, USE_SAMPLE_DATA } from "./env"
 import {
@@ -57,7 +55,6 @@ import type {
   Member,
   MemberApplication,
   MemberCreateInput,
-  MemberSelfUpdateInput,
   MemberPatch,
   OutboxApproveResult,
   OutboxDraftInput,
@@ -100,19 +97,14 @@ import type {
 export interface AdminDataSource {
   readonly isSample: boolean
   me(): Promise<Me>
-  signInWithGoogle(credential: string): Promise<void>
-  /** Local development only — see DEV_LOGIN in ./env. */
+  /** Local development only — see DEV_LOGIN in ./env. Everyone else signs in on novawerk.io. */
   signInDev(email: string): Promise<void>
-  /** Email a 6-digit sign-in code (says nothing about whether the address is a member's). */
-  requestSignInCode(email: string): Promise<void>
-  signInWithCode(email: string, code: string): Promise<void>
   signOut(): Promise<void>
 
   members(): Promise<Member[]>
   createMember(input: MemberCreateInput): Promise<Member>
   updateMember(id: string, patch: MemberPatch): Promise<Member>
   /** PATCH /admin/me: the signed-in member's own public profile. */
-  updateMe(patch: MemberSelfUpdateInput): Promise<Me>
 
   listSubmissions(status?: SubmissionStatus): Promise<ProjectSubmission[]>
   getSubmission(id: string): Promise<ProjectSubmission>
@@ -207,17 +199,8 @@ const { admin, auth } = client
 const liveSource: AdminDataSource = {
   isSample: false,
   me: () => call(admin.me.$get()),
-  signInWithGoogle: async (credential) => {
-    await call(auth.google.$post({ json: { credential } }))
-  },
   signInDev: async (email) => {
     await call(auth.dev.$post({ json: { email } }))
-  },
-  requestSignInCode: async (email) => {
-    await call(auth.email.start.$post({ json: { email } }))
-  },
-  signInWithCode: async (email, code) => {
-    await call(auth.email.verify.$post({ json: { email, code } }))
   },
   signOut: async () => {
     await call(auth.logout.$post())
@@ -229,7 +212,6 @@ const liveSource: AdminDataSource = {
     return member
   },
   updateMember: (id, patch) => call(admin.members[":id"].$patch({ param: { id }, json: patch })),
-  updateMe: (patch) => call(admin.me.$patch({ json: patch })),
 
   listSubmissions: (status) => call(admin.submissions.$get({ query: { status } })),
   getSubmission: (id) => call(admin.submissions[":id"].$get({ param: { id } })),
@@ -411,7 +393,7 @@ function sortProjects(list: Project[]) {
 function samplePitcher(pitch: { name: string; email: string }): PitcherPreview {
   const member = [...store.members.values()].find((m) => m.email.toLowerCase() === pitch.email.toLowerCase())
   if (member) {
-    return { kind: "link", member: { id: member.id, displayName: member.displayName, active: member.active, canAdmin: member.canAdmin } }
+    return { kind: "link", member: { id: member.id, displayName: member.displayName, active: member.active, role: member.role } }
   }
   const fromName = toHandle(pitch.name, 39)
   const fromEmail = toHandle(pitch.email.split("@")[0] ?? "", 39)
@@ -423,10 +405,7 @@ function samplePitcher(pitch: { name: string; email: string }): PitcherPreview {
 const sampleSource: AdminDataSource = {
   isSample: true,
   me: async () => SAMPLE_ME,
-  signInWithGoogle: () => delay(),
   signInDev: () => delay(),
-  requestSignInCode: () => delay(),
-  signInWithCode: () => delay(),
   signOut: () => delay(),
 
   members: async () => {
@@ -446,7 +425,7 @@ const sampleSource: AdminDataSource = {
       id: input.id,
       displayName: input.displayName,
       email,
-      canAdmin: input.canAdmin ?? false,
+      role: input.role ?? "member",
       joinedOn: input.joinedOn ?? today(),
       active: true,
       publicProfile: false,
@@ -457,36 +436,11 @@ const sampleSource: AdminDataSource = {
     store.members.set(member.id, member)
     return { ...member }
   },
-  updateMe: async (patch) => {
-    await delay()
-    // The same rules and words as the API (memberSelfUpdateInput, @nw/tasks members.ts and handles.ts).
-    const parsed = memberSelfUpdateInput.safeParse(patch)
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0]!
-      refuse(issue.message, issue.path[0] ? String(issue.path[0]) : undefined)
-    }
-    const clean = definedOnly(parsed.data)
-    const handle = clean.profileHandle ?? SAMPLE_ME.profileHandle
-    if ((clean.publicProfile ?? SAMPLE_ME.publicProfile) && !handle) {
-      refuse("Choose a handle first: it's the address of your profile", "profileHandle")
-    }
-    if (clean.profileHandle && clean.profileHandle !== SAMPLE_ME.profileHandle) {
-      if (isReservedHandle(clean.profileHandle)) refuse("That handle is reserved. Pick another one.", "profileHandle")
-      const taken =
-        SAMPLE_CONTRIBUTOR_HANDLES.includes(clean.profileHandle) ||
-        [...store.members.values()].some(
-          (m) => m.id !== SAMPLE_ME.id && (m.id === clean.profileHandle || m.profileHandle === clean.profileHandle),
-        )
-      if (taken) refuse("That handle is taken", "profileHandle", 409)
-    }
-    Object.assign(SAMPLE_ME, clean)
-    return { ...SAMPLE_ME }
-  },
   updateMember: async (id, patch) => {
     await delay()
     const current = store.members.get(id) ?? notFound("Member")
-    if (id === SAMPLE_ME.id && patch.canAdmin === false) {
-      refuse("You can't remove your own admin access", "canAdmin")
+    if (id === SAMPLE_ME.id && patch.role === "member") {
+      refuse("You can't stop being a maintainer yourself", "role")
     }
     if (id === SAMPLE_ME.id && patch.active === false) refuse("You can't mark yourself inactive", "active")
     const next = { ...current, ...definedOnly(patch) }
@@ -551,7 +505,7 @@ const sampleSource: AdminDataSource = {
           id,
           displayName: current.name,
           email: current.email.toLowerCase(),
-          canAdmin: false,
+          role: "member",
           active: true,
           joinedOn: nowIso().slice(0, 10),
           publicProfile: false,
@@ -640,7 +594,7 @@ const sampleSource: AdminDataSource = {
         id: memberId,
         displayName: input.displayName ?? current.name,
         email: current.email.toLowerCase(),
-        canAdmin: false,
+        role: "member",
         publicProfile: false,
         profileHandle: null,
         profileBio: null,

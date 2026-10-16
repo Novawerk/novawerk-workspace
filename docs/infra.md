@@ -186,10 +186,14 @@ Actions bot).
 Set the origin lists explicitly in production. The built-in defaults include `localhost`,
 which is only meant for local development.
 
-**Web** (`apps/web`): `API_URL`, `NEXT_PUBLIC_API_URL`, `REVALIDATE_SECRET`. The Next.js
-build bakes `NEXT_PUBLIC_API_URL` in, so changing it means a redeploy.
+**Web** (`apps/web`): `API_URL`, `NEXT_PUBLIC_API_URL`, `REVALIDATE_SECRET`, and
+`NEXT_PUBLIC_GOOGLE_CLIENT_ID` (the API's `GOOGLE_CLIENT_ID`; the client lists novawerk.io as an
+authorised JavaScript origin) for "Continue with Google". Optional: `NEXT_PUBLIC_ADMIN_URL` and
+`NEXT_PUBLIC_CHAT_URL`, where a sign-in may send people back to (defaults: admin.novawerk.io,
+chat.novawerk.io). The Next.js build bakes `NEXT_PUBLIC_*` in, so changing one means a redeploy.
 
-**Admin** (`apps/admin`): `VITE_API_URL` and `VITE_GOOGLE_CLIENT_ID`. Sample data is **off**
+**Admin** (`apps/admin`): `VITE_API_URL` and `VITE_WEB_URL`. Everyone signs in on novawerk.io
+(NB-ADR-0014), so the admin panel has no Google button of its own. Sample data is **off**
 unless `VITE_USE_SAMPLE_DATA=true` (for UI work without the API); never set it in production.
 `VITE_DEV_LOGIN` is ignored in production builds.
 

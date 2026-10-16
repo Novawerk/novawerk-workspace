@@ -21,7 +21,6 @@ import { and, eq, like, or, sql } from "drizzle-orm";
 
 import { INITIATOR_ROLE, toHandle, type ApplicationAcceptInput, type SubmissionAcceptInput } from "@nw/contracts";
 import {
-  isMaintainer,
   memberApplications,
   members,
   projectMembers,
@@ -184,7 +183,7 @@ export async function acceptApplication(
 /** What accepting would do about the pitcher, for the accept dialog (GET /admin/submissions/:id). */
 export type PitcherPreview =
   | { kind: "create"; handle: string }
-  | { kind: "link"; member: Pick<Member, "id" | "displayName" | "active"> & { canAdmin: boolean } };
+  | { kind: "link"; member: Pick<Member, "id" | "displayName" | "active" | "role"> };
 
 /** A Member id for someone with this name and email: from the name, else the email's local part. */
 function wantedId(name: string, email: string): string {
@@ -206,7 +205,7 @@ async function lockEmail(tx: Database, email: string) {
 export async function previewPitcher(db: Database, submission: Pick<ProjectSubmission, "name" | "email">): Promise<PitcherPreview> {
   const member = await memberByEmail(db, submission.email);
   if (member) {
-    return { kind: "link", member: { id: member.id, displayName: member.displayName, active: member.active, canAdmin: isMaintainer(member) } };
+    return { kind: "link", member: { id: member.id, displayName: member.displayName, active: member.active, role: member.role } };
   }
   // A read-only transaction: the handle's lock ends with it; nothing is written.
   const handle = await db.transaction((tx) =>

@@ -250,12 +250,12 @@ describe("accepting a pitch makes the pitcher a Member", () => {
     const known = await insertPitch({ email: "Grace@novawerk.io", projectName: "Known" });
     expect((await adminJson(app, "GET", `/admin/submissions/${known.id}`)).pitcher).toEqual({
       kind: "link",
-      member: { id: "grace", displayName: "Grace", active: true, canAdmin: false },
+      member: { id: "grace", displayName: "Grace", active: true, role: "member" },
     });
     const gone = await insertPitch({ email: "linus@novawerk.io", projectName: "Gone" });
     expect((await adminJson(app, "GET", `/admin/submissions/${gone.id}`)).pitcher).toMatchObject({
       kind: "link",
-      member: { id: "linus", active: false, canAdmin: true },
+      member: { id: "linus", active: false, role: "maintainer" },
     });
     // The preview writes nothing.
     expect(await db.select().from(members).where(eq(members.id, "lena-hoffmann"))).toEqual([]);
@@ -308,7 +308,7 @@ describe("POST /admin/applications/:id/accept", () => {
         id: "noor-haddad",
         displayName: "Noor Haddad",
         email: "noor@example.org",
-        canAdmin: false,
+        role: "member",
         active: true,
         joinedOn: new Date().toISOString().slice(0, 10),
       },

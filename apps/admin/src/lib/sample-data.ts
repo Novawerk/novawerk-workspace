@@ -31,7 +31,6 @@ export const SAMPLE_ME: Me = {
   displayName: "Sample Admin",
   email: "admin@example.com",
   role: "maintainer",
-  canAdmin: true,
   publicProfile: false,
   profileHandle: null,
   profileBio: null,
@@ -41,7 +40,7 @@ const member = (id: string, displayName: string, opts: Partial<Member> = {}): Me
   id,
   displayName,
   email: `${id}@example.com`,
-  canAdmin: false,
+  role: "member",
   joinedOn: daysAgoDate(200),
   active: true,
   publicProfile: false,
@@ -52,8 +51,8 @@ const member = (id: string, displayName: string, opts: Partial<Member> = {}): Me
 })
 
 export const SAMPLE_MEMBERS: Member[] = [
-  member("sample-admin", "Sample Admin", { email: "admin@example.com", canAdmin: true, joinedOn: daysAgoDate(400) }),
-  member("mara", "Mara Lindqvist", { canAdmin: true }),
+  member("sample-admin", "Sample Admin", { email: "admin@example.com", role: "maintainer", joinedOn: daysAgoDate(400) }),
+  member("mara", "Mara Lindqvist", { role: "maintainer" }),
   member("jonas", "Jonas Weber"),
   member("aiko", "Aiko Tanaka"),
   member("daniel", "Daniel Kim", { joinedOn: daysAgoDate(5), createdAt: hoursAgo(120) }),

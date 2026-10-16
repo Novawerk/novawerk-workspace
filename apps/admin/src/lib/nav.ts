@@ -116,7 +116,7 @@ export const NAV: NavGroup[] = [
   },
 ]
 
-/** The pages a member without admin access may open (their own projects and posts). */
+/** The pages a member who isn't a maintainer may open (their own projects and posts). */
 export const MEMBER_PATHS = NAV.flatMap((g) => g.items.filter((i) => i.members).map((i) => i.to as string))
 
 /** …except these, under the paths above: pitches and starting a project are for admins. */
@@ -136,15 +136,18 @@ export function subItemActive(item: NavItem, sub: NavSubItem, pathname: string):
 /** Pages every member may open that aren't in the sidebar (their own profile). */
 const EVERY_MEMBER = ["/profile"]
 
-/** True when a member without admin access may open this path. */
+/** True when a member who isn't a maintainer may open this path. */
 export function memberMayOpen(pathname: string): boolean {
   const under = (p: string) => pathname === p || pathname.startsWith(`${p}/`)
   if (EVERY_MEMBER.some(under)) return true
   return MEMBER_PATHS.some(under) && !ADMIN_ONLY_UNDER.some(under)
 }
 
-/** The navigation this person sees: everything for admins, their own work for other members. */
-export function navFor(me: { canAdmin: boolean }): NavGroup[] {
-  if (me.canAdmin) return NAV
+/** Runs Novawerk: the whole panel (NB-ADR-0014). Everyone else here is on a project's team. */
+export const isMaintainer = (me: { role: string }) => me.role === "maintainer"
+
+/** The navigation this person sees: everything for maintainers, their own work for other members. */
+export function navFor(me: { role: string }): NavGroup[] {
+  if (isMaintainer(me)) return NAV
   return NAV.map((g) => ({ ...g, items: g.items.filter((i) => i.members) })).filter((g) => g.items.length > 0)
 }

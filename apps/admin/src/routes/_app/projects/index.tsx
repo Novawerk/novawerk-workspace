@@ -47,7 +47,7 @@ const CLOSED: Column = { key: "closed", label: "Closed", zh: "已结束", hint: 
  */
 function ProjectsPage() {
   const { me } = Route.useRouteContext()
-  return me.canAdmin ? <StageBoard /> : <MyProjects />
+  return me.role === "maintainer" ? <StageBoard /> : <MyProjects />
 }
 
 /**

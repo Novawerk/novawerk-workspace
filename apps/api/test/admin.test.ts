@@ -54,8 +54,8 @@ describe("session guard on /admin/*", () => {
     ["POST", `/admin/applications/${id}/accept`, {}],
     ["GET", `/admin/applications/${id}/transcript`],
     ["GET", "/admin/members"],
-    ["POST", "/admin/members", { id: "mallory", displayName: "M", email: "m@example.org", canAdmin: true }],
-    ["PATCH", "/admin/members/ada", { canAdmin: false }],
+    ["POST", "/admin/members", { id: "mallory", displayName: "M", email: "m@example.org", role: "maintainer" }],
+    ["PATCH", "/admin/members/ada", { role: "member" }],
     ["GET", "/admin/outbox"],
     ["GET", `/admin/outbox/${id}`],
     ["POST", "/admin/outbox", { to: "a@example.org", subject: "s", body: "b" }],
@@ -156,7 +156,6 @@ describe("session guard on /admin/*", () => {
       displayName: "Ada",
       email: "Ada@Novawerk.io",
       role: "maintainer",
-      canAdmin: true,
       publicProfile: false,
       profileHandle: "ada",
       profileBio: null,
@@ -167,7 +166,7 @@ describe("session guard on /admin/*", () => {
     const { app } = makeApp(db);
     const grace = await get(app, "/admin/me", "grace");
     expect(grace.status).toBe(200);
-    expect(await grace.json()).toMatchObject({ id: "grace", canAdmin: false });
+    expect(await grace.json()).toMatchObject({ id: "grace", role: "member" });
     expect((await get(app, "/admin/me", "linus")).status).toBe(401);
     expect((await get(app, "/admin/me", "nobody")).status).toBe(401);
   });

@@ -154,9 +154,9 @@ export function NewPostDialog({
   const { data: me } = useQuery(meQueryOptions)
   const { data: projects = [] } = useQuery(projectsQueryOptions)
   const options = projects.filter((p) => p.status !== "archived")
-  const canAdmin = me?.canAdmin ?? false
+  const maintainer = me?.role === "maintainer"
 
-  const [project, setProject] = React.useState<string | null>(fixedProject ?? (canAdmin && startKind === "custom" ? NOVAWERK : null))
+  const [project, setProject] = React.useState<string | null>(fixedProject ?? (maintainer && startKind === "custom" ? NOVAWERK : null))
   const [kind, setKind] = React.useState<PostKind>(startKind)
   const [name, setName] = React.useState("")
   const [dueOn, setDueOn] = React.useState(todayIso())
@@ -234,7 +234,7 @@ export function NewPostDialog({
                 <Label htmlFor="new-post-project">For</Label>
                 <Select
                   items={[
-                    ...(canAdmin ? [{ value: NOVAWERK, label: "Novawerk itself (no project)" }] : []),
+                    ...(maintainer ? [{ value: NOVAWERK, label: "Novawerk itself (no project)" }] : []),
                     ...options.map((p) => ({ value: p.id, label: p.title })),
                   ]}
                   value={project}
@@ -248,7 +248,7 @@ export function NewPostDialog({
                     <SelectValue placeholder="Pick a project" />
                   </SelectTrigger>
                   <SelectContent>
-                    {canAdmin && <SelectItem value={NOVAWERK}>Novawerk itself (no project)</SelectItem>}
+                    {maintainer && <SelectItem value={NOVAWERK}>Novawerk itself (no project)</SelectItem>}
                     {options.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.title}

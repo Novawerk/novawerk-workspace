@@ -85,9 +85,41 @@ export function safeReturnPath(value: string | null | undefined, fallback = "/ta
   return value;
 }
 
+/**
+ * Our other apps a sign-in may hand back to (NB-ADR-0014): the admin panel and the team chat.
+ * Their origins only; the API checks the same list on the GitHub return.
+ */
+function appOrigins(): string[] {
+  // Each must be referenced literally so Next inlines it into the client bundle.
+  const urls = [
+    process.env.NEXT_PUBLIC_ADMIN_URL?.trim() || "https://admin.novawerk.io",
+    process.env.NEXT_PUBLIC_CHAT_URL?.trim() || "https://chat.novawerk.io",
+  ];
+  return urls.flatMap((u) => {
+    try {
+      return [new URL(u).origin];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** Where to go after signing in: a path on this site, or an address on one of our apps. */
+export function safeReturnTo(value: string | null | undefined, fallback = "/tasks"): string {
+  if (value && /^https?:\/\//.test(value)) {
+    try {
+      const url = new URL(value);
+      return appOrigins().includes(url.origin) ? url.toString() : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return safeReturnPath(value, fallback);
+}
+
 /** Where "Continue with GitHub" goes. The API sends the visitor back to `returnTo` afterwards. */
 export function githubStartUrl(returnTo: string): string | null {
   const base = apiBase();
   if (!base) return null;
-  return `${base}/auth/github/start?returnTo=${encodeURIComponent(safeReturnPath(returnTo))}`;
+  return `${base}/auth/github/start?returnTo=${encodeURIComponent(safeReturnTo(returnTo))}`;
 }

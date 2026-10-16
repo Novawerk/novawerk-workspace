@@ -39,7 +39,7 @@ export const Route = createFileRoute("/_app/members")({
   component: MembersPage,
 })
 
-// Narrow table (a phone): one column. Email, admin access and status move into the member cell.
+// Narrow table (a phone): one column. Email, role and status move into the member cell.
 const from2xl = { className: "hidden @2xl:table-cell" }
 
 const columns: ColumnDef<Member>[] = [
@@ -56,8 +56,8 @@ const columns: ColumnDef<Member>[] = [
         <div className="flex min-w-0 flex-col">
           <span className="flex items-center gap-1.5 font-medium">
             <span className="truncate">{row.original.displayName}</span>
-            {row.original.canAdmin && (
-              <ShieldCheckIcon aria-label="Admin" className="size-3.5 shrink-0 text-muted-foreground @2xl:hidden" />
+            {row.original.role === "maintainer" && (
+              <ShieldCheckIcon aria-label="Maintainer" className="size-3.5 shrink-0 text-muted-foreground @2xl:hidden" />
             )}
           </span>
           <span className="hidden truncate font-mono text-xs text-muted-foreground @2xl:block">{row.original.id}</span>
@@ -78,12 +78,12 @@ const columns: ColumnDef<Member>[] = [
   },
   {
     id: "access",
-    accessorFn: (row) => (row.canAdmin ? 1 : 0),
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Admin" />,
+    accessorFn: (row) => (row.role === "maintainer" ? 1 : 0),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Role" />,
     cell: ({ row }) =>
-      row.original.canAdmin ? (
+      row.original.role === "maintainer" ? (
         <Badge variant="outline" className="gap-1">
-          <ShieldCheckIcon /> Admin
+          <ShieldCheckIcon /> Maintainer
         </Badge>
       ) : (
         <span className="text-muted-foreground">—</span>
@@ -134,7 +134,7 @@ function MembersPage() {
         <PageHeader
           eyebrow="Organisation"
           title="Members"
-          description={`Everyone in Novawerk. No tiers: admin access is a permission. ${activeCount} active.`}
+          description={`Everyone in Novawerk, one account each. Maintainers run Novawerk; there are no other ranks. ${activeCount} active.`}
           actions={
             <Button onClick={() => setAdding(true)}>
               <UserPlusIcon /> Add member
@@ -189,18 +189,19 @@ function MemberDialog({
   const [handle, setHandle] = React.useState(member?.id ?? "")
   const [handleTouched, setHandleTouched] = React.useState(Boolean(member))
   const [email, setEmail] = React.useState(member?.email ?? "")
-  const [canAdmin, setCanAdmin] = React.useState(member?.canAdmin ?? false)
+  const [maintainer, setMaintainer] = React.useState(member?.role === "maintainer")
+  const role = maintainer ? ("maintainer" as const) : ("member" as const)
   const [active, setActive] = React.useState(member?.active ?? true)
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
     const onError = (err: unknown) => {
-      const fields = ["id", "displayName", "email", "canAdmin", "active"]
+      const fields = ["id", "displayName", "email", "role", "active"]
       if (!fields.some((f) => issueFor(err, f))) toast.error("We couldn't save that", { description: errorMessage(err) })
     }
     if (member) {
       update.mutate(
-        { id: member.id, patch: { displayName: displayName.trim(), canAdmin, active } },
+        { id: member.id, patch: { displayName: displayName.trim(), role, active } },
         {
           onSuccess: (saved) => {
             toast.success(`Saved ${saved.displayName}`)
@@ -211,11 +212,12 @@ function MemberDialog({
       )
     } else {
       create.mutate(
-        { id: handle.trim(), displayName: displayName.trim(), email: email.trim(), canAdmin },
+        { id: handle.trim(), displayName: displayName.trim(), email: email.trim(), role },
         {
           onSuccess: (saved) => {
-            toast.success(`${saved.displayName} is a Member now`, {
-              description: saved.canAdmin ? "They can sign in here with that Google account." : undefined,
+            toast.success(`${saved.displayName} is a member now`, {
+              description:
+                saved.role === "maintainer" ? "They sign in on novawerk.io with that address (Google or a code)." : undefined,
             })
             onOpenChange(false)
           },
@@ -270,10 +272,10 @@ function MemberDialog({
                   />
                 </FormField>
                 <FormField
-                  label="Google account email"
+                  label="Email"
                   htmlFor="member-email"
                   error={issueFor(create.error, "email")}
-                  hint="Admins sign in with this account."
+                  hint="They sign in on novawerk.io with it: Google or an emailed code."
                 >
                   <Input
                     id="member-email"
@@ -286,13 +288,15 @@ function MemberDialog({
               </>
             )}
             <SwitchRow
-              label="Admin access"
+              label="Maintainer"
               htmlFor="member-admin"
               description={
-                isSelf ? "You can't remove your own admin access." : "Lets them sign in to this panel. Not a rank."
+                isSelf
+                  ? "You can't stop being a maintainer yourself."
+                  : "Runs Novawerk: the whole panel. Without it, members see only their projects. Not a rank."
               }
             >
-              <Switch id="member-admin" aria-label="Admin access" checked={canAdmin} onCheckedChange={setCanAdmin} disabled={isSelf && canAdmin} />
+              <Switch id="member-admin" aria-label="Maintainer" checked={maintainer} onCheckedChange={setMaintainer} disabled={isSelf && maintainer} />
             </SwitchRow>
             {member && (
               <SwitchRow
@@ -305,9 +309,9 @@ function MemberDialog({
                 <Switch id="member-active" aria-label="Active" checked={active} onCheckedChange={setActive} disabled={isSelf && active} />
               </SwitchRow>
             )}
-            {(issueFor(mutation.error, "canAdmin") ?? issueFor(mutation.error, "active")) && (
+            {(issueFor(mutation.error, "role") ?? issueFor(mutation.error, "active")) && (
               <p role="alert" className="text-xs text-destructive">
-                {issueFor(mutation.error, "canAdmin") ?? issueFor(mutation.error, "active")}
+                {issueFor(mutation.error, "role") ?? issueFor(mutation.error, "active")}
               </p>
             )}
           </div>

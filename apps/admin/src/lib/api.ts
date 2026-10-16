@@ -16,6 +16,8 @@ export class ApiError extends Error {
 }
 
 export const isUnauthorized = (error: unknown) => error instanceof ApiError && error.status === 401
+/** Signed in, but the panel doesn't open for this account (not a maintainer, on no project's team). */
+export const isForbidden = (error: unknown) => error instanceof ApiError && error.status === 403
 
 /** The 2xx JSON body of a typed Hono client call. */
 type SuccessBody<R extends ClientResponse<unknown>> = Awaited<ReturnType<typeof parseResponse<R>>>

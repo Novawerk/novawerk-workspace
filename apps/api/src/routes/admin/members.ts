@@ -1,5 +1,5 @@
-// /admin/members: everyone in Novawerk. `canAdmin` is the maintainer role (NB-ADR-0014) until the
-// admin panel reads `role`.
+// /admin/members: everyone in Novawerk, one account each (NB-ADR-0014). `role` maintainer runs
+// this panel; there are no other ranks.
 // Every member can list them (team and owner pickers), without their email addresses; only admins
 // add or change members.
 
@@ -53,7 +53,7 @@ export function memberRoutes({ db }: AdminDeps) {
                 handle: input.id,
                 displayName: input.displayName,
                 email,
-                role: input.canAdmin ? "maintainer" : "member",
+                role: input.role ?? "member",
                 joinedOn: input.joinedOn ?? new Date().toISOString().slice(0, 10),
               })
               .returning();
@@ -78,19 +78,14 @@ export function memberRoutes({ db }: AdminDeps) {
           const patch = c.req.valid("json");
           // Nobody locks themselves out. This also keeps at least one active admin around.
           if (id === c.get("member").id) {
-            if (patch.canAdmin === false) {
-              return c.json(validationFailed({ canAdmin: ["You can't remove your own admin access"] }), 400);
+            if (patch.role === "member") {
+              return c.json(validationFailed({ role: ["You can't stop being a maintainer yourself"] }), 400);
             }
             if (patch.active === false) {
               return c.json(validationFailed({ active: ["You can't mark yourself inactive"] }), 400);
             }
           }
-          const { canAdmin, ...fields } = patch;
-          const [row] = await db
-            .update(members)
-            .set({ ...fields, ...(canAdmin === undefined ? {} : { role: canAdmin ? "maintainer" : "member" }) })
-            .where(eq(members.id, id))
-            .returning();
+          const [row] = await db.update(members).set(patch).where(eq(members.id, id)).returning();
           return row ? c.json(toMemberRow(row), 200) : c.json(notFound, 404);
         },
       )
