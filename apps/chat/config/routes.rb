@@ -3,6 +3,9 @@ Rails.application.routes.draw do
 
   resource :first_run
 
+  # Novawerk sign-in (NovawerkSso, NB-ADR-0014).
+  get "sso/novawerk", to: "novawerk_sso#create", as: :novawerk_sso
+
   resource :session do
     scope module: "sessions" do
       resources :transfers, only: %i[ show update ]

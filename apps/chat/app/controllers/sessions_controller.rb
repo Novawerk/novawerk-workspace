@@ -3,11 +3,14 @@ class SessionsController < ApplicationController
   rate_limit to: 10, within: 3.minutes, only: :create, with: -> { render_rejection :too_many_requests }
 
   before_action :ensure_user_exists, only: :new
+  before_action :sign_in_with_novawerk, only: :new, if: -> { NovawerkSso.configured? }
 
   def new
   end
 
   def create
+    return head :not_found if NovawerkSso.configured?
+
     if user = User.active.authenticate_by(email_address: params[:email_address], password: params[:password])
       start_new_session_for user
       redirect_to post_authenticating_url
@@ -19,12 +22,18 @@ class SessionsController < ApplicationController
   def destroy
     remove_push_subscription
     terminate_current_session
-    redirect_to root_url
+    redirect_to NovawerkSso.configured? ? new_session_url(signed_out: 1) : root_url
   end
 
   private
     def ensure_user_exists
-      redirect_to first_run_url if User.none?
+      redirect_to first_run_url if User.none? && !NovawerkSso.configured?
+    end
+
+    # Straight on to novawerk.io, unless they just signed out here or a sign-in went wrong: then
+    # the page offers it with a button.
+    def sign_in_with_novawerk
+      redirect_to NovawerkSso.sign_in_url, allow_other_host: true unless params[:signed_out] || params[:problem]
     end
 
     def render_rejection(status)
