@@ -35,12 +35,12 @@ Video: `out/novawerk_en_3x4.mp4` (Instagram feed) or `out/novawerk_en_9x16.mp4` 
 **Ideas stuck in your notes?**
 
 Novawerk is an open, non-profit workshop for early ideas.
-Tell us your idea at novawerk.io/submit, in any language. AI helps you write the pitch.
+Tell us your idea at novawerk.ai/submit, in any language. AI helps you write the pitch.
 You build it with a senior AI engineer, a friendly PM, a former founder, and tireless AI agents.
 No demos: YIMA and the Berlin Chinese Food Map are live. Next up: PSYGYM, open-source AI practice
 for new counsellors.
 
-Your idea could be next → novawerk.io
+Your idea could be next → novawerk.ai
 
 #buildinpublic #nonprofit #opensource #AIagents #productmanagement #Berlin
 

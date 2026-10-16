@@ -6,7 +6,7 @@ import { createContext, useContext } from "react";
 //
 // The Chinese version goes to 小红书, which limits notes that show a web address or send people
 // off the platform. So zh shows no URL anywhere (the address bar, subtitles, the end card) and asks
-// nobody to visit anything; en (LinkedIn, Instagram) keeps novawerk.io.
+// nobody to visit anything; en (LinkedIn, Instagram) shows novawerk.ai.
 
 export type Lang = "zh" | "en";
 
@@ -138,14 +138,15 @@ const en: Copy = {
   intro: {
     caption: ["An open workshop", "for **early ideas**"],
     sub: "Non-profit · Open by default",
-    site: { ...zh.intro.site, url: "novawerk.io" },
+    // /join is closed (BRAND.md), so the second button is the one the home page has now.
+    site: { ...zh.intro.site, url: "novawerk.ai", buttons: ["Submit a project", "Contribute"] },
   },
   pitch: {
     captions: [
       { at: 0, lines: ["Got an idea?", "Just **say it**"] },
       { at: 2.5, lines: ["AI helps you write", "the **pitch**"] },
     ],
-    sub: "novawerk.io/submit · in any language",
+    sub: "novawerk.ai/submit · in any language",
     header: zh.pitch.header,
     intro: zh.pitch.intro,
     message: "An app that reminds Dad to check his blood pressure",
@@ -200,7 +201,7 @@ const en: Copy = {
   },
   cta: {
     caption: ["Your idea", "could be **next**"],
-    pill: "novawerk.io",
+    pill: "novawerk.ai",
   },
 };
 
