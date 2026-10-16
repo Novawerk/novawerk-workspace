@@ -5,7 +5,13 @@
 //
 // When an account is deleted, suspended or closed, or its role changes, the API tells the chat at
 // once (tellChat): a POST to /sso/novawerk/events with a signed event, so the chat ends their
-// sessions or updates their role. "A deleted or suspended account loses the chat too."
+// sessions or updates their role. "A deleted or suspended account loses the chat too." A
+// `profile` event (tellChatProfile) carries the profile after an edit or a Werk change, so the chat
+// shows it without signing in again.
+//
+// The chat shows the Novawerk profile: name, @handle and picture always (they are who you are in
+// the chat); Werk and the link to /u/<handle> only for a public profile (NB-ADR-0013: private by
+// default). For a private one they are left out of the ticket, not just hidden.
 //
 // The ticket is an HS256 JWT: issuer `nw-api`, audience `novawerk-chat`, 60 seconds, a random
 // `jti` the chat accepts once. It carries only what the chat shows: the account id, the address
@@ -16,7 +22,9 @@ import { randomUUID } from "node:crypto";
 
 import { SignJWT } from "jose";
 
-import type { Member } from "@nw/db";
+import { eq, sql } from "drizzle-orm";
+
+import { members, werkLedger, type Database, type Member } from "@nw/db";
 
 import type { Logger } from "./types.js";
 
@@ -46,18 +54,46 @@ export function chatRefusal(account: Pick<Member, "active" | "suspendedAt" | "em
   return null;
 }
 
-export async function signChatTicket(account: Member, secret: string, now = Date.now()): Promise<string> {
-  const email = chatEmail(account);
-  if (!email) throw new Error("No address for the chat");
-  const seconds = Math.floor(now / 1000);
-  return new SignJWT({
-    email,
+/** What the chat shows of the Novawerk profile. Werk and the profile link only when it is public. */
+export interface ChatProfile {
+  name: string;
+  handle: string;
+  avatar: string | null;
+  bio: string | null;
+  role: Member["role"];
+  public: boolean;
+  /** Total Werk; null for a private profile. */
+  werk: number | null;
+  /** novawerk.io/u/<handle>; null for a private profile. */
+  profile_url: string | null;
+}
+
+export async function chatProfile(db: Database, account: Member, webUrl: string): Promise<ChatProfile> {
+  let werk: number | null = null;
+  if (account.public) {
+    const [row] = await db
+      .select({ total: sql<number>`coalesce(sum(${werkLedger.delta}), 0)::int` })
+      .from(werkLedger)
+      .where(eq(werkLedger.contributorId, account.id));
+    werk = Number(row?.total ?? 0);
+  }
+  return {
     name: account.displayName,
     handle: account.handle,
     avatar: account.avatarUrl,
     bio: account.bio,
     role: account.role,
-  })
+    public: account.public,
+    werk,
+    profile_url: account.public ? `${webUrl}/u/${account.handle}` : null,
+  };
+}
+
+export async function signChatTicket(account: Member, profile: ChatProfile, secret: string, now = Date.now()): Promise<string> {
+  const email = chatEmail(account);
+  if (!email) throw new Error("No address for the chat");
+  const seconds = Math.floor(now / 1000);
+  return new SignJWT({ email, ...profile })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(account.id)
     .setIssuer(CHAT_TICKET_ISSUER)
@@ -72,7 +108,7 @@ export async function signChatTicket(account: Member, secret: string, now = Date
  * What the chat does about an account: `deleted` removes the person from the chat (their
  * messages stay), `closed` (suspended, inactive) ends their chat sessions, `role` copies the role.
  */
-export type ChatEventKind = "deleted" | "closed" | "role";
+export type ChatEventKind = "deleted" | "closed" | "role" | "profile";
 
 /**
  * Tell the chat about an account, if the chat is set up. Waits at most 5 seconds and never throws:
@@ -84,12 +120,13 @@ export async function tellChat(
   account: Pick<Member, "id" | "email" | "notifyEmail" | "role">,
   kind: ChatEventKind,
   fetchImpl: typeof fetch = fetch,
+  profile?: ChatProfile,
 ): Promise<void> {
   const email = chatEmail(account);
   if (!chat || !email) return;
   try {
     const seconds = Math.floor(Date.now() / 1000);
-    const event = await new SignJWT({ kind, email, role: account.role })
+    const event = await new SignJWT({ kind, email, role: account.role, ...profile })
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
       .setSubject(account.id)
       .setIssuer(CHAT_TICKET_ISSUER)
@@ -107,4 +144,19 @@ export async function tellChat(
   } catch (err) {
     logger.warn(`[chat] couldn't tell the chat about a ${kind} event:`, err instanceof Error ? err.message : err);
   }
+}
+
+/**
+ * The profile changed (an edit, Werk awarded or corrected): the chat shows it at once. Does
+ * nothing without the chat, for an account that can't use it, or one that is gone.
+ */
+export async function tellChatProfile(
+  deps: { db: Database; env: { chatSso?: { url: string; secret: string }; publicUrls: { webUrl: string } }; logger: Logger },
+  memberId: string,
+): Promise<void> {
+  if (!deps.env.chatSso) return;
+  const [account] = await deps.db.select().from(members).where(eq(members.id, memberId)).limit(1);
+  if (!account || chatRefusal(account)) return;
+  const profile = await chatProfile(deps.db, account, deps.env.publicUrls.webUrl);
+  await tellChat(deps.env.chatSso, deps.logger, account, "profile", fetch, profile);
 }

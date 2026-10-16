@@ -50,7 +50,7 @@ import {
   signGitHubState,
   verifyGitHubState,
 } from "../github-auth.js";
-import { CHAT_SSO_PATH, chatRefusal, signChatTicket } from "../chat-sso.js";
+import { CHAT_SSO_PATH, chatProfile, chatRefusal, signChatTicket } from "../chat-sso.js";
 import { rejectInvalid, validationFailed } from "../http.js";
 import { FixedWindowLimiter, clientIp } from "../intake-chat/rate-limit.js";
 import { VERIFY_TRIES_PER_IP_PER_HOUR, checkCode, issueCode } from "../sign-in-codes.js";
@@ -214,7 +214,7 @@ export function authRoutes({
       }
       const refusal = chatRefusal(account);
       if (refusal) return c.redirect(`${env.publicUrls.webUrl}/settings?error=chat-${refusal}`, 302);
-      const ticket = await signChatTicket(account, env.chatSso.secret);
+      const ticket = await signChatTicket(account, await chatProfile(db, account, env.publicUrls.webUrl), env.chatSso.secret);
       c.header("Cache-Control", "no-store");
       c.header("Referrer-Policy", "no-referrer");
       return c.redirect(`${env.chatSso.url}${CHAT_SSO_PATH}?ticket=${encodeURIComponent(ticket)}`, 302);

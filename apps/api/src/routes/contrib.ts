@@ -97,7 +97,7 @@ import {
 } from "@nw/tasks";
 
 import { SESSION_COOKIE, currentAccount, sessionCookieOptions } from "../auth.js";
-import { tellChat } from "../chat-sso.js";
+import { tellChat, tellChatProfile } from "../chat-sso.js";
 import { FixedWindowLimiter } from "../intake-chat/rate-limit.js";
 import { issuesFrom, notFoundIfInvalid, rejectInvalid, validationFailed } from "../http.js";
 import { revalidateWeb } from "../revalidate.js";
@@ -293,6 +293,8 @@ export function contribRoutes({ db, env, githubApi, files, logger = console }: A
         }
         const row = await updateProfile(db, c.get("contributor").id, patch);
         await refreshProfiles();
+        // The chat shows the profile too: name, @handle, picture, bio, and Werk when public.
+        await tellChatProfile({ db, env, logger }, row.id);
         const me = toContributorMe(row);
         return c.json(c.get("token") ? { ...me, email: null, notifyEmail: null } : me, 200);
       })

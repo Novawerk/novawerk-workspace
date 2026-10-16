@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { jwtVerify } from "jose";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { members, type Database } from "@nw/db";
+import { members, werkLedger, type Database } from "@nw/db";
 
 import { readEnv } from "../src/deps.js";
 import { TEST_MEMBERS, WEB_ORIGIN, adminFetch, createTestDb, makeApp, resetDb, sessionCookie } from "./helpers.js";
@@ -50,6 +50,10 @@ describe("GET /auth/chat", () => {
       avatar: "https://avatars.example/ada",
       bio: "Builds things",
       role: "maintainer",
+      // A private profile (the default): no Werk, no link.
+      public: false,
+      werk: null,
+      profile_url: null,
     });
     expect(payload.exp! - payload.iat!).toBe(60);
     expect(payload.jti).toMatch(/^[0-9a-f-]{36}$/);
@@ -79,6 +83,19 @@ describe("GET /auth/chat", () => {
   it("is a 404 without the chat configured", async () => {
     const res = await makeApp(db).app.request("/auth/chat", { headers: { Cookie: await sessionCookie("ada") } });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("the profile in the chat", () => {
+  it("carries Werk and the profile link only for a public profile", async () => {
+    await db.update(members).set({ public: true }).where(eq(members.id, "ada"));
+    await db.insert(werkLedger).values([
+      { contributorId: "ada", delta: 8, reason: "Merged NW-1", pr: "https://github.com/x/y/pull/1" },
+      { contributorId: "ada", delta: -1, reason: "Correction" },
+    ]);
+    const { location } = await goToChat("ada");
+    const { payload } = await jwtVerify(location.searchParams.get("ticket")!, new TextEncoder().encode(SECRET));
+    expect(payload).toMatchObject({ handle: "ada", public: true, werk: 7, profile_url: `${WEB_ORIGIN}/u/ada` });
   });
 });
 
@@ -120,6 +137,22 @@ describe("telling the chat about accounts", () => {
     ]);
     expect(sent[1]!.claims.role).toBe("maintainer");
     expect(sent.every((e) => (e.claims.exp as number) - (e.claims.iat as number) === 60)).toBe(true);
+  });
+
+  it("sends the profile after an edit and after a Werk correction", async () => {
+    const app = chatApp();
+    const edit = await app.request("/contrib/me/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Origin: WEB_ORIGIN, Cookie: await sessionCookie("grace") },
+      body: JSON.stringify({ public: true, handle: "grace-h", bio: "Ships things" }),
+    });
+    expect(edit.status).toBe(200);
+    // An older account's id is a handle: Werk corrections take it too.
+    expect((await adminFetch(app, "POST", "/admin/werk", { contributorId: "grace", delta: 3, reason: "Pairing" })).status).toBe(201);
+    expect(sent.map((e) => [e.claims.kind, e.claims.handle, e.claims.public, e.claims.werk, e.claims.profile_url, e.claims.bio])).toEqual([
+      ["profile", "grace-h", true, 0, `${WEB_ORIGIN}/u/grace-h`, "Ships things"],
+      ["profile", "grace-h", true, 3, `${WEB_ORIGIN}/u/grace-h`, "Ships things"],
+    ]);
   });
 
   it("never fails the request when the chat is down", async () => {

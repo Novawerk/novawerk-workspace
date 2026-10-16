@@ -74,7 +74,7 @@ import {
   pendingScreenshot,
 } from "@nw/tasks";
 
-import { tellChat } from "../../chat-sso.js";
+import { tellChat, tellChatProfile } from "../../chat-sso.js";
 import { notFound, notFoundIfInvalid, rejectInvalid } from "../../http.js";
 import { dropSuggestionScreenshot as dropScreenshotOf, publishSuggestionScreenshot as publishScreenshotOf } from "../../screenshots.js";
 import { revalidateWeb } from "../../revalidate.js";
@@ -85,7 +85,7 @@ const uuidParam = z.object({ id: z.uuid() });
 const taskFilterQuery = z.object({ filter: z.enum(ADMIN_TASK_FILTERS).default("all") });
 const suggestionSortQuery = z.object({ sort: z.enum(SUGGESTION_SORTS).default("oldest") });
 const discussionQuery = z.object({ filter: z.enum(DISCUSSION_FILTERS).default("all") });
-const werkQuery = z.object({ contributor: z.uuid().optional() });
+const werkQuery = z.object({ contributor: z.string().min(1).max(80).optional() });
 
 /** A suggestion route on a task that isn't one is simply not found. */
 async function suggestionOr404(db: Database, id: number) {
@@ -380,6 +380,7 @@ export function boardAdminRoutes({ db, env, files, logger }: AdminDeps) {
 
     .post("/", zValidator("json", werkAdjustInput, rejectInvalid), async (c) => {
       const row = await adjustWerk(db, { ...c.req.valid("json"), memberId: c.get("member").id });
+      if (row.contributorId) await tellChatProfile({ db, env, logger }, row.contributorId);
       const [listed] = await listWerkLedger(db, { id: row.id });
       return c.json(listed!, 201);
     });

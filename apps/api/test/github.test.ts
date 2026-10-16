@@ -5,6 +5,7 @@
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 
+import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { members, taskPosts, tasks, werkLedger, type Database } from "@nw/db";
@@ -136,6 +137,23 @@ describe("POST /webhooks/github", () => {
     expect(String(calls[0]?.value)).toContain("+8 Werk to @lena-k");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]).toMatchObject(["https://novawerk.io/api/revalidate", { body: JSON.stringify({ tags: ["tasks", "contributors"] }) }]);
+  });
+
+  it("tells the chat about the new Werk on a public profile", async () => {
+    await db.update(members).set({ public: true, notifyEmail: "lena@gh.example" }).where(eq(members.id, lenaId));
+    const t = await assignedTask({ status: "in_review", prUrl: fixture.pull_request.html_url });
+    const events: string[] = [];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      const token = String((init.headers as Record<string, string>).Authorization).split(".")[1]!;
+      const claims = JSON.parse(Buffer.from(token, "base64url").toString()) as { kind: string; werk: number };
+      events.push(`${url} ${claims.kind} ${claims.werk}`);
+      return new Response(null, { status: 204 });
+    });
+    const { app } = makeApp(db, {
+      env: { githubWebhookSecret: SECRET, chatSso: { url: "https://chat.novawerk.io", secret: "chat-sso-secret-0123456789-abcdefghij" } },
+    });
+    await deliver(app, payload(t.id, "closed", { state: "closed", merged: true, merged_at: "2026-10-16T09:00:00Z" }));
+    expect(events).toEqual(["https://chat.novawerk.io/sso/novawerk/events profile 8"]);
   });
 
   it("refuses an oversized body before reading it", async () => {
