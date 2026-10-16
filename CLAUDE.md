@@ -18,7 +18,7 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
 |------|------|-------|
 | `apps/web` | Public site: `/` (portfolio), `/about`, the pitch form `/submit`, the task board (`/contribute`, `/tasks`, `/contributors`, `/u/<handle>`, `/sign-in`, `/settings`), `/imprint`, `/privacy`; `/join` redirects to `/contribute`; `POST /api/revalidate` (the API marks the `projects`, `tasks` or `contributors` cache stale) | Next.js 16 App Router, Tailwind v4 |
 | `apps/admin` | Internal admin panel (admin.novawerk.io) | React 19 SPA, Vite+, TanStack Router + Query, shadcn (Base UI, `base-vega`), AI Elements |
-| `apps/api` | The only entry to the database from the internet: `/public` (forms, portfolio, task board, intake chat, visit events), `/auth` (members; `/auth/contributor` for contributors), `/admin` (incl. the assistant chat), `/contrib` (signed-in contributors), `/cron`, `/webhooks` | Hono on Vercel Functions |
+| `apps/api` | The only entry to the database from the internet: `/public` (forms, portfolio, task board, intake chat, visit events), `/auth` (one sign-in for everyone: GitHub, Google or an emailed code; `/auth/contributor` is the old path), `/admin` (incl. the assistant chat), `/contrib` (signed-in contributors), `/cron`, `/webhooks` | Hono on Vercel Functions |
 | `agents/` | Agent entry points + runner (`pnpm agent <id>`). Their workflows (`agent-<id>.yml`) live in the private repo and check this one out | TypeScript on GitHub Actions |
 | `packages/db` | **All** Postgres tables (Drizzle schema + migrations) and the agents' query surface | Drizzle, node-postgres |
 | `packages/contracts` | Zod schemas + DTOs shared by web, admin and api (form inputs, `PublicProject`) | zod 4 |
@@ -56,15 +56,16 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
   "My projects". Only maintainers and team members open the admin panel; the API enforces it
   (`isMaintainer()` in `@nw/db`, `mayOpenAdminPanel()` in `apps/api/src/auth.ts`). The board's
   `contributor_*` columns point at `members`. Task board rules live in `@nw/tasks`; see
-  `docs/architecture.md`, "Contributor task board". Sign-in still has two cookies until the
-  next step of NB-ADR-0014: `nw_session` (admin panel) and `nw_contributor` (the site).
+  `docs/architecture.md`, "Contributor task board". One session cookie (`nw_session`) for the
+  site, the admin panel and the API; personal access tokens never reach `/admin`. Tests in
+  `apps/api/test/admin-access.test.ts` walk every `/admin` route: keep them passing.
 - **Outbound email is gated.** Anything sent to someone outside Novawerk goes into `outbox`
   and waits for a member's approval:
   - agents only call `queueEmail()`; agent workflows never get `RESEND_API_KEY` (a test enforces it);
   - the API's approve route calls `approveEmail()` then `sendApproved()`;
   - `notifyTeam()` may only email a novawerk.io inbox and needs no approval;
   - `sendSignInCode()` sends a fixed template with a sign-in code to the address signing in (a
-    member's own, or a contributor's; NB-ADR-0013);
+    one signing in, or signing up; NB-ADR-0014);
   - `sendNewsletterConfirmation()` sends a fixed double opt-in template with one confirmation
     link to the address that just signed up, rate-limited per address (NB-ADR-0011). Newsletter
     issues are not part of this exception, and go only to confirmed subscribers;

@@ -155,7 +155,7 @@ describe("review fixes", () => {
       body: JSON.stringify({ confirmHandle: "lena-k" }),
     });
     expect(res.status).toBe(200);
-    expect(res.headers.get("set-cookie")).toMatch(/nw_contributor=;/);
+    expect(res.headers.get("set-cookie")).toMatch(/nw_session=;/);
   });
 
   it("attaches one upload to one suggestion, and forgets it with the account", async () => {

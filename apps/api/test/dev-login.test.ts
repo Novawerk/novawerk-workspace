@@ -31,7 +31,7 @@ describe("POST /auth/dev", () => {
     const res = await app.request("/auth/dev", postJson({ email: "ADA@novawerk.io" }));
     expect(res.status).toBe(200);
     expect(res.headers.get("set-cookie")).toMatch(/nw_session=/);
-    expect(await res.json()).toMatchObject({ id: "ada", canAdmin: true });
+    expect(await res.json()).toMatchObject({ id: "ada", role: "maintainer" });
   });
 
   it("signs in any active member, and refuses everyone else", async () => {

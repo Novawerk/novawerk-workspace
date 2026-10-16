@@ -202,7 +202,7 @@ describe("accepting a pitch makes the pitcher a Member", () => {
     expect(await db.select().from(projects)).toEqual([]);
     expect((await db.select().from(projectSubmissions))[0]?.status).toBe("new");
     // Their old session stays useless.
-    expect((await adminFetch(app, "GET", "/admin/submissions", undefined, "linus")).status).toBe(403);
+    expect((await adminFetch(app, "GET", "/admin/submissions", undefined, "linus")).status).toBe(401);
   });
 
   it("re-accepting leaves membership and the team alone after a handover", async () => {

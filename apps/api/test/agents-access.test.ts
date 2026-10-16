@@ -85,8 +85,8 @@ describe("tokens", () => {
     expect((await call(app, "POST", `/contrib/tasks/${task.id}/posts`, { bearer: readOnly.secret }, { body: "Hi" })).status).toBe(403);
     expect((await call(app, "GET", "/admin/me", { bearer: readOnly.secret })).status).toBe(401);
     expect((await call(app, "GET", "/contrib/me", { bearer: "nwt_made-up" })).status).toBe(401);
-    // A member's session is still not a contributor.
-    expect((await call(app, "GET", "/contrib/me", { cookie: await sessionCookie("ada") })).status).toBe(401);
+    // One session for everyone (NB-ADR-0014): a maintainer's cookie is their own account here.
+    expect((await call(app, "GET", "/contrib/me", { cookie: await sessionCookie("ada") })).body).toMatchObject({ id: "ada" });
   });
 
   it("can't change the handle or who sees the profile", async () => {

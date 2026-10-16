@@ -1,6 +1,6 @@
-// /contrib: what a signed-in contributor does on the task board, from the browser (the
-// `nw_contributor` cookie, src/contributor-auth.ts) or through a personal access token
-// (`Authorization: Bearer nwt_…`, src/token-gate.ts). A member's session doesn't count. The rules
+// /contrib: what a signed-in member does on the task board, from the browser (the session
+// cookie, src/auth.ts) or through a personal access token (`Authorization: Bearer nwt_…`,
+// src/token-gate.ts). The rules
 // (GitHub linked, limits, whose proposal, which state) are @nw/tasks', and a broken one answers
 // with its status through app.onError.
 //
@@ -96,8 +96,7 @@ import {
   withdrawProposal,
 } from "@nw/tasks";
 
-import { sessionCookieOptions } from "../auth.js";
-import { CONTRIBUTOR_COOKIE, currentContributor } from "../contributor-auth.js";
+import { SESSION_COOKIE, currentAccount, sessionCookieOptions } from "../auth.js";
 import { FixedWindowLimiter } from "../intake-chat/rate-limit.js";
 import { issuesFrom, notFoundIfInvalid, rejectInvalid, validationFailed } from "../http.js";
 import { revalidateWeb } from "../revalidate.js";
@@ -134,7 +133,7 @@ const BROWSER_ONLY_PROFILE = ["handle", "public", "onWall", "acceptPledge"] as c
 export function contribRoutes({ db, env, githubApi, files, logger = console }: AppDeps, gate: TokenGate, origins: readonly string[]) {
   // A saved profile or a removed person shows at once on /u/<handle> and the wall.
   const refreshProfiles = () => revalidateWeb(env.webRevalidate, logger, ["contributors"]);
-  const session = (c: Parameters<typeof getCookie>[0]) => currentContributor(db, getCookie(c, CONTRIBUTOR_COOKIE), env.sessionSecret);
+  const session = (c: Parameters<typeof getCookie>[0]) => currentAccount(db, getCookie(c, SESSION_COOKIE), env.sessionSecret);
   const screenshotTickets = new FixedWindowLimiter(SCREENSHOT_TICKETS_PER_HOUR, 60 * 60_000);
   return (
     new Hono<ApiEnv>()
@@ -309,7 +308,7 @@ export function contribRoutes({ db, env, githubApi, files, logger = console }: A
           }
         }
         await refreshProfiles();
-        deleteCookie(c, CONTRIBUTOR_COOKIE, sessionCookieOptions(c, 0));
+        deleteCookie(c, SESSION_COOKIE, sessionCookieOptions(c, 0));
         return c.json({ ok: true as const }, 200);
       })
 

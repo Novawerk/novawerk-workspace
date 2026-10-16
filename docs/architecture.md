@@ -131,7 +131,7 @@ On top of the code, agent workflows never get `RESEND_API_KEY`, so an agent cann
 at all. The intake acknowledgement is a fixed template: nothing an applicant writes can change
 what we email back. Four other doors exist: `notifyTeam()` only reaches `@novawerk.io`,
 `sendSignInCode()` sends one fixed template with a sign-in code to the address that is signing
-in (an active member's own, or a contributor's; NB-ADR-0013), and `sendNewsletterConfirmation()` sends one fixed double opt-in email with a confirmation link to
+in or signing up (NB-ADR-0014), and `sendNewsletterConfirmation()` sends one fixed double opt-in email with a confirmation link to
 the address that just signed up for the newsletter, at most 3 a day per address (NB-ADR-0011),
 and `sendContributorNotice()` sends fixed emails to a contributor about their own account and
 tasks, to their own verified address (NB-ADR-0013).
@@ -199,20 +199,22 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
 - **One account** (NB-ADR-0014). Contributors are members: one row in `members` per person
   (migrations 0017–0021 merged the old `contributors` table in by verified email). The board's
   columns keep their names (`contributor_id`, `author_contributor_id`…) and point at `members`.
-  They sign in with GitHub (our GitHub App's user authorization with PKCE; we keep GitHub's
-  numeric id and login, never the token) or an emailed 6-digit code (`sign_in_codes` with
-  `kind = contributor`: hashed, 10 minutes, 5 tries each claimed atomically, 3 per address per
-  15 minutes, 10 requests and 30 checks per IP per hour, the same answer for every address, and
-  its own task board wording). An email sign-up gets a neutral handle (`contributor-7f3a`) until
+  Everyone signs in at `/auth` with GitHub (our GitHub App's user authorization with PKCE; we
+  keep GitHub's numeric id and login, never the token), Google, or an emailed 6-digit code
+  (`sign_in_codes`: hashed, 10 minutes, 5 tries each claimed atomically, 3 per address per 15
+  minutes, 10 requests and 30 checks per IP per hour, the same answer for every address). An
+  account links more than one: GitHub while signed in, Google or a code with `link: true`; an
+  account has one address, and an address one account. An email sign-up gets a neutral handle (`contributor-7f3a`) until
   they pick one; nothing from the address shows. A GitHub sign-up starts with the GitHub login.
   Proposing or working on a task needs GitHub linked, and a linked GitHub account is never
   swapped for another.
-- **Sessions stay apart.** Members: `nw_session` (audience `nw-admin`). Contributors:
-  `nw_contributor` (audience `nw-contributor`, 30 days), httpOnly on the API's domain, sent from
-  the website's origins only (`CONTRIBUTOR_ORIGINS`, default: the web origins). Neither cookie
-  opens the other's routes. Every request re-reads the row, so a deleted account is out at once;
-  sessions issued before `members.sessions_revoked_at` (set on sign-out and when GitHub is
-  linked) are refused.
+- **One session** (NB-ADR-0014): `nw_session` (audience `nw-session`, 30 days), httpOnly on the
+  API's domain. `/auth` answers the website and the admin panel; `/contrib` the website only
+  (`CONTRIBUTOR_ORIGINS`, default: the web origins); `/admin` the admin panel only. Every request
+  re-reads the account, so a deleted or inactive account is out at once; sessions issued before
+  `members.sessions_revoked_at` (set on sign-out and when a way in is linked) are refused. The
+  role and the project team, not the cookie, keep people out of `/admin`; personal access tokens
+  never reach it (`apps/api/test/admin-access.test.ts`).
 - **Tasks** are `NW-<n>`. Sizes S/M/L/XL are worth 1/3/8/20 **Werk**: recognition, never money.
   Statuses: `draft` (members only) → `open` → `assigned` → `in_review` → `done`, or `closed`;
   suggestions go `suggested` → `open` / `assigned`, `declined` or `duplicate`. Every transition
@@ -285,13 +287,13 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
   Assigning locks the contributor's row, so two members can't give one person two tasks at once.
 - **Next**: a database-level guard that makes `werk_ledger` append-only (a trigger, or no
   UPDATE/DELETE grant), and a database-backed per-IP limit or a challenge on
-  `/auth/contributor/email/start` against email bombing (today's per-IP limit is per instance).
+  `/auth/email/start` against email bombing (today's per-IP limit is per instance).
 
 | Route | Who | What |
 |-------|-----|------|
-| `GET /auth/contributor/github/start?returnTo=`, `…/github/callback` | anyone | GitHub sign-in, or linking GitHub to an email account |
-| `POST /auth/contributor/email/start`, `…/email/verify` | anyone | emailed code |
-| `GET /auth/contributor/me`, `POST /auth/contributor/logout` | contributor | |
+| `GET /auth/github/start?returnTo=`, `/auth/contributor/github/callback` | anyone | GitHub sign-in, or linking GitHub to the signed-in account |
+| `POST /auth/google`, `POST /auth/email/start`, `…/email/verify` | anyone | Google or an emailed code; `link: true` adds it to the signed-in account |
+| `GET /auth/me`, `POST /auth/logout` | signed in | the account (`role`, `adminPanel`); sign out everywhere |
 | `GET /public/tasks` (area, size, status, skills, q, sort, cursor), `GET /public/tasks/:id` | anyone | the board and one task with proposals, thread, timeline |
 | `GET /public/contributors` (sort, area, cursor), `GET /public/contributors/:handle` | anyone | the wall and public profiles |
 | `POST /contrib/tasks/:id/proposals`, `PATCH`/`DELETE /contrib/proposals/:id`, `GET /contrib/me/proposals` | contributor | propose, edit, withdraw |

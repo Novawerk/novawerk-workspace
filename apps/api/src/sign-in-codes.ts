@@ -1,14 +1,13 @@
-// Signing in by email, for members without a Google account (we email a 6-digit code to the
-// member's registered address; typing it back gives the same session as Google), and for
-// contributors without GitHub (`kind: "contributor"`, src/routes/contributor-auth.ts). A code of
-// one kind never works for the other.
+// Signing in by email (src/routes/auth.ts): we email a 6-digit code; typing it back gives the
+// same session as GitHub or Google, and creates the account on first use (NB-ADR-0014). Codes
+// from the two-account days (`kind: "contributor"`) never work: every code now is `member`.
 //
 // - Only a keyed hash of the code is stored (HMAC with the session secret).
 // - A code lives 10 minutes, allows 5 tries (each claimed atomically before the comparison), and
 //   works once. The verify routes also limit tries per IP.
 // - At most 3 codes per address per 15 minutes.
-// - Asking for a code says the same thing whether or not the address belongs to a member (or a
-//   contributor), so the form can't be used to find out who is one.
+// - Asking for a code says the same thing whether or not the address has an account, so the form
+//   can't be used to find out who has one.
 
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 

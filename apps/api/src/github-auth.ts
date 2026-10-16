@@ -1,8 +1,5 @@
-// Contributor sessions, kept apart from member sessions (src/auth.ts). Contributors are not
-// Members (NB-ADR-0013): their cookie is `nw_contributor`, an HS256 JWT with its own audience,
-// so it never opens /admin, and a member's `nw_session` never opens /contrib. Every request
-// re-reads the contributor row: a deleted account is signed out at once, and a session issued
-// before `sessions_revoked_at` (sign-out, a new sign-in method) is refused.
+// Signing in with GitHub (src/routes/auth.ts). The session itself is src/auth.ts: one cookie
+// for everyone (NB-ADR-0014).
 //
 // GitHub sign-in is the OAuth web flow of our GitHub App (user authorization) with PKCE (S256).
 // We keep GitHub's numeric user id and login, never the access token. The `state` and the PKCE
@@ -13,55 +10,29 @@ import { createHash } from "node:crypto";
 
 import { jwtVerify, SignJWT } from "jose";
 
-import type { Member, Database } from "@nw/db";
-import { getContributor, type GitHubUser } from "@nw/tasks";
-
-
-export const CONTRIBUTOR_COOKIE = "nw_contributor";
-export const CONTRIBUTOR_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
-const ISSUER = "nw-api";
-const AUDIENCE = "nw-contributor";
+import type { GitHubUser } from "@nw/tasks";
 
 export const GITHUB_STATE_COOKIE = "nw_github_state";
 export const GITHUB_STATE_TTL_SECONDS = 10 * 60;
 const STATE_AUDIENCE = "nw-github-state";
 
-/** The path GitHub sends people back to. The GitHub App lists it (prod and localhost). */
+/**
+ * The path GitHub sends people back to. The GitHub App lists it (prod and localhost), so it keeps
+ * its old name; /auth/github/callback answers too.
+ */
 export const GITHUB_CALLBACK_PATH = "/auth/contributor/github/callback";
 
+const ISSUER = "nw-api";
 const keyFrom = (secret: string) => new TextEncoder().encode(secret);
-
-export async function signContributorSession(contributorId: string, secret: string, now = Date.now()): Promise<string> {
-  // `ims`: issued at, in milliseconds (`iat` is whole seconds), compared with sessions_revoked_at.
-  return new SignJWT({ ims: now })
-    .setProtectedHeader({ alg: "HS256" })
-    .setSubject(contributorId)
-    .setIssuer(ISSUER)
-    .setAudience(AUDIENCE)
-    .setIssuedAt()
-    .setExpirationTime(`${CONTRIBUTOR_SESSION_TTL_SECONDS}s`)
-    .sign(keyFrom(secret));
-}
-
-/** The contributor id and issue time in a valid contributor session token, or null. */
-export async function verifyContributorSession(token: string, secret: string): Promise<{ id: string; issuedMs: number } | null> {
-  try {
-    const { payload } = await jwtVerify(token, keyFrom(secret), { issuer: ISSUER, audience: AUDIENCE, algorithms: ["HS256"] });
-    if (!payload.sub || typeof payload.ims !== "number") return null;
-    return { id: payload.sub, issuedMs: payload.ims };
-  } catch {
-    return null;
-  }
-}
 
 /** What the state cookie carries through GitHub and back. */
 export interface GitHubState {
   state: string;
   /** PKCE code verifier; GitHub got its S256 challenge. */
   verifier: string;
-  /** A path on the website. */
+  /** A path on the website, or an address on one of our apps. */
   returnTo: string;
-  /** Link GitHub to this signed-in contributor instead of signing in. */
+  /** Link GitHub to this signed-in account instead of signing in. */
   linkTo?: string;
 }
 
@@ -90,19 +61,6 @@ export async function verifyGitHubState(token: string, secret: string): Promise<
   } catch {
     return null;
   }
-}
-
-/**
- * The signed-in contributor: a valid cookie, a row that still exists, and a session issued after
- * any revocation. Undefined otherwise.
- */
-export async function currentContributor(db: Database, cookie: string | undefined, secret: string): Promise<Member | undefined> {
-  const session = cookie ? await verifyContributorSession(cookie, secret) : null;
-  if (!session) return undefined;
-  const contributor = await getContributor(db, session.id);
-  if (!contributor) return undefined;
-  if (contributor.sessionsRevokedAt && session.issuedMs < contributor.sessionsRevokedAt.getTime()) return undefined;
-  return contributor;
 }
 
 /** PKCE S256: the challenge for a verifier. */

@@ -20,7 +20,6 @@ import { intakeChatRoutes } from "./intake-chat/routes.js";
 import { authRoutes } from "./routes/auth.js";
 import { boardRoutes } from "./routes/board.js";
 import { contribRoutes } from "./routes/contrib.js";
-import { contributorAuthRoutes } from "./routes/contributor-auth.js";
 import { mcpRoutes } from "./mcp.js";
 import { TokenGate } from "./token-gate.js";
 import { cronRoutes } from "./routes/cron.js";
@@ -74,9 +73,12 @@ export function createApp(deps: AppDeps) {
       maxAge: 600,
     });
   const adminCors = credentialed(deps.env.adminOrigins);
-  // The website, with the contributor cookie. Never the admin panel's origins.
+  // The website. /contrib never answers the admin panel's origins, nor /admin the website's.
   const contributorOrigins = deps.env.contributorOrigins ?? deps.env.allowedOrigins.filter((o) => !deps.env.adminOrigins.includes(o));
   const contributorCors = credentialed(contributorOrigins);
+  // One sign-in for both (NB-ADR-0014).
+  const authCors = credentialed([...contributorOrigins, ...deps.env.adminOrigins]);
+  const auth = authRoutes({ ...deps, logger, verifyGoogleToken });
 
   const tokens = new TokenGate(deps.db, deps.env.webReadKey);
 
@@ -84,8 +86,7 @@ export function createApp(deps: AppDeps) {
     .createApp()
     .use("/health", publicCors)
     .use("/public/*", publicCors)
-    .use("/auth/contributor/*", contributorCors)
-    .use("/auth/*", async (c, next) => (c.req.path.startsWith("/auth/contributor/") ? next() : adminCors(c, next)))
+    .use("/auth/*", authCors)
     .use("/contrib/*", contributorCors)
     .use("/admin/*", adminCors)
     .get("/health", (c) => c.json({ ok: true as const }, 200))
@@ -93,8 +94,9 @@ export function createApp(deps: AppDeps) {
     .route("/public/intake", intakeChatRoutes({ ...deps, logger }))
     .route("/public/events", eventRoutes(deps))
     .route("/public", boardRoutes(deps, tokens))
-    .route("/auth/contributor", contributorAuthRoutes({ ...deps, logger }))
-    .route("/auth", authRoutes({ ...deps, logger, verifyGoogleToken }))
+    // The old paths: the GitHub App's callback, and the website until it moves to /auth.
+    .route("/auth/contributor", auth)
+    .route("/auth", auth)
     .route("/contrib", contribRoutes(deps, tokens, contributorOrigins))
     .route("/mcp", mcpRoutes({ ...deps, logger }, tokens))
     .route("/admin", adminRoutes({ ...deps, logger }))

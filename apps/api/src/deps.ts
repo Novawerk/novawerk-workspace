@@ -16,7 +16,7 @@ import { BlobFiles, type FileStoreConfig } from "@nw/object-store";
 import { notifyTeam, sendContributorNotice, sendNewsletterConfirmation, sendSignInCode, type ContributorNoticeMail, type NotifyOptions } from "@nw/email";
 
 import { adminMockStep } from "./admin-chat/mock.js";
-import { createGitHubOAuth } from "./contributor-auth.js";
+import { createGitHubOAuth } from "./github-auth.js";
 import { inProcessIntakeTrigger, inProcessPromoRunner, inProcessPromoTrigger } from "./agents.js";
 import { intakeMockStep } from "./intake-chat/mock.js";
 import type {
@@ -292,18 +292,12 @@ export function depsFromEnv(env: EnvSource): AppDeps {
     intakeChat: intakeChatDeps(intakeChat),
     adminChat: adminChatDeps(intakeChat),
     files: new BlobFiles(files),
-    // Sign-in codes (members and contributors) go out through Resend. Locally without a key they are printed to the console;
-    // in production without a key, signing in by email is off (Google still works).
+    // Sign-in codes go out through Resend. Locally without a key they are printed to the console;
+    // in production without a key, signing in by email is off (GitHub and Google still work).
     ...(outbox.resendApiKey || !production
       ? {
           sendSignInCode: (to: string, code: string) =>
             sendSignInCode(to, code, { from: outbox.from, ...(outbox.resendApiKey ? { resendApiKey: outbox.resendApiKey } : {}) }),
-          sendContributorSignInCode: (to: string, code: string) =>
-            sendSignInCode(to, code, {
-              from: outbox.from,
-              audience: "contributor",
-              ...(outbox.resendApiKey ? { resendApiKey: outbox.resendApiKey } : {}),
-            }),
         }
       : {}),
     // Newsletter confirmations: the same rule as sign-in codes.

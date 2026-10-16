@@ -147,7 +147,7 @@ and production. "—" means unset.
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_INSTALLATION_ID` | — (the board moves tasks without replying on PRs) | the App's id `5317582`, its private key (PEM), installation `171409213` |
 | `GITHUB_WEBHOOK_SECRET` | — (`/webhooks/github` answers 404) | the App's webhook secret, 16+ characters |
 
-Contributors sign in through the GitHub App `novawerk-task-board` (user authorization only).
+Signing in with GitHub (everyone, NB-ADR-0014) goes through the GitHub App `novawerk-task-board` (user authorization only).
 Its callback URLs are `https://api.novawerk.io/auth/contributor/github/callback` and
 `http://localhost:8787/auth/contributor/github/callback`; the API builds the callback from
 `PUBLIC_API_URL`, so locally set that to `http://localhost:8787`.
