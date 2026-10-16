@@ -16,6 +16,15 @@ and no join links; the profile is edited on novawerk.io/settings and copied here
    role and (in a job) the picture. The very first sign-in also creates the account and the
    `general` room, as Campfire's first run did.
 
+## The profile
+
+The ticket and `profile` events carry the Novawerk profile: name, `@handle`, picture, bio and role
+always; Werk and the link to novawerk.io/u/<handle> only when the profile is public (the API
+leaves them out otherwise). The chat keeps them on the user (`novawerk_handle`,
+`novawerk_public`, `novawerk_werk`, `novawerk_profile_url`) and shows `@handle` next to names in
+messages and in the sidebar, and on profile pages the bio and, for a public profile, Werk and the
+link. Editing stays on novawerk.io/settings; an edit or new Werk reaches the chat at once.
+
 ## Rooms
 
 - Maintainers are administrators here and are in every room: they join every closed room at
@@ -45,6 +54,7 @@ When an account is deleted, suspended or marked inactive, or its role changes, t
 | `deleted` | The user is deactivated: out of every room, their messages stay |
 | `closed` | Their chat sessions end; the API refuses their next ticket |
 | `role` | The role (and with it the rooms) follows at once |
+| `profile` | Name, @handle, picture, bio, role, and Werk and the profile link when public |
 
 A chat that is down misses the event; the next ticket brings the role, and a closed account gets
 none.

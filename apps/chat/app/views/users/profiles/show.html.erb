@@ -25,7 +25,12 @@
     <div class="flex flex-column align-center center gap txt-align-center">
       <span class="avatar txt-xx-large"><%= image_tag fresh_user_avatar_path(@user), aria: { hidden: "true" }, size: 300 %></span>
       <p class="txt-large margin-none"><strong><%= @user.name %></strong></p>
+      <%= novawerk_handle_tag @user %>
       <% if @user.bio.present? %><p class="margin-none"><%= @user.bio %></p><% end %>
+      <%= novawerk_public_profile_tag @user %>
+      <% unless @user.novawerk_public? %>
+        <p class="txt-small margin-none">Your Novawerk profile is private: others here see your name, @handle, picture and bio, not your Werk.</p>
+      <% end %>
       <p class="txt-small margin-none"><%= @user.email_address %><%= " · Maintainer" if @user.administrator? %></p>
       <%= link_to "Edit your profile on novawerk.io", NovawerkSso.settings_url, class: "btn" %>
     </div>

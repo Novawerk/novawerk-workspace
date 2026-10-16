@@ -17,7 +17,7 @@
       <div class="message__body-content">
         <div class="message__meta">
           <h3 class="message__heading">
-            <span class="message__author"><strong><%= Current.user.name %></strong></span>
+            <span class="message__author"><strong><%= Current.user.name %></strong> <%= novawerk_handle_tag Current.user %></span>
             <span class="message__permalink"><time class="message__timestamp" datetime="$messageDatetime$" data-local-time-target="time"></time></span>
           </h3>
           <div class="message__actions">

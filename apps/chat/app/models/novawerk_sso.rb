@@ -12,7 +12,7 @@ module NovawerkSso
   # Events about accounts (deleted, suspended or closed, a new role) come with their own audience,
   # so a ticket is never an event and an event never signs anyone in.
   EVENT_AUDIENCE = "novawerk-chat-events"
-  EVENT_KINDS = %w[ deleted closed role ].freeze
+  EVENT_KINDS = %w[ deleted closed role profile ].freeze
   LEEWAY = 5.seconds
   MAX_AGE = 2.minutes
 
@@ -63,12 +63,7 @@ module NovawerkSso
       ensure_account
       user ||= User.new(email_address: email)
       was_administrator = user.persisted? && user.administrator?
-      user.assign_attributes(
-        name: claims["name"].presence || claims["handle"].presence || email.split("@").first,
-        bio: claims["bio"].presence,
-        role: claims["role"] == "maintainer" ? :administrator : :member,
-        status: :active
-      )
+      user.assign_attributes(profile_attributes(claims, email).merge(status: :active))
       user.save!
 
       RoomAccess.sync(user, was_administrator: was_administrator)
@@ -95,7 +90,27 @@ module NovawerkSso
         was_administrator = user.administrator?
         user.update!(role: claims["role"] == "maintainer" ? :administrator : :member)
         RoomAccess.sync(user, was_administrator: was_administrator)
+      when "profile"
+        was_administrator = user.administrator?
+        user.update!(profile_attributes(claims, user.email_address))
+        RoomAccess.sync(user, was_administrator: was_administrator)
+        AvatarJob.perform_later(user, claims["avatar"].presence)
       end
+    end
+
+    # The Novawerk profile, as the chat keeps it: name, bio, role and @handle always; Werk and the
+    # profile link only for a public profile (the API leaves them out otherwise).
+    def profile_attributes(claims, email)
+      public_profile = claims["public"] == true
+      {
+        name: claims["name"].presence || claims["handle"].presence || email.split("@").first,
+        bio: claims["bio"].presence,
+        role: claims["role"] == "maintainer" ? :administrator : :member,
+        novawerk_handle: claims["handle"].to_s[/\A[a-z0-9][a-z0-9-]{0,38}\z/],
+        novawerk_public: public_profile,
+        novawerk_werk: (claims["werk"] if public_profile && claims["werk"].is_a?(Integer)),
+        novawerk_profile_url: (claims["profile_url"] if public_profile && claims["profile_url"].to_s.start_with?("#{web_url}/u/"))
+      }
     end
 
     private
