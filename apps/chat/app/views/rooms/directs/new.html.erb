@@ -26,10 +26,25 @@
         </div>
 
         <div class="nw-card__foot">
-          <%= link_back_to_last_room_visited %>
+          <%= link_to "Cancel", (last_room_visited ? room_path(last_room_visited) : root_path), class: "btn nw-btn-outline" %>
           <%= button_tag type: "submit", class: "btn btn--reversed" do %><%= image_tag "messages.svg" %><span>Start conversation</span><% end %>
         </div>
       <% end %>
     </div>
+
+    <% recent = Current.user.memberships.joins(:room).merge(Room.directs).order("rooms.updated_at DESC").limit(4).map(&:room) %>
+    <% if recent.any? %>
+      <div class="nw-dm-recent">
+        <span class="nw-small nw-muted">Recent</span>
+        <div class="nw-row">
+          <% recent.each do |room| %>
+            <% other = room.users.without(Current.user).first || Current.user %>
+            <%= link_to room_path(room), class: "nw-chip nw-chip--person" do %>
+              <%= image_tag fresh_user_avatar_path(other), alt: "", size: 16 %><span><%= room_display_name(room) %></span>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
   </div>
 </div>

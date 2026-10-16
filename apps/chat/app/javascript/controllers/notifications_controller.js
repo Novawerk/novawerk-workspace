@@ -29,6 +29,13 @@ export default class extends Controller {
   }
 
   async attemptToSubscribe() {
+    // Novawerk Chat: say so straight away when the browser blocks notifications.
+    if (window.Notification?.permission === "denied") {
+      this.#revealNotAllowedNotice()
+      this.#endFirstRun()
+      return
+    }
+
     if (this.#allowed) {
       const registration = await this.#serviceWorkerRegistration || await this.#registerServiceWorker()
 
@@ -68,6 +75,7 @@ export default class extends Controller {
   }
 
   #revealNotAllowedNotice() {
+    if (this.notAllowedNoticeTarget.open) return
     this.notAllowedNoticeTarget.showModal()
     this.#openSingleOption()
   }

@@ -1,6 +1,7 @@
 <% @page_title = "Search" %>
 <% @body_class = "sidebar searches" %>
 <% content_for :nav do %>
+  <%= link_to "javascript:history.back()", class: "btn btn--plain nw-hdr-back" do %><%= image_tag "arrow-left.svg" %><span>Back</span><% end %>
   <h1 class="nw-hdr-title"><%= image_tag "search.svg", class: "nw-muted" %>Search</h1>
 <% end %>
 
@@ -47,7 +48,8 @@
           <%= link_to "Clear search", searches_path, class: "btn nw-btn-outline nw-btn-sm" %>
         </div>
       <% end %>
-      <div id="message-area" class="message-area nw-search__results <%= "nw-hidden" if @messages.none? %>">
+      <div id="message-area" class="message-area nw-search__results <%= "nw-hidden" if @messages.none? %>"
+           data-controller="nw-highlight" data-nw-highlight-query-value="<%= @query %>">
         <%= search_results_tag do %>
           <%= render partial: "messages/message", collection: @messages, cached: ->(message) { message_fragment_cache_key(message) } %>
         <% end %>

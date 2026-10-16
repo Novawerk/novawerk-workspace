@@ -37,7 +37,7 @@ module ApplicationHelper
       else
         tag.h1(title, class: "nw-hdr-title")
       end
-      back = crumb ? link_to(image_tag("arrow-left.svg") + tag.span("Back"), "javascript:history.back()", class: "btn btn--plain nw-hdr-back") : "".html_safe
+      back = link_to(image_tag("arrow-left.svg") + tag.span("Back"), "javascript:history.back()", class: "btn btn--plain nw-hdr-back")
       back + heading + (actions ? tag.div(class: "nw-hdr-actions", &actions) : "".html_safe)
     end
   end

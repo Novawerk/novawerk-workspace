@@ -31,6 +31,7 @@ export class Renderer {
           <img src="${autocompletable.avatar_url}" class="automcomplete__avatar" role="presentation" />
         </span>
         <span class="autocompletable__name">${autocompletable.name}</span>
+        ${autocompletable.handle ? `<span class="autocompletable__handle">@${autocompletable.handle}</span>` : ""}
         <a href="#" class="autocompletable__unselect" aria-label="Remove ${autocompletable.name}" data-behavior="unselect_autocompletable">×</a>
       </button>
     `

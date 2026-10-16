@@ -29,8 +29,26 @@
 
   <%= render "rooms/involvements/bell", room: room %>
 
-  <%= link_to_edit_room(room) do %>
-    <%= image_tag "menu-dots-horizontal.svg" %>
-    <span class="for-screen-reader">Settings for this <%= room.direct? ? "Ping" : "room" %></span>
-  <% end %>
+  <details class="nw-hdr-menu" data-controller="popup" data-action="keydown.esc->popup#close toggle->popup#toggle click@document->popup#closeOnClickOutside">
+    <summary class="btn" title="Room menu"><%= image_tag "menu-dots-horizontal.svg" %><span class="for-screen-reader">Room menu</span></summary>
+    <div class="nw-menu nw-hdr-menu__menu" data-popup-target="menu">
+      <% if Current.user.can_administer?(room) %>
+        <%= link_to [ :edit, room ], class: "nw-menu__item" do %><%= image_tag "settings.svg" %><span>Room settings</span><% end %>
+      <% end %>
+      <% unless room.direct? %>
+        <%= link_to [ :edit, room ], class: "nw-menu__item" do %><%= image_tag "users.svg" %><span>Members</span><span class="nw-menu__short"><%= room.users.active.count %></span><% end %>
+      <% end %>
+      <button type="button" class="nw-menu__item" data-controller="copy-to-clipboard" data-action="copy-to-clipboard#copy popup#close"
+          data-copy-to-clipboard-success-class="btn--success" data-copy-to-clipboard-content-value="<%= room_url(room) %>">
+        <%= image_tag "link.svg" %><span>Copy room link</span>
+      </button>
+      <% if Current.user.can_administer?(room) && !room.direct? %>
+        <div class="nw-menu__sep"></div>
+        <%= button_to room_path(room), method: :delete, class: "nw-menu__item nw-menu__item--danger btn--negative", form_class: "nw-menu__form",
+              data: { turbo_confirm: "Delete ##{room.name} and every message in it? This can't be undone.", confirm_label: "Delete room" } do %>
+          <%= image_tag "trash.svg" %><span>Delete room…</span>
+        <% end %>
+      <% end %>
+    </div>
+  </details>
 <% end %>

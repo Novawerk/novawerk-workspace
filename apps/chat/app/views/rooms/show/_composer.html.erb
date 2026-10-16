@@ -13,6 +13,7 @@
                 <%= form.rich_text_area :body,
                       rows: 1,
                       class: "input lexxy-content",
+                      placeholder: room.direct? ? "Message #{room_display_name(room)}" : "Message ##{room.name}",
                       aria: { multiline: "true", label: "Write a message" },
                       "permitted-attachment-types": "application/vnd.campfire.mention application/vnd.actiontext.opengraph-embed",
                       data: {

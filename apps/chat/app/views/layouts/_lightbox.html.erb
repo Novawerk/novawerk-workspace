@@ -1,12 +1,22 @@
 <dialog class="lightbox nw-lightbox" aria-label="Image Viewer (Press escape to close)" data-lightbox-target="dialog" data-action="close->lightbox#reset">
-  <div class="nw-lightbox__bar">
-    <a href="" class="btn nw-lightbox__btn hide-in-ios-pwa" data-lightbox-target="download"><%= image_tag "download.svg" %><span>Download</span></a>
-    <button class="btn nw-lightbox__btn" data-controller="web-share" data-action="web-share#share" data-web-share-files-value="" data-lightbox-target="share">
-      <%= image_tag "share.svg" %><span>Share</span>
-    </button>
-    <form method="dialog" class="nw-lightbox__close">
-      <button class="btn nw-lightbox__btn"><%= image_tag "remove.svg" %><span>Close</span><kbd class="nw-kbd nw-kbd--dark">Esc</kbd></button>
-    </form>
+  <div class="nw-lightbox__top">
+    <div class="nw-lightbox__info">
+      <img class="nw-lightbox__avatar" alt="" data-lightbox-target="avatar" hidden>
+      <div class="nw-stack">
+        <span class="nw-lightbox__filename" data-lightbox-target="filename"></span>
+        <span class="nw-lightbox__details"><span data-lightbox-target="author"></span> <span data-lightbox-target="details"></span></span>
+      </div>
+    </div>
+    <div class="nw-lightbox__bar">
+      <a href="" class="btn nw-lightbox__btn hide-in-ios-pwa" data-lightbox-target="download"><%= image_tag "download.svg" %><span>Download</span></a>
+      <button class="btn nw-lightbox__btn" data-controller="web-share" data-action="web-share#share" data-web-share-files-value="" data-lightbox-target="share">
+        <%= image_tag "share.svg" %><span>Share</span>
+      </button>
+      <a href="" class="btn nw-lightbox__btn" target="_blank" rel="noopener" data-lightbox-target="original"><%= image_tag "external-link.svg" %><span>Open original</span></a>
+      <form method="dialog" class="nw-lightbox__close">
+        <button class="btn nw-lightbox__btn"><%= image_tag "remove.svg" %><span>Close</span><kbd class="nw-kbd nw-kbd--dark">Esc</kbd></button>
+      </form>
+    </div>
   </div>
   <img src="" class="lightbox__image" data-lightbox-target="zoomedImage" />
 </dialog>
