@@ -102,7 +102,7 @@ function Form({ handle }: { handle: string }) {
     track("suggestion_sent", { kind });
     toast(
       shot
-        ? "Thanks. Your suggestion is on the board; the screenshot shows once a member accepts it."
+        ? "Thanks. Your suggestion is on the board; the screenshot shows once a maintainer accepts it."
         : screenshot?.state === "failed"
           ? "Thanks. Your suggestion is on the board, without the screenshot."
           : "Thanks. Your suggestion is on the board.",
@@ -202,7 +202,7 @@ function Form({ handle }: { handle: string }) {
         <ScreenshotField value={screenshot} onChange={setScreenshot} error={issues.screenshot} />
 
         <Check checked={doItMyself} onChange={setDoItMyself}>
-          I&apos;d like to do this myself. <span className="text-muted">A member may assign it to you directly when they accept it.</span>
+          I&apos;d like to do this myself. <span className="text-muted">A maintainer may assign it to you directly when they accept it.</span>
         </Check>
 
         {problem ? (
@@ -271,7 +271,7 @@ function Boundaries() {
         </li>
         <li className={item}>
           {dot}
-          <span>Suggestions are public. Anyone can comment; nobody can propose until a member accepts it.</span>
+          <span>Suggestions are public. Anyone can comment; nobody can propose until a maintainer accepts it.</span>
         </li>
       </ul>
     </div>

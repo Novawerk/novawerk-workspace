@@ -94,7 +94,7 @@ export async function emailsAbout(db: Database, relatedTable: string, relatedId:
 }
 
 /**
- * A member approves a queued (or previously failed) email. The member must exist and be
+ * A maintainer approves a queued (or previously failed) email. The member must exist and be
  * active. Authorisation — who may approve — is the caller's job (the API checks the session).
  */
 export async function approveEmail(db: Database, outboxId: string, memberId: string): Promise<OutboxEmail> {
@@ -111,7 +111,7 @@ export async function approveEmail(db: Database, outboxId: string, memberId: str
   return row;
 }
 
-/** A member rejects an email. Works until the send starts; a rejected row is never sent. */
+/** A maintainer rejects an email. Works until the send starts; a rejected row is never sent. */
 export async function rejectEmail(db: Database, outboxId: string, memberId: string): Promise<OutboxEmail> {
   const [row] = await db
     .update(outbox)

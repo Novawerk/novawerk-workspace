@@ -218,7 +218,7 @@ function ProposeForm({
         {isDraft
           ? "Edit your agent's draft. It stays a draft until you confirm it on the task."
           : edit
-            ? "Edit your plan. It stays pending until a member replies."
+            ? "Edit your plan. It stays pending until a maintainer replies."
             : "Tell us how you'd do it. A few sentences each is enough. Markdown works."}
       </p>
 
@@ -284,7 +284,7 @@ function ProposeForm({
       ) : null}
 
       <ul aria-label="Before you send" className="grid gap-2 rounded-xl bg-subtle px-4 py-3.5 text-sm">
-        <Fact>{others ? `${plural(others, "other")} proposed. A member picks one plan.` : "You're the first to propose."}</Fact>
+        <Fact>{others ? `${plural(others, "other")} proposed. A maintainer picks one plan.` : "You're the first to propose."}</Fact>
         <Fact>
           {TASK_LIMIT_LINE}
           {held.length ? (
@@ -294,7 +294,7 @@ function ProposeForm({
             </>
           ) : null}
         </Fact>
-        <Fact>What happens next: a member replies within about a week. Proposals are public on the task.</Fact>
+        <Fact>What happens next: a maintainer replies within about a week. Proposals are public on the task.</Fact>
       </ul>
 
       <label htmlFor={ackId} className="flex items-start gap-2.5 text-sm">

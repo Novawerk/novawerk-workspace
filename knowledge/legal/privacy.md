@@ -202,7 +202,8 @@ than one way of signing in to the same account in Settings.
   its scopes, when it expires and when it was last used, and only a hash of the
   token itself. Everything a token does shows "via agent".
 - **Emails:** fixed notices about your own account and tasks, to your own
-  address only: sign-in codes; a maintainer's decision on your proposal (chosen or
+  address only: one welcome email when you make your account (with a link to
+  our contribution guide); sign-in codes; a maintainer's decision on your proposal (chosen or
   not chosen); replies to your posts and on your tasks (at most one email per
   task an hour); a reminder when a task you hold has had no activity for 7
   days; a task you hold being released or closed; what happened to a

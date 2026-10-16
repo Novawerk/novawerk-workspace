@@ -58,7 +58,7 @@ export function Discussion({
       </div>
 
       {task.threadLocked ? (
-        <Note className="mt-3">This thread is locked. A member closed it for new posts.</Note>
+        <Note className="mt-3">This thread is locked. A maintainer closed it for new posts.</Note>
       ) : signedIn ? (
         <Composer taskId={task.id} textareaRef={composerRef} onPosted={onPosted} />
       ) : (
@@ -101,7 +101,7 @@ function Post({
     const res = await api(`/contrib/posts/${post.id}/report`, { method: "POST", body: {} });
     if (!res.ok) return toast(res.error);
     setReported(true);
-    toast("Reported. A member will look at it.");
+    toast("Reported. A maintainer will look at it.");
   };
 
   const author = post.author;

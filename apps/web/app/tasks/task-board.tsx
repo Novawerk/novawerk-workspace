@@ -270,7 +270,7 @@ function BoardShell({
       </div>
 
       {filters.status === "suggested" || filters.sort === "votes" ? (
-        <p className="pt-4 text-[13px] text-muted">Votes help us choose. They don&apos;t decide: a member still triages every suggestion. Votes earn no Werk.</p>
+        <p className="pt-4 text-[13px] text-muted">Votes help us choose. They don&apos;t decide: a maintainer still triages every suggestion. Votes earn no Werk.</p>
       ) : null}
 
       <div className="pt-5 pb-12" aria-busy={loading || current === null}>

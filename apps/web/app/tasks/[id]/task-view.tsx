@@ -308,7 +308,7 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
           onAskInThread={focusThread}
           onSaved={async (edit) => {
             setProposing(false);
-            toast(editingDraft ? "Draft saved. Confirm it to send it." : edit ? "Changes saved." : "Proposal sent. A member replies within about a week.");
+            toast(editingDraft ? "Draft saved. Confirm it to send it." : edit ? "Changes saved." : "Proposal sent. A maintainer replies within about a week.");
             setEditingDraft(null);
             await refreshAll();
           }}
@@ -370,7 +370,7 @@ function DraftCard({
     setBusy(false);
     if (!res.ok) return toast(res.error);
     track("propose_sent", { edit: false });
-    toast("Proposal sent. A member replies within about a week.");
+    toast("Proposal sent. A maintainer replies within about a week.");
     await onChanged();
   };
   const discard = async () => {
@@ -496,11 +496,11 @@ function ActionCard({
         <Note>
           {task.needsInfo ? (
             <>
-              <b>A member asked for more info.</b> The suggester answers in the thread below.
+              <b>A maintainer asked for more info.</b> The suggester answers in the thread below.
             </>
           ) : (
             <>
-              <b>Waiting for a member to look at it.</b> Nobody can propose until it&apos;s accepted and sized.
+              <b>Waiting for a maintainer to look at it.</b> Nobody can propose until it&apos;s accepted and sized.
             </>
           )}
         </Note>
@@ -602,7 +602,7 @@ function ActionCard({
       <button type="button" className={`${buttonAccent} h-12 w-full`} onClick={onPropose}>
         Propose a plan
       </button>
-      <p className="text-[13px] text-muted">{pending ? `${plural(pending, "proposal")} so far. A member picks one.` : "No proposals yet. Be the first."}</p>
+      <p className="text-[13px] text-muted">{pending ? `${plural(pending, "proposal")} so far. A maintainer picks one.` : "No proposals yet. Be the first."}</p>
     </>
   );
 }

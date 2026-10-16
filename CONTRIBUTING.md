@@ -6,8 +6,12 @@ the API and the agents. You can help build it, one task at a time.
 ## What contributing means here
 
 - **You pick a task, we review your pull request.** That's the whole deal.
-- **Contributing is not membership.** Members are the core team. Contributors don't get admin
-  panel access, and there are no tiers or ranks among contributors either.
+- **Everyone is a member.** Signing in on novawerk.io makes your Novawerk account: one account
+  for the task board, the team chat, and the admin panel once you are on a project's team. There
+  are no tiers or ranks.
+- **Maintainers run Novawerk.** They write tasks, pick a plan for each one, approve CI runs,
+  review and merge pull requests, and keep the board tidy. Being a maintainer is a role, not a
+  rank.
 - **We don't mentor whole projects.** We don't have the people for it. We write tasks small
   enough to finish on your own, and we answer questions on the task.
 - **Merged work earns Werk.** Werk is recognition: it shows on your profile and the contributor
@@ -15,20 +19,24 @@ the API and the agents. You can help build it, one task at a time.
 
 ## The task board
 
-Tasks live at [novawerk.io/tasks](https://novawerk.io/tasks). **The board launches soon.** We
-are building those pages now. Until then, watch this repo; please don't open pull requests for
-work that has no task.
+Tasks live at [novawerk.io/tasks](https://novawerk.io/tasks). Please don't open pull requests
+for work that has no task. Found a bug or have an idea? Suggest it on the board
+([novawerk.io/tasks/suggest](https://novawerk.io/tasks/suggest)); a maintainer turns it into a
+task.
 
 ## How it works
 
 1. **Pick a task** at novawerk.io/tasks. Anyone can browse; no account needed.
-2. **Propose a plan.** Sign in (GitHub, so we can match your pull request) and say how you'd do
-   it and when. Several people may propose. A Member picks one person and assigns the task.
+2. **Propose a plan.** Sign in at [novawerk.io/sign-in](https://novawerk.io/sign-in) with
+   GitHub or a code we email you (Google too, once we switch it on), and say how you'd do it
+   and when. Proposing needs GitHub linked (Settings → Link GitHub), so we can match your pull
+   request to the task. Several people may propose. A maintainer picks one plan, assigns the task and sends you the
+   task's guide.
 3. **Fork this repo** and work on a branch in your fork.
 4. **Open a pull request** against `main`. Its body has the line `Task: NW-<n>` (the template
    has it). Our GitHub App links the pull request to the task only if you are the assignee.
-5. **We review.** A Member approves the CI run first (fork pull requests don't run CI until
-   then), then reviews the code. Every merge needs a Member's review.
+5. **We review.** A maintainer approves the CI run first (fork pull requests don't run CI until
+   then), then reviews the code. Every merge needs a maintainer's review.
 6. **Merged → done.** The task closes and you earn its Werk.
 
 No time after all? Release the task from the board. It goes back to Open and nothing counts
@@ -71,8 +79,8 @@ desktop and phone) to the pull request.
   migration. Never edit files in `packages/db/migrations/` by hand.
 - **Env:** in shared packages only `packages/config` reads `process.env`. Apps read their env
   at the edge and pass values in.
-- **Outbound email** to anyone outside Novawerk goes through the outbox and waits for a Member.
-  Don't add a path around it.
+- **Outbound email** to anyone outside Novawerk goes through the outbox and waits for a
+  maintainer. Don't add a path around it.
 - **Plain language** in copy and docs: short sentences, "we", present tense. No *leverage /
   ecosystem / stakeholders / synergy / disrupt / transform*.
 - **Next.js 16** has breaking changes. Read `apps/web/node_modules/next/dist/docs/` before you

@@ -81,7 +81,7 @@ export function DraftReplyDialog({
         onSuccess: (email) => {
           setOpen(false)
           toast.success("Saved to the outbox", {
-            description: "It goes out once a member approves it.",
+            description: "It goes out once a maintainer approves it.",
             action: { label: "Open", onClick: () => void navigate({ to: "/outbox", search: { id: email.id } }) },
           })
         },

@@ -85,7 +85,7 @@ export const EVENT_LABELS: Record<TaskEventKind, string> = {
   reopened: "Reopened",
   thread_locked: "Thread locked",
   thread_unlocked: "Thread unlocked",
-  member_posted: "A member posted",
+  member_posted: "A maintainer posted",
   edited: "Edited",
   proposal_declined: "A plan was declined",
   post_hidden: "A post was hidden",

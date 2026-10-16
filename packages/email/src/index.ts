@@ -1,15 +1,17 @@
 // @nw/email — outbound email for Novawerk.
 //
-// Five doors, and only five:
-//   - The outbox (./outbox.ts) for anyone outside Novawerk. Agents queue; a member approves;
+// Six doors, and only six:
+//   - The outbox (./outbox.ts) for anyone outside Novawerk. Agents queue; a maintainer approves;
 //     only then can sendApproved() send it, once.
 //   - notifyTeam() (./notify.ts) for our own inbox. It refuses any non-novawerk.io address.
 //   - sendSignInCode() (./sign-in.ts): a fixed email with a 6-digit code, which the API sends
-//     to an active member's own address, or a contributor's, when they sign in by email.
+//     to the address signing in or signing up by email.
 //   - sendNewsletterConfirmation() (./newsletter.ts): a fixed double opt-in email with one
 //     confirmation link, to the address that just asked for the newsletter (NB-ADR-0011).
 //   - sendContributorNotice() (./contributor-notices.ts): fixed emails to a contributor about
 //     their own account and tasks, to their own verified address (NB-ADR-0013).
+//   - sendWelcome() (./welcome.ts): one fixed welcome email when someone makes an account, to
+//     their own verified address, once (NB-ADR-0014).
 
 export {
   approveEmail,
@@ -27,7 +29,9 @@ export {
 
 export { notifyTeam, type NotifyOptions, type TeamNotification } from "./notify.js";
 
-export { SIGN_IN_CODE_PATTERN, sendSignInCode, signInCodeEmail, type SignInAudience, type SignInCodeOptions } from "./sign-in.js";
+export { SIGN_IN_CODE_PATTERN, sendSignInCode, signInCodeEmail, type SignInCodeOptions } from "./sign-in.js";
+
+export { sendWelcome, welcomeEmail, type WelcomeOptions } from "./welcome.js";
 
 export {
   newsletterConfirmationEmail,

@@ -60,7 +60,7 @@ export function DeclinePitchDialog({ submission }: { submission: ProjectSubmissi
         <SwitchRow
           label={`Email ${name}`}
           htmlFor="decline-email"
-          description="A short, kind no, with an invitation to pitch again or help on the task board. It waits in the Outbox until a member approves it."
+          description="A short, kind no, with an invitation to pitch again or help on the task board. It waits in the Outbox until a maintainer approves it."
         >
           <Switch id="decline-email" checked={email} onCheckedChange={setEmail} />
         </SwitchRow>
@@ -167,7 +167,7 @@ export function InviteCallDialog({ submission }: { submission: ProjectSubmission
           if (submission.status === "new") update.mutate({ id: submission.id, patch: { status: "discussing" } })
           setOpen(false)
           reset()
-          toast.success("The invite waits in the Outbox", { description: "A member approves it before it goes out." })
+          toast.success("The invite waits in the Outbox", { description: "A maintainer approves it before it goes out." })
         },
         onError: (err) => {
           if (!["subject", "body"].some((f) => issueFor(err, f))) {

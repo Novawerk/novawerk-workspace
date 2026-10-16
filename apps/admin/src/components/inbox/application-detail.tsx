@@ -200,7 +200,7 @@ function ReviewCard({ application }: { application: MemberApplication }) {
             disabled={application.status === "declined"}
             variant="destructive"
             title="Decline this application?"
-            description="We mark it as declined. Nobody gets an email until you draft a reply and a member approves it."
+            description="We mark it as declined. Nobody gets an email until you draft a reply and a maintainer approves it."
             confirmLabel="Decline"
             onConfirm={() => save({ status: "declined" }, "Application declined")}
           />

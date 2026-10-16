@@ -256,3 +256,20 @@ export function getLegalPage(slug: "privacy" | "imprint"): LegalPage {
     missing,
   };
 }
+
+// ─── The contribution guide ──────────────────────────────────────────────────
+
+/** Links in CONTRIBUTING.md to other files in the repo open them on GitHub. */
+const REPO_BLOB = "https://github.com/Novawerk/novawerk-workspace/blob/main/";
+
+/**
+ * `CONTRIBUTING.md` at the repo root → HTML, for /contribute/guide (NB-ADR-0014: the general
+ * guide lives in one place, and the welcome email links to it). Drops the H1; relative links
+ * point at the file on GitHub.
+ */
+export function getContributingGuide(): LegalPage {
+  const file = path.join(/*turbopackIgnore: true*/ path.dirname(getKnowledgeDir()), "CONTRIBUTING.md");
+  const raw = fs.readFileSync(file, "utf8").replace(/\]\((?!https?:|mailto:|#)([^)\s]+)\)/g, `](${REPO_BLOB}$1)`);
+  const tokens = Lexer.lex(raw).filter((t) => !(t.type === "heading" && (t as Tokens.Heading).depth === 1));
+  return { title: "Contribution guide", updated: undefined, html: Parser.parse(tokens), missing: [] };
+}

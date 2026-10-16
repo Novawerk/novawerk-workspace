@@ -155,6 +155,20 @@
       "when": 1792160060972,
       "tag": "0021_drop_contributors",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792166237435,
+      "tag": "0022_welcome_email",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792166237913,
+      "tag": "0023_welcome_email_existing_accounts",
+      "breakpoints": true
     }
   ]
 }

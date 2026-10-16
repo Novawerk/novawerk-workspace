@@ -206,7 +206,7 @@ async function relatedExists(db: Database, table: OutboxRelatedTable, id: string
 const draftEmail = defineTool({
   name: "draft_email",
   description:
-    "Draft an email to someone outside Novawerk. It is queued as pending in the outbox; nothing is sent until a member approves it. Link it to the record it is about.",
+    "Draft an email to someone outside Novawerk. It is queued as pending in the outbox; nothing is sent until a maintainer approves it. Link it to the record it is about.",
   schema: z.object({
     to: z.string().describe("One plain email address."),
     subject: z.string().describe("One line."),

@@ -21,12 +21,7 @@ describe("sendSignInCode", () => {
     expect(text).toContain("你的 Novawerk 登录验证码：042917");
   });
 
-  it("tells a contributor it is the task board, not membership", () => {
-    const member = signInCodeEmail("042917");
-    const contributor = signInCodeEmail("042917", "contributor");
-    expect(contributor.subject).toBe("Your Novawerk task board code: 042917");
-    expect(contributor.subject).not.toBe(member.subject);
-    expect(contributor.text).toContain("It isn't Novawerk membership");
-    expect(member.text).not.toContain("task board");
+  it("is the same for everyone: one account (NB-ADR-0014)", () => {
+    expect(signInCodeEmail("042917").text).not.toMatch(/contributor|membership/);
   });
 });
