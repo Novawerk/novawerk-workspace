@@ -5,7 +5,7 @@ import { escapeHTML } from "helpers/string_helpers"
 
 export default class extends Controller {
   static classes = ["toolbar"]
-  static targets = [ "clientid", "fields", "fileList", "text" ]
+  static targets = [ "clientid", "fields", "fileList", "text", "replyBar", "replyName" ]
   static values = { roomId: Number }
   static outlets = [ "messages" ]
 
@@ -13,10 +13,23 @@ export default class extends Controller {
 
   connect() {
     this.#restoreDraft()
+    document.addEventListener("selectionchange", this.#markBlockSelection)
 
     if (!this.#usingTouchDevice) {
       onNextEventLoopTick(() => this.textTarget.focus())
     }
+  }
+
+  disconnect() {
+    document.removeEventListener("selectionchange", this.#markBlockSelection)
+  }
+
+  // Novawerk Chat: in a quote, list or code block Enter adds a line, so the hint says ⌘Enter sends.
+  #markBlockSelection = () => {
+    const node = window.getSelection()?.anchorNode
+    const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement
+    const inBlock = !!(element && this.textTarget.contains(element) && element.closest("blockquote, pre, code, li"))
+    this.element.classList.toggle("composer--in-block", inBlock)
   }
 
   saveDraft() {
@@ -33,7 +46,8 @@ export default class extends Controller {
     if (!this.fieldsTarget.disabled) {
       this.#submitFiles()
       this.#submitMessage()
-      this.collapseToolbar()
+      // Novawerk Chat: the formatting toolbar stays as the writer left it; a sent reply ends the reply.
+      this.#hideReplyBar()
       this.textTarget.focus()
     }
   }
@@ -44,8 +58,9 @@ export default class extends Controller {
     }
   }
 
-  toggleToolbar() {
-    this.element.classList.toggle(this.toolbarClass)
+  toggleToolbar(event) {
+    const on = this.element.classList.toggle(this.toolbarClass)
+    event?.currentTarget?.setAttribute?.("aria-pressed", on)
     this.textTarget.focus()
   }
 
@@ -53,10 +68,27 @@ export default class extends Controller {
     this.element.classList.remove(this.toolbarClass)
   }
 
-  replaceMessageContent(content) {
+  replaceMessageContent(content, { replyingTo } = {}) {
     this.textTarget.value = content
     this.textTarget.focus()
     this.textTarget.selection.placeCursorAtTheEnd()
+
+    if (replyingTo && this.hasReplyBarTarget) {
+      this.replyNameTarget.textContent = replyingTo
+      this.replyBarTarget.hidden = false
+    }
+  }
+
+  // Novawerk Chat: "Replying to Lena ×" above the composer; × takes the quote out again.
+  cancelReply() {
+    this.textTarget.value = ""
+    this.#hideReplyBar()
+    this.saveDraft()
+    this.textTarget.focus()
+  }
+
+  #hideReplyBar() {
+    if (this.hasReplyBarTarget) this.replyBarTarget.hidden = true
   }
 
   submitByKeyboard(event) {

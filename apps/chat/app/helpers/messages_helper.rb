@@ -99,7 +99,7 @@ module MessagesHelper
     # Collection caching preloads these rows before deriving keys. Read their
     # actual content: foreign SQL writers need not touch Rails timestamps.
     dependencies = [ message.attributes, room.attributes.slice("id", "type", "name"), message.creator.attributes,
-      body.to_html, message.boosts.sort_by(&:created_at).map { |boost| [ boost.attributes, boost.booster.attributes ] } ]
+      body.to_html, message.body.updated_at, message.boosts.sort_by(&:created_at).map { |boost| [ boost.attributes, boost.booster.attributes ] } ]
     FragmentCache::ContentKey.new(Digest::SHA256.hexdigest(ActiveSupport::JSON.encode(dependencies)))
   end
 

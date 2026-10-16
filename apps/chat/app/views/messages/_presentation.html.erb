@@ -1,3 +1,7 @@
 <div id="<%= dom_id(message, :presentation) %>" dir="auto" data-reply-target="body" data-messages-target="body">
   <%= message_presentation(message) %>
+  <%# Novawerk Chat: an edited text message says so. Boosts touch the message, so the body's own time decides. %>
+  <% if message.content_type.text? && message.body&.updated_at && message.body.updated_at > message.created_at + 5.seconds %>
+    <span class="nw-edited" title="Edited <%= message.body.updated_at.to_fs(:long) %>">(edited)</span>
+  <% end %>
 </div>

@@ -8,7 +8,7 @@
     <span class="room__contents"><%= room_display_name(room) %></span>
   </h1>
 
-  <span class="nw-hdr-sub nw-hdr-sub--phone"><%= pluralize(room.users.active.count, "member") %></span>
+  <span class="nw-hdr-sub nw-hdr-sub--phone"><%= room.direct? ? "Direct message" : pluralize(room.users.active.count, "member") %></span>
 
   <span class="nw-hdr-sub">
     <%= room.direct? ? "Direct message" : (room.is_a?(Rooms::Closed) ? "Closed room · #{pluralize(room.users.size, "member")}" : "Open room · everyone in #{Current.account.name}") %>
@@ -33,7 +33,7 @@
     <summary class="btn" title="Room menu"><%= image_tag "menu-dots-horizontal.svg" %><span class="for-screen-reader">Room menu</span></summary>
     <div class="nw-menu nw-hdr-menu__menu" data-popup-target="menu">
       <% if Current.user.can_administer?(room) %>
-        <%= link_to [ :edit, room ], class: "nw-menu__item" do %><%= image_tag "settings.svg" %><span>Room settings</span><% end %>
+        <%= link_to [ :edit, room ], class: "nw-menu__item" do %><%= image_tag "settings.svg" %><span><%= room.direct? ? "Conversation settings" : "Room settings" %></span><% end %>
       <% end %>
       <% unless room.direct? %>
         <%= link_to room_members_path(room), class: "nw-menu__item" do %><%= image_tag "users.svg" %><span>Members</span><span class="nw-menu__short"><%= room.users.active.count %></span><% end %>

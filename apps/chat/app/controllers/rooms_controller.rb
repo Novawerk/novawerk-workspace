@@ -16,7 +16,7 @@ class RoomsController < ApplicationController
     @room.destroy_later
 
     broadcast_remove_room
-    redirect_to root_url
+    redirect_to root_url, notice: "##{@room.name} deleted"
   end
 
   private

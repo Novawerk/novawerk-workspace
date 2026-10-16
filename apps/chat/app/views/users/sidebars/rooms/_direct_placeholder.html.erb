@@ -1,4 +1,4 @@
-<%= button_to rooms_directs_path(user_ids: [ user.id ]), class: "direct", form_class: "direct__placeholder" do %>
+<%= button_to rooms_directs_path(user_ids: [ user.id ]), class: "direct", form_class: "direct__placeholder", form: { id: "direct_placeholder_#{user.id}" } do %>
   <span class="avatar"><%= image_tag fresh_user_avatar_path(user), size: 20, alt: "" %></span>
   <span class="direct__author">
     <span class="direct__name"><span class="for-screen-reader">Start a ping with</span><%= user.name %></span>

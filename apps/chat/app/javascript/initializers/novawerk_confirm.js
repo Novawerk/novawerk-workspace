@@ -10,7 +10,7 @@ function splitMessage(message) {
 }
 
 function confirmDialog(message, form, submitter) {
-  const destructive = !!(submitter?.classList.contains("btn--negative") || form?.querySelector(".btn--negative"))
+  const destructive = !!(submitter?.classList.contains("btn--negative") || form?.querySelector(".btn--negative") || submitter?.dataset.confirmDestructive)
   const label = submitter?.dataset.confirmLabel || submitter?.textContent.trim() || "Confirm"
   const [ title, description ] = splitMessage(message)
 

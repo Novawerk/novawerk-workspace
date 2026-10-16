@@ -12,7 +12,7 @@ class Accounts::BotsController < ApplicationController
 
   def create
     User.create_bot! bot_params
-    redirect_to account_bots_url
+    redirect_to account_bots_url, notice: "Bot created"
   end
 
   def edit
@@ -20,12 +20,12 @@ class Accounts::BotsController < ApplicationController
 
   def update
     @bot.update_bot! bot_params
-    redirect_to account_bots_url
+    redirect_to account_bots_url, notice: "Saved"
   end
 
   def destroy
     @bot.deactivate
-    redirect_to account_bots_url
+    redirect_to account_bots_url, notice: "Bot deleted"
   end
 
   private

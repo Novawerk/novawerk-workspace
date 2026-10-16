@@ -28,11 +28,13 @@ module ApplicationHelper
   end
 
   # Novawerk Chat: the header of a page that isn't a room: a title, then actions on the right.
-  def page_header(title, crumb: nil, &actions)
+  # crumb_icon: a lucide icon before the crumb (hash or lock for a room).
+  def page_header(title, crumb: nil, crumb_icon: nil, &actions)
     content_for :nav do
       heading = if crumb
         tag.h1(class: "nw-hdr-title nw-crumb") do
-          tag.span(crumb, class: "nw-crumb__parent") + image_tag("chevron-right.svg", size: 14) + tag.b(title)
+          parent = crumb_icon ? image_tag("#{crumb_icon}.svg", size: 14, class: "nw-crumb__icon") + tag.span(crumb) : crumb
+          tag.span(parent, class: "nw-crumb__parent") + image_tag("chevron-right.svg", size: 14, class: "nw-crumb__sep") + tag.b(title)
         end
       else
         tag.h1(title, class: "nw-hdr-title")

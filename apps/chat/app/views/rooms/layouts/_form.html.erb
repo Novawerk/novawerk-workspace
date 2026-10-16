@@ -4,7 +4,7 @@
       <div class="nw-field">
         <label class="nw-label" for="room_name">Name</label>
         <span class="input nw-input-group nw-input-group--lg">
-          <%= image_tag "hash.svg", class: "nw-muted" %>
+          <%= image_tag(room.is_a?(Rooms::Closed) ? "lock.svg" : "hash.svg", class: "nw-muted") %>
           <%= form.text_field :name, name: "room[name]", id: "room_name",
                 required: true, autofocus: true, placeholder: "design-crit",
                 data: { turbo_permanent: true, action: "keydown.enter->form#submit:prevent" } %>

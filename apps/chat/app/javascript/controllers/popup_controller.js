@@ -8,6 +8,8 @@ export default class extends Controller {
 
   close() {
     this.element.open = false
+    // Novawerk Chat: focus left inside would keep a message's hover toolbar showing.
+    if (this.element.contains(document.activeElement)) document.activeElement.blur()
   }
 
   toggle() {
@@ -20,7 +22,8 @@ export default class extends Controller {
   }
 
   #orient() {
-    this.element.classList.toggle(this.orientationTopClass, this.#distanceToBottom < BOTTOM_THRESHOLD)
+    // Novawerk Chat: menus without an orientation class (bell, emoji, row menus) just skip it.
+    if (this.hasOrientationTopClass) this.element.classList.toggle(this.orientationTopClass, this.#distanceToBottom < BOTTOM_THRESHOLD)
     this.menuTarget.style.setProperty("--max-width", this.#maxWidth + "px")
   }
 

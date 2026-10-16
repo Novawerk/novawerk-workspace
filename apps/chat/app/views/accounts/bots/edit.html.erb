@@ -16,13 +16,13 @@
       <div class="nw-card__body" data-controller="nw-reveal">
         <div class="nw-row nw-row--nowrap">
           <input type="password" class="input nw-input nw-mono" value="<%= @bot.bot_key %>" readonly aria-label="Bot key" data-nw-reveal-target="field">
-          <button type="button" class="btn btn--plain nw-btn-icon" title="Show key" data-action="nw-reveal#toggle"><%= image_tag "eye-off.svg" %><span class="for-screen-reader">Show key</span></button>
+          <button type="button" class="btn btn--plain nw-btn-icon" title="Show key" data-action="nw-reveal#toggle" data-nw-reveal-target="button"><%= image_tag "eye.svg", data: { nw_reveal_target: "show" } %><%= image_tag "eye-off.svg", hidden: true, data: { nw_reveal_target: "hide" } %><span class="for-screen-reader">Show key</span></button>
           <%= button_to_copy_to_clipboard(@bot.bot_key) do %><%= image_tag "copy-paste.svg" %><span>Copy</span><% end %>
         </div>
         <div class="nw-row nw-row--between">
           <span class="nw-hint">Resetting breaks anything that uses the old key.</span>
           <%= button_to account_bot_key_path(@bot), method: :put, class: "btn nw-btn-outline nw-btn-sm",
-                data: { turbo_confirm: "Reset the key for #{@bot.name}? Anything using the old key stops working.", confirm_label: "Reset key" } do %>
+                data: { turbo_confirm: "Reset the key for #{@bot.name}? Anything using the old key stops working.", confirm_label: "Reset key", confirm_destructive: true } do %>
             <%= image_tag "refresh.svg" %><span>Reset key…</span>
           <% end %>
         </div>

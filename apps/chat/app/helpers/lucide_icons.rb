@@ -90,5 +90,6 @@ module LucideIcons
     "bot-message" => "<path d=\"M12 6V2H8\" /> <path d=\"m8 18-4 4V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2Z\" /> <path d=\"M2 12h2\" /> <path d=\"M9 11v2\" /> <path d=\"M15 11v2\" /> <path d=\"M20 12h2\" />", # bot-message-square
     "upload" => "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" /> <polyline points=\"17 8 12 3 7 8\" /> <line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\" />", # upload
     "chevron-right" => "<path d=\"m9 18 6-6-6-6\" />", # chevron-right
+    "eye" => "<path d=\"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0\" /> <circle cx=\"12\" cy=\"12\" r=\"3\" />", # eye
   }.freeze
 end

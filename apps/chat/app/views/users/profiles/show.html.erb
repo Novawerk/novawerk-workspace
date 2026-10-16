@@ -115,10 +115,17 @@
       <h3 class="nw-card__title">My rooms</h3>
       <span class="nw-muted nw-small">Notifications per room</span>
     </div>
+    <% visible, hidden = @shared_memberships.partition { |membership| !membership.involved_in_invisible? } %>
     <menu class="nw-rooms">
-      <%= render partial: "users/profiles/membership", collection: @shared_memberships %>
+      <%= render partial: "users/profiles/membership", collection: visible %>
       <%= render partial: "users/profiles/membership", collection: @direct_memberships %>
     </menu>
+    <% if hidden.any? %>
+      <div class="nw-rooms__label nw-small nw-muted">Hidden from the sidebar</div>
+      <menu class="nw-rooms">
+        <%= render partial: "users/profiles/membership", collection: hidden %>
+      </menu>
+    <% end %>
   </div>
 </div>
 

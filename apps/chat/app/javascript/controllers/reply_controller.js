@@ -11,8 +11,9 @@ export default class extends Controller {
   }
 
   reply() {
-    const content = `<blockquote>${this.#bodyContent}</blockquote><cite>${this.authorTarget.innerHTML} ${this.#linkToOriginal}</cite><p><br></p>`
-    this.composerOutlet.replaceMessageContent(content)
+    // Novawerk Chat: the author's name links to the original message (it used to be a bare "#").
+    const content = `<blockquote>${this.#bodyContent}</blockquote><cite>${this.#linkToOriginal}</cite><p><br></p>`
+    this.composerOutlet.replaceMessageContent(content, { replyingTo: this.authorTarget.textContent.trim() })
   }
 
   #formatLinkTargets() {
@@ -43,6 +44,6 @@ export default class extends Controller {
   }
 
   get #linkToOriginal() {
-    return `<a href="${this.linkTarget.href}">#</a>`
+    return `<a href="${this.linkTarget.href}">${this.authorTarget.innerHTML}</a>`
   }
 }

@@ -6,11 +6,22 @@ class Rooms::InvolvementsController < ApplicationController
   end
 
   def update
+    previous = @membership.involvement
     @membership.update! involvement: params[:involvement]
 
     broadcast_visibility_changes
-    # Novawerk Chat: the bell menu in the room header comes back to the room.
-    redirect_to params[:return_to_room] ? room_url(@room) : room_involvement_url(@room)
+    # Novawerk Chat: the bell menu comes back to the room, My profile's menu to My profile. Hiding a
+    # room says so, with Undo.
+    if @membership.involved_in_invisible? && previous != "invisible"
+      flash[:notice] = "##{@room.name} hidden from the sidebar"
+      flash[:undo] = { "url" => room_involvement_path(@room), "involvement" => previous }
+    end
+
+    case
+    when params[:return_to_room]    then redirect_to room_url(@room)
+    when params[:return_to_profile] then redirect_to user_profile_url
+    else                                 redirect_to room_involvement_url(@room)
+    end
   end
 
   private

@@ -3,6 +3,6 @@ class Accounts::Bots::KeysController < ApplicationController
 
   def update
     User.active_bots.find(params[:bot_id]).reset_bot_key
-    redirect_to account_bots_url
+    redirect_to account_bots_url, notice: "New key made. Update the bot's integrations."
   end
 end

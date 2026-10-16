@@ -36,10 +36,14 @@
 
     <% if notice = flash[:notice] || flash[:alert] %>
       <%# Novawerk Chat: a toast with words (States board), not a bare green circle. %>
-      <div class="flash nw-toast <%= "nw-toast--error" if flash[:alert] %>" role="<%= flash[:alert] ? "alert" : "status" %>"
+      <div class="flash nw-toast <%= "nw-toast--error" if flash[:alert] %> <%= "nw-toast--undo" if flash[:undo] %>" role="<%= flash[:alert] ? "alert" : "status" %>"
           data-controller="element-removal" data-action="animationend->element-removal#remove">
         <%= image_tag(flash[:alert] ? "alert.svg" : "circle-check.svg") %>
         <span><%= notice == "✓" ? "Saved" : notice %></span>
+        <% if (undo = flash[:undo]).is_a?(Hash) && undo["url"].to_s.start_with?("/") %>
+          <%= button_to "Undo", undo["url"], method: :put, params: { involvement: undo["involvement"], return_to_room: 1 },
+                class: "nw-toast__undo", form_class: "nw-toast__form", data: { turbo_frame: "_top" } %>
+        <% end %>
       </div>
     <% end %>
 

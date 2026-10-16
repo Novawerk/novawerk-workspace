@@ -30,7 +30,8 @@ Rails.application.routes.draw do
   end
 
   direct :fresh_account_logo do |options|
-    route_for :account_logo, v: Current.account&.updated_at&.to_fs(:number), size: options[:size]
+    # Novawerk Chat: "-nova" since the stock icon became the Nova star (browsers kept Campfire's flame).
+    route_for :account_logo, v: "#{Current.account&.updated_at&.to_fs(:number)}-nova", size: options[:size]
   end
 
   get "join/:join_code", to: "users#new", as: :join

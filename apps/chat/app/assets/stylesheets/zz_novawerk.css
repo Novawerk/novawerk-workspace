@@ -1576,7 +1576,7 @@ body.sidebar { @media (min-width: 100ch) { --sidebar-width: 256px; } }
 .message__actions { display: none; }
 .message:hover .message__actions,
 .message:has(details[open]) .message__actions,
-.message:focus-within .message__actions { display: block; }
+.message:has(:focus-visible) .message__actions { display: block; }
 .nw-toolbar {
   background: #fff;
   border: 1px solid #e5e5e5;
@@ -2453,3 +2453,117 @@ turbo-frame[id^="new_boost_"] { position: relative; }
   .message__actions-menu.nw-menu { inline-size: auto !important; left: 0 !important; max-inline-size: none !important; right: 0 !important; width: auto !important; }
 }
 .message:has(.nw-boost-picker) { position: relative; z-index: 7; }
+
+/* --- Full-flow minor fixes: room and messages -------------------------------- */
+/* Images in the list are thumbnails; the lightbox shows the full size. */
+@media (min-width: 100ch) {
+  .message__body-content .max-inline-size { max-inline-size: min(100%, 480px); }
+  .message__body-content .message__attachment { max-block-size: 360px; object-fit: contain; object-position: left; }
+}
+/* A message opened from search or a link flashes a warm tint. */
+.message.search-highlight .message__body-content { animation: none; border: 0; }
+.message.search-highlight { animation: nw-highlight 2.4s ease-out forwards; }
+@keyframes nw-highlight { 0%, 40% { background: #fdf6e7; } 100% { background: transparent; } }
+/* File messages are cards. */
+.nw-file-card { align-items: center; border: 1px solid #e5e5e5; border-radius: 10px; display: inline-flex; gap: 10px; max-inline-size: min(100%, 360px); padding: 8px 8px 8px 10px; }
+.nw-file-card__icon { align-items: center; background: #f5f5f5; border-radius: 8px; display: flex; flex: none; height: 36px; justify-content: center; width: 36px; }
+.nw-file-card__text { display: flex; flex: 1; flex-direction: column; line-height: 1.25; min-inline-size: 0; }
+.nw-file-card__name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nw-file-card__meta { color: #737373; font-size: 12px; }
+.nw-file-card .message__action-btn { --btn-background: transparent; --btn-border-color: transparent; block-size: 32px; box-shadow: none; flex: none; inline-size: 32px; }
+/* Aa is visibly on while the formatting toolbar shows. */
+.composer--rich-text .composer__rich-text-btn, .nw-composer__actions .composer__rich-text-btn[aria-pressed="true"] { --btn-background: #eaf2ec; background: #eaf2ec; color: #1f7a4a; }
+/* "Replying to Lena ×" above the composer. */
+.nw-reply-bar { align-items: center; color: #525252; display: flex; font-size: 12px; gap: 6px; padding: 0 4px 6px; }
+.nw-reply-bar[hidden] { display: none; }
+.nw-reply-bar svg.lucide, .nw-reply-bar > img { height: 14px; width: 14px; }
+.nw-reply-bar strong { color: #0a0a0a; font-weight: 500; }
+.nw-reply-bar__cancel { background: transparent; border: 0; border-radius: 6px; cursor: pointer; display: inline-flex; margin-left: auto; padding: 4px; }
+.nw-reply-bar__cancel:hover { background: #f5f5f5; }
+/* The quoted author in a reply reads "— Lena Fischer". */
+.lexxy-content cite { color: #737373; display: block; font-size: 12px; font-style: normal; }
+.lexxy-content cite::before { content: "— "; }
+.lexxy-content cite a { color: inherit; text-decoration: none; }
+.lexxy-content cite a:hover { text-decoration: underline; }
+.nw-edited { color: #a3a3a3; font-size: 12px; }
+.message__body-content .lexxy-content > p:last-child:has(> br:only-child) { display: none; }
+.message__body-content .lexxy-content:has(+ .nw-edited) { display: inline; }
+.message__body-content .lexxy-content:has(+ .nw-edited) > p:nth-last-child(1 of :not(:has(> br:only-child))) { display: inline; }
+.nw-toast--live { display: flex; position: fixed; z-index: 50; }
+.nw-toast--undo { animation-duration: 7s; }
+.nw-toast__form { margin: 0 0 0 4px; }
+.nw-toast__undo { background: transparent; border: 0; color: #1f7a4a; cursor: pointer; font: inherit; font-weight: 600; padding: 0 2px; }
+.nw-toast__undo:hover { text-decoration: underline; }
+/* My profile: each room's level opens the "Notify me about" menu. */
+.nw-card:has(.nw-rooms__level) { overflow: visible; }
+.nw-rooms__level { position: relative; }
+.nw-rooms__level > summary { list-style: none; }
+.nw-rooms__level > summary::-webkit-details-marker { display: none; }
+.nw-rooms__level .nw-hdr-menu__menu { right: 0; text-align: start; }
+.nw-rooms__label { border-block-start: 1px solid var(--border); padding: 10px 20px 4px; }
+.nw-rooms__level .nw-hdr-menu__menu { top: 30px; }
+/* The composer's emoji button: a searchable picker above the composer. */
+.nw-emoji__menu.nw-menu { bottom: calc(100% + 8px); flex-direction: column; gap: 8px; inset-inline-start: 0; padding: 8px; top: auto; width: 300px; }
+.nw-emoji__search { height: 32px; }
+.nw-emoji__grid { display: grid; gap: 2px; grid-template-columns: repeat(8, minmax(0, 1fr)); max-height: 176px; overflow-y: auto; }
+.nw-emoji__grid .nw-emoji__btn { width: 100%; }
+.nw-emoji__grid .nw-emoji__btn[hidden] { display: none; }
+@media (max-width: 100ch) { .nw-emoji__menu.nw-menu { inset-inline: auto 0; position: absolute; } }
+.nw-composer__hint-block, .composer--in-block .nw-composer__hint-plain { display: none; }
+.composer--in-block .nw-composer__hint-block { display: inline; }
+/* Mentions look the same while writing, while editing and once sent: a green-tinted inline chip. */
+lexxy-editor action-text-attachment[content-type*="mention"] { --lexxy-attachment-bg-color: transparent; background: none; block-size: auto; display: inline-flex; vertical-align: baseline; }
+lexxy-editor .mention { background: #eaf2ec; border-radius: 4px; color: #0a3920; font-weight: 500; line-height: 22px; padding-inline-end: 3px; }
+/* A room without messages keeps its intro at the top left, like any other room. */
+.message-area:not(:has(.message)):has(#system_welcome) { block-size: auto; display: block; }
+.message-area:has(#system_welcome) .message-area--empty { display: none; }
+#system_welcome.nw-intro { margin-block-start: 0; }
+
+/* --- Full-flow minor fixes: header, sidebar, members ------------------------- */
+.nw-crumb__parent { align-items: center; display: inline-flex; gap: 4px; }
+.nw-crumb__icon { color: #737373; }
+@media (max-width: 100ch) {
+  /* Phone top bars show "Back" and the page title, without the breadcrumb's parent. */
+  #nav:has(.nw-hdr-back) .nw-crumb { display: flex; }
+  #nav:has(.nw-hdr-back) .nw-crumb .nw-crumb__parent, #nav:has(.nw-hdr-back) .nw-crumb .nw-crumb__sep { display: none; }
+  #nav:has(.nw-hdr-back) .nw-crumb b { font-size: 15px; font-weight: 600; }
+  /* A direct message has no room icon, so its subtitle starts under the name. */
+  #nav:has(.room--current .for-screen-reader:first-child) .nw-hdr-sub--phone { padding-left: 0; }
+}
+.nw-room-members__head { align-items: center; display: flex; flex-direction: row; gap: 10px; padding: 14px 20px; }
+.nw-room-members__head .nw-card__title { flex: 1; margin: 0; white-space: nowrap; }
+.nw-room-members__search { flex: 0 1 240px; height: 32px; min-inline-size: 0; }
+.nw-room-members__none { margin: 0; padding: 20px; text-align: center; }
+.nw-room-members__none[hidden] { display: none; }
+@media (max-width: 60ch) {
+  .nw-room-members__head { flex-wrap: wrap; padding: 12px 16px; }
+  .nw-room-members__search { flex: 1 1 100%; order: 3; }
+  .nw-room-members__label { display: none; }
+}
+.nw-sidebar-skeleton { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.nw-skeleton { animation: nw-skeleton 1.2s ease-in-out infinite alternate; background: #ececec; border-radius: 6px; display: block; height: 14px; }
+.nw-skeleton--brand { height: 32px; margin-bottom: 4px; width: 60%; }
+.nw-skeleton--search { height: 32px; margin-bottom: 8px; }
+.nw-skeleton--label { height: 10px; margin-top: 8px; width: 40%; }
+.nw-skeleton--row { height: 24px; width: 85%; }
+@keyframes nw-skeleton { from { opacity: .55; } to { opacity: 1; } }
+
+/* --- Full-flow minor fixes: pages -------------------------------------------- */
+/* My profile collapses to one column before its main column gets too narrow. */
+@media (max-width: 1100px) { .nw-page__split { grid-template-columns: minmax(0, 1fr); } }
+/* The lightbox's focus ring shows on its dark background. */
+.nw-lightbox :focus-visible { outline: 2px solid #fff !important; outline-offset: 2px; box-shadow: none !important; }
+svg[hidden] { display: none; }
+.nw-field .is-invalid, .nw-field .nw-input-group:has(.is-invalid) { border-color: #e7000b; box-shadow: 0 0 0 3px #e7000b1f; }
+.nw-field__error { color: #e7000b; font-size: 12px; line-height: 16px; }
+/* Phones: the closed sidebar sits off-screen; its shadow and border mustn't peek in at the left edge. */
+@media (max-width: 100ch) { #sidebar:not(.open) { border-inline-end-color: transparent; box-shadow: none; } }
+/* The sidebar room list starts at the same height on every page (upstream pads it more on /searches). */
+#sidebar .rooms { padding-block-start: 8px !important; }
+.composer--rich-text .nw-composer__actions .composer__rich-text-btn { background: #eaf2ec !important; color: #1f7a4a !important; }
+/* The emoji picker opens above the whole composer, not over its text. */
+@media (min-width: 100ch) {
+  .nw-composer { position: relative; }
+  .nw-composer__actions .nw-emoji { position: static; }
+  .nw-emoji__menu.nw-menu { bottom: calc(100% + 8px); left: 8px; }
+}

@@ -77,7 +77,7 @@
         <div class="nw-menu__sep message__edit-btn"></div>
         <%= button_to room_message_path(message.room, message), method: :delete, class: "nw-menu__item nw-menu__item--danger btn--negative",
               form_class: "message__edit-btn nw-menu__form",
-              data: { turbo_confirm: "Delete this message? This can't be undone.", confirm_label: "Delete message" } do %>
+              data: { turbo_confirm: "Delete this message? This can't be undone.", confirm_label: "Delete message", nw_toast: "Message deleted" } do %>
           <%= image_tag "trash.svg" %><span>Delete message</span>
         <% end %>
       </div>

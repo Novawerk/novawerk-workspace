@@ -1,0 +1,24 @@
+<%# Novawerk Chat: "Notify me about" with the levels in words (RoomStates · E), then Hide or Show in
+    sidebar. The bell in the room header and My profile's room rows open it. Locals: room, involvement,
+    return_to (:room or :profile). %>
+<% handle = Current.user.novawerk_handle.presence || Current.user.name.split.first.downcase %>
+<% levels = room.direct? ?
+     [ [ "everything", "All messages", "Every new message from #{room_display_name(room)}" ], [ "nothing", "Nothing", "No alerts for this conversation" ] ] :
+     [ [ "everything", "All messages", "Every new message in ##{room.name}" ], [ "mentions", "Mentions only", "When someone writes @#{handle}" ], [ "nothing", "Nothing", "Keep it in the sidebar, no alerts" ] ] %>
+<% return_param = return_to == :profile ? { return_to_profile: 1 } : { return_to_room: 1 } %>
+
+<div class="nw-menu__label">Notify me about</div>
+<% levels.each do |value, title, text| %>
+  <%= button_to room_involvement_path(room), method: :put, params: { involvement: value, **return_param },
+        class: "nw-menu__item nw-menu__item--tall", form_class: "nw-menu__form", data: { turbo_frame: "_top" } do %>
+    <% if involvement == value %><%= image_tag "check.svg" %><% else %><span class="nw-menu__spacer"></span><% end %>
+    <span class="nw-stack"><span class="nw-menu__title"><%= title %></span><span class="nw-small nw-muted"><%= text %></span></span>
+  <% end %>
+<% end %>
+<% unless room.direct? %>
+  <div class="nw-menu__sep"></div>
+  <%= button_to room_involvement_path(room), method: :put, params: { involvement: involvement == "invisible" ? "mentions" : "invisible", **return_param },
+        class: "nw-menu__item", form_class: "nw-menu__form", data: { turbo_frame: "_top" } do %>
+    <%= image_tag(involvement == "invisible" ? "notification-bell-mentions.svg" : "eye-off.svg") %><span><%= involvement == "invisible" ? "Show in sidebar" : "Hide from sidebar" %></span>
+  <% end %>
+<% end %>
