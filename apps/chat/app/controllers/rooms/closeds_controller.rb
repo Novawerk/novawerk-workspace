@@ -48,12 +48,16 @@ class Rooms::ClosedsController < RoomsController
       Current.user.rooms.without_directs
     end
 
+    # With Novawerk sign-in, maintainers (administrators here) are in every closed room
+    # (NovawerkSso::RoomAccess): picked or not, they stay.
     def grantees
-      User.where(id: grantee_ids)
+      users = User.where(id: grantee_ids)
+      NovawerkSso.configured? ? users.or(User.active.administrator) : users
     end
 
     def revokees
-      @room.users.where.not(id: grantee_ids)
+      users = @room.users.where.not(id: grantee_ids)
+      NovawerkSso.configured? ? users.where.not(role: :administrator) : users
     end
 
     def grantee_ids

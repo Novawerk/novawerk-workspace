@@ -7,6 +7,9 @@ class Users::ProfilesController < ApplicationController
   end
 
   def update
+    # The profile is edited on novawerk.io (NB-ADR-0014); here it only shows.
+    return redirect_to(NovawerkSso.settings_url, allow_other_host: true) if NovawerkSso.configured?
+
     @user.update user_params
     redirect_to user_profile_url, notice: update_notice
   end

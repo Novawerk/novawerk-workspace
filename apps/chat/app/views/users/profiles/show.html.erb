@@ -20,6 +20,16 @@
 <section class="panel flex flex-column gap" style="view-transition-name: avatar-<%= @user.id %>">
   <%= render partial: "pwa/install_instructions" %>
 
+  <% if NovawerkSso.configured? %>
+    <%# One profile, edited on novawerk.io (NB-ADR-0014). It shows here, copied at each sign-in. %>
+    <div class="flex flex-column align-center center gap txt-align-center">
+      <span class="avatar txt-xx-large"><%= image_tag fresh_user_avatar_path(@user), aria: { hidden: "true" }, size: 300 %></span>
+      <p class="txt-large margin-none"><strong><%= @user.name %></strong></p>
+      <% if @user.bio.present? %><p class="margin-none"><%= @user.bio %></p><% end %>
+      <p class="txt-small margin-none"><%= @user.email_address %><%= " · Maintainer" if @user.administrator? %></p>
+      <%= link_to "Edit your profile on novawerk.io", NovawerkSso.settings_url, class: "btn" %>
+    </div>
+  <% else %>
   <div class="align-center center avatar__form gap" data-controller="upload-preview">
     <%= profile_form_with @user, class:"txt-medium" do |form| %>
       <label class="btn input--file">
@@ -91,6 +101,8 @@
 
       <%= profile_form_submit_button %>
     </div>
+  <% end %>
+
   <% end %>
 
   <div class="margin-block pad-inline pad-block fill-shade border-radius">

@@ -18,7 +18,7 @@ class FirstRunsController < ApplicationController
 
   private
     def prevent_repeats
-      redirect_to root_url if Account.any?
+      redirect_to root_url if Account.any? || NovawerkSso.configured?
     end
 
     def user_params

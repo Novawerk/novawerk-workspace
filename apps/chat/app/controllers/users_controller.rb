@@ -24,8 +24,9 @@ class UsersController < ApplicationController
       @user = User.find(params[:id])
     end
 
+    # No join links with Novawerk sign-in: everyone comes with their Novawerk account.
     def verify_join_code
-      head :not_found if Current.account.join_code != params[:join_code]
+      head :not_found if NovawerkSso.configured? || Current.account&.join_code != params[:join_code]
     end
 
     def user_params

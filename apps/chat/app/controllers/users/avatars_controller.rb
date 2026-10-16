@@ -20,6 +20,8 @@ class Users::AvatarsController < ApplicationController
   end
 
   def destroy
+    return head :forbidden if NovawerkSso.configured?
+
     Current.user.avatar.destroy
     redirect_to user_profile_url
   end

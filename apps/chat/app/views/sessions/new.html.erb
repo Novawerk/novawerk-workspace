@@ -3,8 +3,24 @@
 
 <section class="txt-align-center">
   <div class="panel <%= "shake" if flash[:alert] %>">
-    <%= account_logo_tag style: "center margin-block-end txt-xx-large" %>
+    <% if Current.account %>
+      <%= account_logo_tag style: "center margin-block-end txt-xx-large" %>
+    <% end %>
 
+    <% if NovawerkSso.configured? %>
+      <div class="flex flex-column gap center-block upad">
+        <p class="txt-large"><strong>Novawerk Chat</strong></p>
+        <% if params[:problem] == "banned" %>
+          <p role="alert">This account can't use the chat.</p>
+        <% elsif params[:problem] %>
+          <p role="alert">That sign-in didn't work. Please try again.</p>
+        <% elsif params[:signed_out] %>
+          <p>You signed out of the chat.</p>
+        <% end %>
+        <p class="txt-small">One Novawerk account for the site, the admin panel and the chat.</p>
+        <%= link_to "Sign in with Novawerk", NovawerkSso.sign_in_url, class: "btn btn--reversed center txt-large" %>
+      </div>
+    <% else %>
     <%= form_with url: session_url, class: "flex flex-column gap" do |form| %>
       <fieldset class="flex flex-column gap center-block upad">
         <legend class="txt-large txt-align-center"><strong><%= Current.account.name %></strong></legend>
@@ -31,7 +47,10 @@
         <% end %>
       </fieldset>
     <% end %>
+    <% end %>
   </div>
 
-  <%= render "accounts/help_contact" %>
+  <% if Current.account %>
+    <%= render "accounts/help_contact" %>
+  <% end %>
 </section>
