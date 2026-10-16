@@ -219,6 +219,23 @@ export function readEnv(env: EnvSource): ResolvedEnv {
     problems.push(`WEB_READ_KEY must be at least ${MIN_SESSION_SECRET_LENGTH} characters`);
   }
   const contributorOrigins = get("CONTRIBUTOR_ORIGINS");
+  // Novawerk Chat sign-in: both or neither.
+  const chatUrl = get("CHAT_URL");
+  const chatSsoSecret = get("CHAT_SSO_SECRET");
+  if (Boolean(chatUrl) !== Boolean(chatSsoSecret)) problems.push("Set both CHAT_URL and CHAT_SSO_SECRET, or neither");
+  if (chatSsoSecret && chatSsoSecret.length < MIN_SESSION_SECRET_LENGTH) {
+    problems.push(`CHAT_SSO_SECRET must be at least ${MIN_SESSION_SECRET_LENGTH} characters`);
+  }
+  let chatOrigin: string | undefined;
+  if (chatUrl) {
+    try {
+      const url = new URL(chatUrl);
+      if (url.protocol === "https:" || url.hostname === "localhost") chatOrigin = url.origin;
+    } catch {
+      // reported below
+    }
+    if (!chatOrigin) problems.push("CHAT_URL must be an https origin, e.g. https://chat.novawerk.io");
+  }
   if (problems.length) throw new Error(`@nw/api env: ${problems.join("; ")}`);
 
   const resendApiKey = get("RESEND_API_KEY");
@@ -238,6 +255,7 @@ export function readEnv(env: EnvSource): ResolvedEnv {
         ? { webRevalidate: { url: revalidateUrl, secret: revalidateSecret } }
         : {}),
       ...(cronSecret ? { cronSecret } : {}),
+      ...(chatOrigin && chatSsoSecret ? { chatSso: { url: chatOrigin, secret: chatSsoSecret } } : {}),
       publicUrls,
     },
     notify: {

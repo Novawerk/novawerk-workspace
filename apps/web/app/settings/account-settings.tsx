@@ -19,6 +19,15 @@ const card = "grid gap-4 border border-line bg-paper p-5 sm:p-6";
 
 /** The admin panel, for maintainers and project teams (NB-ADR-0014). */
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL?.trim() || "https://admin.novawerk.io";
+/** Novawerk Chat, for every member. It signs in with this account. */
+const CHAT_URL = process.env.NEXT_PUBLIC_CHAT_URL?.trim() || "https://chat.novawerk.io";
+
+/** `?error=chat-…` from GET /auth/chat: why the chat didn't open. */
+const CHAT_ERRORS: Record<string, string> = {
+  "chat-no-email": "The team chat needs an email address on your account. Add one below, then open the chat again.",
+  "chat-suspended": "This account is suspended, so the team chat is closed to it too.",
+  "chat-closed": "This account is closed, so the team chat is closed to it too.",
+};
 
 export function AccountSettings() {
   const { session } = useSession();
@@ -36,6 +45,7 @@ export function AccountSettings() {
 function Account({ me }: { me: AccountMe }) {
   const params = useSearchParams();
   const linkError = params.get("error") === "github-linked-elsewhere";
+  const chatError = CHAT_ERRORS[params.get("error") ?? ""];
   const github = githubStartUrl("/settings");
   const [addingEmail, setAddingEmail] = useState(false);
   const toast = useToast();
@@ -46,6 +56,7 @@ function Account({ me }: { me: AccountMe }) {
         <h2 id="signin" className="text-lg font-semibold tracking-tight">
           Sign-in
         </h2>
+        {chatError ? <Note tone="danger">{chatError}</Note> : null}
         {linkError ? (
           <Note tone="danger">
             {me.github ? (
@@ -67,11 +78,16 @@ function Account({ me }: { me: AccountMe }) {
             <dt className="text-[13px] text-muted">Role</dt>
             <dd className="flex flex-wrap items-center justify-between gap-2">
               <span>{me.role === "maintainer" ? "Maintainer" : "Member"}</span>
-              {me.adminPanel ? (
-                <a className={buttonSmallOutline} href={ADMIN_URL}>
-                  Open the admin panel
+              <span className="flex flex-wrap gap-2">
+                <a className={buttonSmallOutline} href={CHAT_URL}>
+                  Open the team chat
                 </a>
-              ) : null}
+                {me.adminPanel ? (
+                  <a className={buttonSmallOutline} href={ADMIN_URL}>
+                    Open the admin panel
+                  </a>
+                ) : null}
+              </span>
             </dd>
           </div>
           <div className="grid gap-1 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-center">

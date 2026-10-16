@@ -222,6 +222,14 @@ than one way of signing in to the same account in Settings.
   public git history under your GitHub name, as GitHub keeps it. We keep your
   address only until the goodbye email has gone out, at most 7 days.
 
+**The team chat** (chat.novawerk.io) runs on our own server and signs in only
+with your Novawerk account. Each time you open it, we hand it your account's
+number, your email address (the one you sign in with, else the one GitHub
+gave us), your name, handle, picture link, bio and whether you are a
+maintainer, so it can show your profile; it keeps them for as long as you use
+the chat. What you write in the chat stays on that server. A suspended or
+deleted account can't open the chat any more.
+
 Signing in sets one cookie, `nw_session`, on api.novawerk.io. It keeps you
 signed in for 30 days, on the website, in the admin panel and in the team chat. Signing in with GitHub also sets `nw_github_state` for
 10 minutes, which checks that the answer from GitHub belongs to your sign-in.

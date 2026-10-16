@@ -9,6 +9,7 @@
 //   POST /auth/email/verify  { email, code, link? } → the account, and the session cookie
 //   GET  /auth/me                                  → the account (owner view) or 401
 //   POST /auth/logout                              ends every session of this account
+//   GET  /auth/chat                                → 302 to Novawerk Chat with a 60 s ticket (src/chat-sso.ts)
 //   POST /auth/dev           { email }             local development only
 //
 // `link: true` adds the address to the signed-in account instead of signing in to another one.
@@ -49,6 +50,7 @@ import {
   signGitHubState,
   verifyGitHubState,
 } from "../github-auth.js";
+import { CHAT_SSO_PATH, chatRefusal, signChatTicket } from "../chat-sso.js";
 import { rejectInvalid, validationFailed } from "../http.js";
 import { FixedWindowLimiter, clientIp } from "../intake-chat/rate-limit.js";
 import { VERIFY_TRIES_PER_IP_PER_HOUR, checkCode, issueCode } from "../sign-in-codes.js";
@@ -85,7 +87,9 @@ export function authRoutes({
   const verifyTries = new FixedWindowLimiter(VERIFY_TRIES_PER_IP_PER_HOUR, 60 * 60_000);
   const redirectUri = `${env.publicUrls.apiUrl}${GITHUB_CALLBACK_PATH}`;
   // Where a sign-in may send people back to: the website, and our own apps.
-  const appOrigins = new Set([...env.adminOrigins, ...(env.returnOrigins ?? [])].map((o) => new URL(o).origin));
+  const appOrigins = new Set(
+    [...env.adminOrigins, ...(env.returnOrigins ?? []), ...(env.chatSso ? [env.chatSso.url] : [])].map((o) => new URL(o).origin),
+  );
   const returnUrl = (returnTo: string) => {
     if (returnTo.startsWith("/")) return `${env.publicUrls.webUrl}${returnTo}`;
     const url = new URL(returnTo);
@@ -193,6 +197,23 @@ export function authRoutes({
       const account = await signedIn(c);
       if (!account) return c.json({ error: "Not signed in" }, 401);
       return c.json(await toAccountMe(db, account), 200);
+    })
+
+    // Novawerk Chat signs in through here (NB-ADR-0014). Signed out: the website's sign-in, which
+    // sends people back to the chat, which comes back here. A closed or suspended account, or one
+    // without an address yet, goes to Settings, which says why.
+    .get("/chat", async (c) => {
+      if (!env.chatSso) return c.json({ error: "Not found" }, 404);
+      const account = await signedIn(c);
+      if (!account) {
+        return c.redirect(`${env.publicUrls.webUrl}/sign-in?returnTo=${encodeURIComponent(`${env.chatSso.url}/`)}`, 302);
+      }
+      const refusal = chatRefusal(account);
+      if (refusal) return c.redirect(`${env.publicUrls.webUrl}/settings?error=chat-${refusal}`, 302);
+      const ticket = await signChatTicket(account, env.chatSso.secret);
+      c.header("Cache-Control", "no-store");
+      c.header("Referrer-Policy", "no-referrer");
+      return c.redirect(`${env.chatSso.url}${CHAT_SSO_PATH}?ticket=${encodeURIComponent(ticket)}`, 302);
     })
 
     // Ends this session and every other one (a copied cookie stops working too).
