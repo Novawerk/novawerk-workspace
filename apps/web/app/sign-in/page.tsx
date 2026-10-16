@@ -7,7 +7,7 @@ import { SignInPage } from "./sign-in-page";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to the task board with GitHub or an emailed code. Signing in creates a contributor account; it isn't Novawerk membership.",
+  description: "Sign in to Novawerk with GitHub, Google or an emailed code: one account for the task board, the admin panel and the team chat.",
   alternates: { canonical: "/sign-in" },
   robots: { index: false },
 };

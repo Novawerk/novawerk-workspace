@@ -98,7 +98,7 @@ export default async function ContributePage() {
           <div className="grid content-start gap-4">
             <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">What to expect</h2>
             <ul className="grid list-disc gap-2 pl-5 text-muted">
-              <li>You don&apos;t need to be a Member. Contributors and Members are different things.</li>
+              <li>Signing in makes you a Novawerk member: one account, no ranks. Maintainers run the board.</li>
               <li>We don&apos;t mentor whole projects. Tasks are small enough to finish alone.</li>
               <li>{TASK_LIMIT_LINE} Release a task if life gets busy; nothing counts against you.</li>
             </ul>

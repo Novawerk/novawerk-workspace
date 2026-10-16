@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  contributorEmailStartInput,
-  contributorEmailVerifyInput,
-  profileUpdateInput,
-  type ContributorMe,
-} from "@nw/contracts";
+import { emailStartInput, emailVerifyInput, profileUpdateInput, type AccountMe, type ContributorMe } from "@nw/contracts";
 import Link from "next/link";
 import { createContext, useContext, useEffect, useId, useState } from "react";
 
@@ -16,6 +11,7 @@ import { usePassiveSession, useToast } from "@/lib/session";
 
 import { buttonInk, buttonOutline, field, fieldHint, fieldLabel, textLink } from "../ui";
 import { Dialog, dialogButton, dialogButtonAccent, dialogField } from "./dialog";
+import { GoogleButton, googleClientId } from "./google-button";
 
 // ─── The pledge ──────────────────────────────────────────────────────────────
 
@@ -65,27 +61,32 @@ export function PledgeLink({ children = "community pledge" }: { children?: React
 // ─── Signing in ──────────────────────────────────────────────────────────────
 
 const GITHUB_ERRORS: Record<string, string> = {
-  github: "Signing in with GitHub didn't work. Please try again, or use an email code.",
+  github: "Signing in with GitHub didn't work. Please try again, or use Google or an email code.",
+  inactive: "This account is closed. Write to info@novawerk.io if that's a mistake.",
 };
 
 /**
- * GitHub first (it matches pull requests to tasks), an emailed code as the fallback.
- * "Signing in creates a contributor account. It isn't Novawerk membership."
+ * One Novawerk account for everything (NB-ADR-0014): the task board, the admin panel and the
+ * chat. GitHub first (it matches pull requests to tasks), then Google, then an emailed code.
+ * With `link`, Google or a code adds an address to the signed-in account instead.
  */
 export function SignInPanel({
   returnTo,
   heading = true,
   error,
+  link = false,
   onSignedIn,
 }: {
   returnTo: string;
   heading?: boolean;
   /** `?error=` from the API's GitHub callback. */
   error?: string | null;
-  onSignedIn?: (me: ContributorMe) => void;
+  link?: boolean;
+  onSignedIn?: (me: AccountMe) => void;
 }) {
   const { setMe } = usePassiveSession();
-  const github = githubStartUrl(returnTo);
+  const github = link ? null : githubStartUrl(returnTo);
+  const google = googleClientId();
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -96,12 +97,12 @@ export function SignInPanel({
 
   const sendCode = async (event: React.FormEvent) => {
     event.preventDefault();
-    const parsed = contributorEmailStartInput.safeParse({ email });
+    const parsed = emailStartInput.safeParse({ email });
     if (!parsed.success) return setProblem(parsed.error.issues[0]?.message ?? "Enter your email address");
     setBusy(true);
     setProblem(null);
     track("sign_in_start", { method: "email" });
-    const res = await api("/auth/contributor/email/start", { method: "POST", body: parsed.data });
+    const res = await api("/auth/email/start", { method: "POST", body: parsed.data });
     setBusy(false);
     if (!res.ok) return setProblem(res.issues.email?.[0] ?? res.error);
     setStep("code");
@@ -109,41 +110,64 @@ export function SignInPanel({
 
   const verify = async (event: React.FormEvent) => {
     event.preventDefault();
-    const parsed = contributorEmailVerifyInput.safeParse({ email, code });
+    const parsed = emailVerifyInput.safeParse({ email, code, ...(link ? { link } : {}) });
     if (!parsed.success) return setProblem("Enter the six digits from the email");
     setBusy(true);
     setProblem(null);
-    const res = await api<ContributorMe>("/auth/contributor/email/verify", { method: "POST", body: parsed.data });
+    const res = await api<AccountMe>("/auth/email/verify", { method: "POST", body: parsed.data });
     setBusy(false);
-    if (!res.ok) return setProblem(res.issues.code?.[0] ?? res.error);
-    track("sign_in_done", { method: "email", firstRun: res.data.defaultHandle || !res.data.pledgeAccepted });
-    setMe(res.data);
-    onSignedIn?.(res.data);
+    if (!res.ok) return setProblem(res.issues.code?.[0] ?? res.issues.email?.[0] ?? res.error);
+    done("email", res.data);
+  };
+
+  const withGoogle = async (credential: string) => {
+    setBusy(true);
+    setProblem(null);
+    track("sign_in_start", { method: "google" });
+    const res = await api<AccountMe>("/auth/google", { method: "POST", body: { credential, ...(link ? { link } : {}) } });
+    setBusy(false);
+    if (!res.ok) return setProblem(res.issues.email?.[0] ?? res.error);
+    done("google", res.data);
+  };
+
+  const done = (method: "email" | "google", me: AccountMe) => {
+    track("sign_in_done", { method, firstRun: me.defaultHandle || !me.pledgeAccepted });
+    setMe(me);
+    onSignedIn?.(me);
   };
 
   return (
     <div className="grid gap-4">
       {heading ? (
         <div className="grid gap-2">
-          <p className="font-mono text-xs text-muted sm:text-sm">Contributors</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Sign in to contribute</h1>
+          <p className="font-mono text-xs text-muted sm:text-sm">Novawerk</p>
+          <h1 className="text-3xl font-semibold tracking-tight">Sign in</h1>
         </div>
       ) : null}
-      <p className="text-sm text-muted">Signing in creates a contributor account. It isn&apos;t Novawerk membership.</p>
+      {link ? null : (
+        <p className="text-sm text-muted">One account for the task board, the admin panel and the team chat. The first sign-in creates it.</p>
+      )}
 
       {github ? (
-        <a href={github} className={`${buttonInk} w-full`} onClick={() => track("sign_in_start", { method: "github" })}>
-          <GitHubMark />
-          Continue with GitHub
-        </a>
+        <>
+          <a href={github} className={`${buttonInk} w-full`} onClick={() => track("sign_in_start", { method: "github" })}>
+            <GitHubMark />
+            Continue with GitHub
+          </a>
+          <p className="text-[13px] text-muted">We use GitHub to match your merged pull requests to tasks. We only read your public profile.</p>
+        </>
       ) : null}
-      <p className="text-[13px] text-muted">We use GitHub to match your merged pull requests to tasks. We only read your public profile.</p>
+      {google ? (
+        <GoogleButton clientId={google} onCredential={(c) => void withGoogle(c)} onError={setProblem} />
+      ) : null}
 
-      <div className="flex items-center gap-3 text-[13px] text-muted" aria-hidden="true">
-        <span className="h-px flex-1 bg-line" />
-        or
-        <span className="h-px flex-1 bg-line" />
-      </div>
+      {github || google ? (
+        <div className="flex items-center gap-3 text-[13px] text-muted" aria-hidden="true">
+          <span className="h-px flex-1 bg-line" />
+          or
+          <span className="h-px flex-1 bg-line" />
+        </div>
+      ) : null}
 
       {step === "email" ? (
         <form onSubmit={sendCode} noValidate className="grid gap-3">
@@ -181,7 +205,7 @@ export function SignInPanel({
             autoFocus
           />
           <button type="submit" disabled={busy} className={buttonInk}>
-            {busy ? "Checking…" : "Sign in"}
+            {busy ? "Checking…" : link ? "Add this address" : "Sign in"}
           </button>
           <button type="button" className={`${textLink} justify-self-start text-sm`} onClick={() => setStep("email")}>
             Use another address
@@ -194,7 +218,9 @@ export function SignInPanel({
           {problem}
         </p>
       ) : null}
-      <p className="text-[13px] text-muted">With email you can browse, discuss and suggest. Link GitHub before you propose or open a pull request.</p>
+      {link ? null : (
+        <p className="text-[13px] text-muted">With Google or email you can browse, discuss and suggest. Link GitHub before you propose or open a pull request.</p>
+      )}
     </div>
   );
 }
@@ -211,7 +237,7 @@ function GitHubMark() {
 export function SignInDialog({
   open,
   onClose,
-  title = "Sign in to contribute",
+  title = "Sign in",
   returnTo,
   closeOnBackdrop = true,
 }: {
@@ -235,7 +261,7 @@ export function SignInDialog({
 // ─── First run ───────────────────────────────────────────────────────────────
 
 /** Needs the first-run setup: a neutral handle from an email sign-up, or the pledge not yet accepted. */
-export const needsSetup = (me: ContributorMe) => me.defaultHandle || !me.pledgeAccepted;
+export const needsSetup = (me: Pick<ContributorMe, "defaultHandle" | "pledgeAccepted">) => me.defaultHandle || !me.pledgeAccepted;
 
 /**
  * After the first sign-in: handle (from GitHub, or picked now), display name, public profile (off by
@@ -306,7 +332,7 @@ export function FirstRunDialog() {
       // (it ends every session, so it must never happen by accident).
       onClose={() => {}}
       dismissible={false}
-      title="Set up your contributor account"
+      title="Set up your Novawerk account"
       meta="One step. You can change all of this later in Settings."
       width="sm:max-w-[520px]"
       as="form"
@@ -317,7 +343,7 @@ export function FirstRunDialog() {
             Sign out
           </button>
           <button type="submit" disabled={busy} className={dialogButtonAccent}>
-            {busy ? "Saving…" : "Create account"}
+            {busy ? "Saving…" : "Continue"}
           </button>
         </>
       }

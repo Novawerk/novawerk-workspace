@@ -1577,8 +1577,8 @@ export const webEventInput = z.discriminatedUnion("name", [
   webEvent("vote", { on: z.boolean() }),
   webEvent("suggestion_sent", { kind: z.enum(["improvement", "bug"]) }),
   webEvent("sign_in_open", { placement: z.enum(["page", "dialog"]) }),
-  webEvent("sign_in_start", { method: z.enum(["github", "email"]) }),
-  webEvent("sign_in_done", { method: z.enum(["github", "email"]), firstRun: z.boolean() }),
+  webEvent("sign_in_start", { method: z.enum(["github", "google", "email"]) }),
+  webEvent("sign_in_done", { method: z.enum(["github", "google", "email"]), firstRun: z.boolean() }),
   webEvent("profile_saved", {}),
   webEvent("account_deleted", {}),
 

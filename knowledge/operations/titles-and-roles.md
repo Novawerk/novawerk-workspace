@@ -16,9 +16,10 @@ There are no org titles and no tiers. Anyone who joins Novawerk is a
 **Member**, and every Member is hands-on: we build the projects and ship
 the work.
 
-Some Members can sign in to the admin panel to review pitches and
-applications and approve outgoing email. That is a permission, not a rank.
-It says what someone is trusted to do, not who they are.
+Maintainers run Novawerk: they review pitches, approve outgoing email, run
+the task board and see the whole admin panel (NB-ADR-0014). That is a role,
+not a rank. It says what someone is trusted to do, not who they are. The
+members of a project's team see that project in the admin panel.
 
 ## Project roles
 

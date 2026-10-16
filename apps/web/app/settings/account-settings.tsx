@@ -1,6 +1,6 @@
 "use client";
 
-import { accountDeleteInput, type ContributorMe, type ContributorTokenInfo, type MyProposal } from "@nw/contracts";
+import { accountDeleteInput, type AccountMe, type ContributorTokenInfo, type MyProposal } from "@nw/contracts";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useId, useState } from "react";
@@ -17,6 +17,9 @@ import { useSession, useToast } from "@/lib/session";
 
 const card = "grid gap-4 border border-line bg-paper p-5 sm:p-6";
 
+/** The admin panel, for maintainers and project teams (NB-ADR-0014). */
+const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL?.trim() || "https://admin.novawerk.io";
+
 export function AccountSettings() {
   const { session } = useSession();
   if (session.status === "loading") return <p className="text-sm text-muted">Loading…</p>;
@@ -30,10 +33,12 @@ export function AccountSettings() {
   return <Account me={session.me} />;
 }
 
-function Account({ me }: { me: ContributorMe }) {
+function Account({ me }: { me: AccountMe }) {
   const params = useSearchParams();
   const linkError = params.get("error") === "github-linked-elsewhere";
   const github = githubStartUrl("/settings");
+  const [addingEmail, setAddingEmail] = useState(false);
+  const toast = useToast();
 
   return (
     <>
@@ -47,17 +52,28 @@ function Account({ me }: { me: ContributorMe }) {
               <>
                 <b>This account stays linked to {me.github.login ? `@${me.github.login}` : "its GitHub account"}.</b> We never swap one GitHub
                 account for another, because merged pull requests are matched to tasks by it. To use a different GitHub account, sign out and
-                continue with that one; it gets its own contributor account.
+                continue with that one; it gets its own Novawerk account.
               </>
             ) : (
               <>
-                <b>That GitHub account already belongs to another contributor account.</b> To use it, sign out and continue with GitHub. To link
+                <b>That GitHub account already belongs to another Novawerk account.</b> To use it, sign out and continue with GitHub. To link
                 GitHub to this account instead, sign out of github.com, sign in there as a different user, then press Link GitHub again.
               </>
             )}
           </Note>
         ) : null}
         <dl className="grid gap-3 text-sm">
+          <div className="grid gap-1 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-center">
+            <dt className="text-[13px] text-muted">Role</dt>
+            <dd className="flex flex-wrap items-center justify-between gap-2">
+              <span>{me.role === "maintainer" ? "Maintainer" : "Member"}</span>
+              {me.adminPanel ? (
+                <a className={buttonSmallOutline} href={ADMIN_URL}>
+                  Open the admin panel
+                </a>
+              ) : null}
+            </dd>
+          </div>
           <div className="grid gap-1 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-center">
             <dt className="text-[13px] text-muted">GitHub</dt>
             <dd className="flex flex-wrap items-center justify-between gap-2">
@@ -80,20 +96,46 @@ function Account({ me }: { me: ContributorMe }) {
           </div>
           <div className="grid gap-1 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-center">
             <dt className="text-[13px] text-muted">Email</dt>
-            <dd>
+            <dd className="flex flex-wrap items-center justify-between gap-2">
               {me.email ? (
-                maskEmail(me.email)
-              ) : me.notifyEmail ? (
-                <span>
-                  Notices go to {me.notifyEmail} <span className="text-muted">(from GitHub)</span>
-                </span>
+                <>
+                  <span>{maskEmail(me.email)}</span>
+                  <span className="text-[13px] text-muted">Signs in with Google or an emailed code</span>
+                </>
               ) : (
-                <span className="text-muted">None</span>
+                <>
+                  {me.notifyEmail ? (
+                    <span>
+                      Notices go to {me.notifyEmail} <span className="text-muted">(from GitHub)</span>
+                    </span>
+                  ) : (
+                    <span className="text-muted">None</span>
+                  )}
+                  {addingEmail ? null : (
+                    <button type="button" className={buttonSmallOutline} onClick={() => setAddingEmail(true)}>
+                      Add an address
+                    </button>
+                  )}
+                </>
               )}
             </dd>
           </div>
         </dl>
-        <p className="text-[13px] text-muted">Only you see your email. We use it for sign-in codes and task notices.</p>
+        {addingEmail && !me.email ? (
+          <div className="grid max-w-[420px] gap-2 border-t border-line pt-4">
+            <p className="text-sm">Sign in with Google or an emailed code as well. Your account stays the same.</p>
+            <SignInPanel
+              returnTo="/settings"
+              heading={false}
+              link
+              onSignedIn={() => {
+                setAddingEmail(false);
+                toast("Address added.");
+              }}
+            />
+          </div>
+        ) : null}
+        <p className="text-[13px] text-muted">One account for the task board, the admin panel and the team chat. Only you see your email.</p>
       </section>
 
       <Notifications me={me} />
@@ -103,13 +145,13 @@ function Account({ me }: { me: ContributorMe }) {
   );
 }
 
-function Notifications({ me }: { me: ContributorMe }) {
+function Notifications({ me }: { me: AccountMe }) {
   const { setMe } = useSession();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const save = async (patch: { notifyReplies?: boolean; notifyReminders?: boolean }) => {
     setBusy(true);
-    const res = await api<ContributorMe>("/contrib/me/profile", { method: "PATCH", body: patch });
+    const res = await api<AccountMe>("/contrib/me/profile", { method: "PATCH", body: patch });
     setBusy(false);
     if (!res.ok) return toast(res.error);
     setMe(res.data);
@@ -130,7 +172,7 @@ function Notifications({ me }: { me: ContributorMe }) {
       </h2>
       <p className="text-sm">
         We email {me.email ? maskEmail(me.email) : me.notifyEmail ? `${me.notifyEmail} (from GitHub)` : "your address"} about your own account and
-        tasks: sign-in codes, a member&apos;s decision on your
+        tasks: sign-in codes, a maintainer&apos;s decision on your
         proposal, a task you hold being released or closed, what happened to a suggestion of yours, Werk you earn, and a goodbye when you delete the
         account. Pull request reviews come from GitHub, as usual.
       </p>
@@ -164,14 +206,14 @@ function Notifications({ me }: { me: ContributorMe }) {
   );
 }
 
-function Privacy({ me }: { me: ContributorMe }) {
+function Privacy({ me }: { me: AccountMe }) {
   const { setMe } = useSession();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
 
   const save = async (patch: { public?: boolean; onWall?: boolean }) => {
     setBusy(true);
-    const res = await api<ContributorMe>("/contrib/me/profile", { method: "PATCH", body: patch });
+    const res = await api<AccountMe>("/contrib/me/profile", { method: "PATCH", body: patch });
     setBusy(false);
     if (!res.ok) return toast(res.error);
     setMe(res.data);
@@ -182,7 +224,7 @@ function Privacy({ me }: { me: ContributorMe }) {
     // Everything kept about the account that only its owner can read. Posts, suggestions and the
     // tasks you worked on are public on the board already.
     const [mine, proposals, votes, tokens] = await Promise.all([
-      api<ContributorMe>("/auth/contributor/me"),
+      api<AccountMe>("/auth/me"),
       api<MyProposal[]>("/contrib/me/proposals"),
       api<{ taskIds: string[] }>("/contrib/me/votes"),
       api<ContributorTokenInfo[]>("/contrib/tokens"),
@@ -233,7 +275,7 @@ function Privacy({ me }: { me: ContributorMe }) {
   );
 }
 
-function DeleteAccount({ me }: { me: ContributorMe }) {
+function DeleteAccount({ me }: { me: AccountMe }) {
   const { signOut } = useSession();
   const router = useRouter();
   const toast = useToast();

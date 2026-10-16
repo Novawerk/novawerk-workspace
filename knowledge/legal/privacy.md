@@ -10,13 +10,13 @@ source:
   - apps/api/src/newsletter.ts (double opt-in, unconfirmed addresses deleted)
   - apps/web/lib/analytics.ts, apps/api/src/analytics/ (visit counts, docs/analytics.md)
   - novawerk.io DNS and email setup (2026-10-03)
-  - apps/web (task board pages), apps/api/src/routes/contributor-auth.ts, packages/tasks (contributor accounts)
-updated: 2026-10-15
+  - apps/web (sign-in, settings, task board pages), apps/api/src/routes/auth.ts, packages/tasks (accounts; NB-ADR-0014)
+updated: 2026-10-16
 ---
 
 # Privacy notice
 
-Last updated: 15 October 2026
+Last updated: 16 October 2026
 
 We keep this short and concrete. If anything here is unclear, write to
 info@novawerk.io and a person will answer.
@@ -64,9 +64,9 @@ ourselves, without cookies and without an analytics company.
   reads anyway to deliver the page; we keep only the result.
 - **How we tell visits apart:** your browser makes up a random number when you
   open the site and forgets it when you close the tab. Counting stores nothing
-  on your device, so we can't recognise you when you come back. (A contributor
-  account keeps one small flag in your browser; see "When you make a
-  contributor account". Counting never reads it.)
+  on your device, so we can't recognise you when you come back. (A Novawerk
+  account keeps one small flag in your browser; see "Your Novawerk account".
+  Counting never reads it.)
 - **Why:** to see which pages people read, how they find us, and where the
   pitch chat and the task board get stuck.
 - **Legal basis:** Art. 6(1)(f) GDPR — our legitimate interest in knowing how
@@ -152,19 +152,27 @@ in the chat or in the form. It is optional.
   If you attach a CV and don't send, we delete it after a day, or together
   with the chat it is in.
 
-### When you make a contributor account (the task board)
+### Your Novawerk account (the task board, the admin panel, the team chat)
 
 Anyone can read the task board at novawerk.io/tasks without an account. To
-propose, post, suggest or +1, you sign in with GitHub or with a code we email
-you. That makes a contributor account. It isn't Novawerk membership.
+propose, post, suggest or +1, you sign in at novawerk.io/sign-in with GitHub,
+with Google, or with a code we email you. The first sign-in makes your
+Novawerk account. Everyone has one account of the same kind: the people who
+run Novawerk have a "maintainer" role on theirs, and the members of a
+project's team can open that project in our admin panel. You can link more
+than one way of signing in to the same account in Settings.
 
 - **What we keep about you:** your handle and display name; your email address
-  if you sign in with a code; your GitHub account's number, login name and
-  picture link if you sign in with GitHub (we read only your public GitHub
-  profile and never keep your GitHub token), and the primary email address
-  GitHub has verified for you; what you write on your profile
-  (bio, about, links, colours); whether your profile is public and on the
-  contributors wall; when you accepted the community pledge.
+  if you sign in with Google or a code; your GitHub account's number, login
+  name and picture link if you sign in with GitHub (we read only your public
+  GitHub profile and never keep your GitHub token), and the primary email
+  address GitHub has verified for you; whether you are a maintainer; what you
+  write on your profile (bio, about, links, colours); whether your profile is
+  public and on the contributors wall; when you accepted the community pledge.
+- **Signing in with Google:** Google tells us the email address it has verified
+  for you and your name, and we keep the address (and use the name for a new
+  account). We never get your Google password, and Google gets nothing from
+  us beyond the sign-in itself.
 - **What you do on the board:** your proposals, posts and replies, suggestions,
   +1s and reports, the tasks you hold, the pull requests linked to them, and the
   Werk you earn. When a pull request names a task, GitHub tells us its number,
@@ -182,8 +190,8 @@ you. That makes a contributor account. It isn't Novawerk membership.
   delete the account we keep it only until the goodbye email has gone out, at
   most 7 days.
 - **Screenshots on suggestions:** a screenshot you attach to a suggestion
-  stays in our private file store, where only Members can see it, until a
-  Member accepts the suggestion. Then we publish a copy without the picture's
+  stays in our private file store, where only maintainers can see it, until a
+  maintainer accepts the suggestion. Then we publish a copy without the picture's
   metadata (such as the camera, the place or the date it was taken). While it
   is private, we delete it when the suggestion is declined or marked a
   duplicate, or when you delete your account. Once a suggestion is accepted,
@@ -194,7 +202,7 @@ you. That makes a contributor account. It isn't Novawerk membership.
   its scopes, when it expires and when it was last used, and only a hash of the
   token itself. Everything a token does shows "via agent".
 - **Emails:** fixed notices about your own account and tasks, to your own
-  address only: sign-in codes; a member's decision on your proposal (chosen or
+  address only: sign-in codes; a maintainer's decision on your proposal (chosen or
   not chosen); replies to your posts and on your tasks (at most one email per
   task an hour); a reminder when a task you hold has had no activity for 7
   days; a task you hold being released or closed; what happened to a
@@ -214,8 +222,8 @@ you. That makes a contributor account. It isn't Novawerk membership.
   public git history under your GitHub name, as GitHub keeps it. We keep your
   address only until the goodbye email has gone out, at most 7 days.
 
-Signing in sets one cookie, `nw_contributor`, on api.novawerk.io. It keeps you
-signed in for 30 days. Signing in with GitHub also sets `nw_github_state` for
+Signing in sets one cookie, `nw_session`, on api.novawerk.io. It keeps you
+signed in for 30 days, on the website, in the admin panel and in the team chat. Signing in with GitHub also sets `nw_github_state` for
 10 minutes, which checks that the answer from GitHub belongs to your sign-in.
 Both are strictly necessary for the account to work (§ 25(2) no. 2 TDDDG).
 Sign-in codes are stored only as a hash and stop working after 10 minutes.
@@ -275,7 +283,7 @@ its job, under data processing terms with us (Art. 28 GDPR).
 | Vercel Inc., USA | Hosting the website and our API; server logs | EU and USA |
 | Neon Inc., USA | Our database | EU (Frankfurt, Germany) |
 | Plus Five Five, Inc. (Resend), USA | Sending emails; passing emails sent to info@novawerk.io on to Slack | EU (Ireland) |
-| Google Ireland Ltd. (Google Workspace) | Our email inbox | EU and USA |
+| Google Ireland Ltd. (Google Workspace) | Our email inbox; signing in with Google | EU and USA |
 | Slack Technologies, LLC, USA | Our team chat, where we read emails sent to info@novawerk.io | USA |
 | Anthropic PBC, USA | The chat assistant on /submit; AI summaries and draft replies | USA |
 | GitHub, Inc., USA | Running our scheduled tasks, such as the AI summaries; signing in with GitHub and telling us about pull requests on the task board | USA |
@@ -299,10 +307,10 @@ requires us to.
 | Applications we accept | While you are a Member; deleted within 3 months after you leave |
 | Newsletter address | Until you unsubscribe; after that only the "unsubscribed" marker |
 | Newsletter address you never confirmed | Deleted once the confirmation link has expired and the address is at least 30 days old |
-| Contributor account | Until you delete it in Settings; your posts, suggestions and finished tasks then stay as "a former contributor" |
+| Your Novawerk account | Until you delete it in Settings; your posts, suggestions and finished tasks then stay as "a former contributor" |
 | A deleted account's email address | Until the goodbye email has gone out, at most 7 days |
 | A screenshot you upload but don't send | Deleted after a day |
-| A screenshot on a suggestion, while private | Until a Member accepts, declines or marks the suggestion a duplicate, or you delete your account |
+| A screenshot on a suggestion, while private | Until a maintainer accepts, declines or marks the suggestion a duplicate, or you delete your account |
 | The public copy of a screenshot on an accepted suggestion | As long as the task is on the board |
 | Notices we emailed you (a record of each one) | Deleted after 30 days |
 | Sign-in codes | Stop working after 10 minutes; stored only as a hash |
@@ -327,7 +335,7 @@ and you can object to processing based on our legitimate interest (Art. 21).
 If you gave consent, you can withdraw it at any time; that doesn't affect
 anything we did before (Art. 7(3)).
 
-To do any of this, email info@novawerk.io. With a contributor account you can
+To do any of this, email info@novawerk.io. With a Novawerk account you can
 also download your data and delete your account yourself, in Settings.
 
 You can also complain to a data protection authority, for example the one in
@@ -342,10 +350,9 @@ your email we can't send a newsletter.
 
 ## Signing in to the admin panel
 
-Members who sign in to our admin panel with their Google account get one
-cookie that keeps them signed in. It is strictly necessary for that service
-(§ 25(2) TDDDG). Visitors of the public website never get it, and neither do
-contributors (their own cookie is described above).
+The admin panel uses the same account and the same cookie as the website (see
+"Your Novawerk account"). It opens for maintainers and for the members of a
+project's team; nobody else sees anything in it.
 
 ## Changes
 

@@ -1,15 +1,15 @@
 "use client";
 
-// Who is signed in, for the browser. The contributor session is an httpOnly cookie on the API's
-// domain, so the website can't read it on the server: every page prerenders for a visitor, and the
-// browser asks GET /auth/contributor/me after load, then the viewer's controls appear.
+// Who is signed in, for the browser. The session is an httpOnly cookie on the API's domain (one
+// for the site, the admin panel and the chat, NB-ADR-0014), so the website can't read it on the
+// server: every page prerenders for a visitor, and the browser asks GET /auth/me after load, then
+// the viewer's controls appear.
 //
 // It asks only when it matters: on task board pages (whatever calls useSession()), or anywhere
 // when this browser signed in before (a "nw:contributor" flag in localStorage, no personal data).
 // The header and the other always-there parts read the session passively and never trigger it.
-// Members don't sign in here; their session (admin panel) never opens /contrib.
 
-import type { ContributorMe } from "@nw/contracts";
+import type { AccountMe } from "@nw/contracts";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { api, SIGNED_OUT_EVENT } from "./contrib-api";
@@ -21,7 +21,7 @@ export type Session =
   | { status: "signed-out" }
   /** The API isn't configured or can't be reached: show public pages, hide account controls. */
   | { status: "unavailable" }
-  | { status: "signed-in"; me: ContributorMe };
+  | { status: "signed-in"; me: AccountMe };
 
 type SessionContextValue = {
   session: Session;
@@ -29,8 +29,11 @@ type SessionContextValue = {
   ensure: () => void;
   /** Ask the API again (after signing in, linking GitHub, saving the profile). */
   refresh: () => Promise<Session>;
-  /** Replace the signed-in contributor with what an API call just returned. */
-  setMe: (me: ContributorMe) => void;
+  /**
+   * Replace the signed-in account with what an API call just returned. /contrib answers without
+   * `adminPanel`; the one we had is kept.
+   */
+  setMe: (me: AccountMe | Omit<AccountMe, "adminPanel">) => void;
   signOut: () => Promise<void>;
 };
 
@@ -59,7 +62,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async (): Promise<Session> => {
     asked.current = true;
-    const res = await api<ContributorMe>("/auth/contributor/me");
+    const res = await api<AccountMe>("/auth/me");
     const next: Session = res.ok
       ? { status: "signed-in", me: res.data }
       : res.status === 401
@@ -93,9 +96,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       session,
       ensure,
       refresh,
-      setMe: (me) => setSession({ status: "signed-in", me }),
+      setMe: (me) =>
+        setSession({
+          status: "signed-in",
+          me: { adminPanel: session.status === "signed-in" ? session.me.adminPanel : false, ...me },
+        }),
       signOut: async () => {
-        await api("/auth/contributor/logout", { method: "POST" });
+        await api("/auth/logout", { method: "POST" });
         setSession({ status: "signed-out" });
       },
     }),
@@ -124,8 +131,8 @@ export function usePassiveSession(): SessionContextValue {
   return useSessionContext();
 }
 
-/** The signed-in contributor, or null (loading, signed out, or unavailable). */
-export function useMe(): ContributorMe | null {
+/** The signed-in account, or null (loading, signed out, or unavailable). */
+export function useMe(): AccountMe | null {
   const { session } = useSession();
   return session.status === "signed-in" ? session.me : null;
 }
