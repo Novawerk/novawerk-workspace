@@ -14,13 +14,12 @@ import { sendForm } from "@/lib/api";
 import { track } from "@/lib/analytics";
 import { api, githubStartUrl } from "@/lib/contrib-api";
 import { useSession, useToast } from "@/lib/session";
+import { CHAT_URL } from "@/lib/site";
 
 const card = "grid gap-4 border border-line bg-paper p-5 sm:p-6";
 
 /** The admin panel, for maintainers and project teams (NB-ADR-0014). */
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL?.trim() || "https://admin.novawerk.io";
-/** Novawerk Chat, for every member. It signs in with this account. */
-const CHAT_URL = process.env.NEXT_PUBLIC_CHAT_URL?.trim() || "https://chat.novawerk.io";
 
 /** `?error=chat-…` from GET /auth/chat: why the chat didn't open. */
 const CHAT_ERRORS: Record<string, string> = {
