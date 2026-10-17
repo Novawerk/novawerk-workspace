@@ -6,13 +6,15 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { trackClick } from "@/lib/analytics";
 import { usePassiveSession as useSession } from "@/lib/session";
+import { CHAT_URL } from "@/lib/site";
 
 import { Avatar } from "./board/bits";
 import { buttonInk, buttonOutline } from "./ui";
 
 /**
  * The header's actions. Visitors (and the first moment of every page, before the session is
- * known): Pitch a project + Contribute. Signed-in contributors: My tasks and their menu.
+ * known): Pitch a project + Contribute. Signed-in members: My tasks, the team chat (it signs in
+ * with the same account) and their menu.
  */
 export function HeaderActions() {
   const { session } = useSession();
@@ -33,6 +35,9 @@ export function HeaderActions() {
       <Link href="/tasks?mine=1" className="inline-flex h-10 items-center border border-transparent px-3 text-sm font-medium hover:border-line-strong">
         My tasks
       </Link>
+      <a href={CHAT_URL} className="inline-flex h-10 items-center border border-transparent px-3 text-sm font-medium hover:border-line-strong">
+        Team chat
+      </a>
       <AccountMenu />
     </div>
   );
@@ -145,6 +150,11 @@ export function MobileAccountLinks({ linkClass }: { linkClass: string }) {
         <Link href="/tasks?mine=1" className={linkClass}>
           My tasks
         </Link>
+      </li>
+      <li>
+        <a href={CHAT_URL} className={linkClass}>
+          Team chat
+        </a>
       </li>
       {me.public ? (
         <li>

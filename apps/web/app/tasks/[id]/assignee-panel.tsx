@@ -4,9 +4,10 @@ import { prLinkInput, releaseInput, TASK_LIMITS, type PublicTaskDetail, type Tas
 import { useEffect, useId, useState } from "react";
 
 import { Markdown, Note } from "@/components/board/bits";
-import { buttonSmallDanger, buttonSmallOutline, eyebrow, field } from "@/components/ui";
+import { buttonSmallDanger, buttonSmallOutline, eyebrow, field, textLink } from "@/components/ui";
 import { api } from "@/lib/contrib-api";
 import { useToast } from "@/lib/session";
+import { CHAT_URL } from "@/lib/site";
 
 /**
  * What the person who holds the task sees: the inactivity reminder, the contribution guide (with
@@ -102,6 +103,13 @@ export function AssigneePanel({
           ) : (
             <p className="text-sm text-muted">Loading the guide…</p>
           )}
+          <p className="text-sm text-muted">
+            Stuck on this task? Ask in the discussion below, so the answer stays with the task. For everything else, the{" "}
+            <a className={textLink} href={CHAT_URL}>
+              team chat
+            </a>{" "}
+            signs you in with this account.
+          </p>
           <LinkPr task={task} onChanged={onChanged} />
           <Release task={task} onChanged={onChanged} />
         </div>

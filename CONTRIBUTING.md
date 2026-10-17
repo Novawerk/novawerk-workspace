@@ -42,6 +42,22 @@ task.
 No time after all? Release the task from the board. It goes back to Open and nothing counts
 against you. A task with no activity for 14 days is released on its own; we remind you at 7.
 
+## The team chat
+
+[chat.novawerk.io](https://chat.novawerk.io) is where members talk: say hello, ask how something
+works, share what you're building. Open it from **Team chat** in the site's header. It signs you
+in with your Novawerk account, so there's no second password, and it shows your name, @handle and
+picture from your profile (edit them on novawerk.io). It needs an email address on your account;
+a GitHub-only account can add one in Settings.
+
+- **#All Talk** is for everyone, and everyone is in it.
+- **Questions about a task go on the task**, in its discussion, so the answer stays with the task
+  for whoever picks it up next. Use the chat for everything else.
+- **On your phone**, open the chat in the browser and add it to your home screen. It then works
+  like an app and can notify you; choose per room what you hear about with the bell.
+- **Never post secrets** (keys, tokens, passwords) or anything private about other people. Rooms
+  are shared, and messages stay.
+
 ## Local setup
 
 You need Node 22+, pnpm 10 and Docker (or OrbStack) for the local Postgres.
