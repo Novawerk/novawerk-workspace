@@ -4,7 +4,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { contributorListQuery, proposalInput, suggestionInput, taskListQuery } from "@nw/contracts";
+import { contributorListQuery, memberTaskInput, proposalInput, suggestionInput, taskListQuery } from "@nw/contracts";
 import {
   members,
   taskEvents,
@@ -21,6 +21,7 @@ import {
   addPost,
   adjustWerk,
   chooseProposal,
+  createOwnTask,
   deleteContributor,
   getPublicContributor,
   getPublicTask,
@@ -337,6 +338,65 @@ describe("contributor rules", () => {
     for (let i = 0; i < 28; i++) await addPost(db, lena, task.id, { body: `Post ${i}` });
     const posts = await Promise.all([1, 2, 3].map(() => code(() => addPost(db, lena, task.id, { body: "Last" }))));
     expect(posts.sort()).toEqual(["ok", "ok", "rate_limited"]);
+  });
+});
+
+describe("tasks members create", () => {
+  const own = (size: "S" | "M" | "L" | "XL", title = "Sort the wall A–Z") =>
+    memberTaskInput.parse({ title, body: "The wall is in join order; people look for names.", criteria: ["Sorted by name"], area: "web", size });
+
+  it("gives an S task to its author at once, with no plan, no maintainer and no mail to themselves", async () => {
+    const task = await createOwnTask(db, lena, own("S"));
+    expect(task).toMatchObject({ status: "assigned", assigneeId: lena.id, createdByMemberId: lena.id, size: "S" });
+    const events = await db.select().from(taskEvents).where(eq(taskEvents.taskId, task.id));
+    expect(events).toMatchObject([
+      { kind: "created", toStatus: "open", actorContributorId: lena.id },
+      { kind: "assigned", fromStatus: "open", toStatus: "assigned", actorMemberId: null, actorContributorId: null, subjectContributorId: null },
+    ]);
+    expect(await db.select().from(taskProposals)).toEqual([]);
+  });
+
+  it("opens an M task on the board with no review, to be discussed and chosen like any other", async () => {
+    const task = await createOwnTask(db, jonas, own("M"));
+    expect(task).toMatchObject({ status: "open", assigneeId: null, suggestedBy: null, size: "M" });
+    const listed = await listPublicTasks(db, taskListQuery.parse({}));
+    expect(listed.tasks.map((t) => t.id)).toEqual([`NW-${task.id}`]);
+    expect((await propose(db, jonas, task.id, plan())).status).toBe("pending");
+  });
+
+  it("sends L and XL to review, and accepting keeps what the author set", async () => {
+    for (const size of ["L", "XL"] as const) {
+      const task = await createOwnTask(db, jonas, own(size, `A ${size} task`));
+      expect(task).toMatchObject({ status: "suggested", kind: "task", suggestedBy: jonas.id, wantsIt: true, size, area: "web" });
+    }
+    const [l] = await db.select().from(tasks).where(eq(tasks.title, "A L task"));
+    const events = await db.select().from(taskEvents).where(eq(taskEvents.taskId, l!.id));
+    expect(events).toMatchObject([{ kind: "suggested", toStatus: "suggested", actorContributorId: jonas.id }]);
+    const accepted = await transitionTask(db, { taskId: l!.id, action: "accept", actor: ada });
+    expect(accepted).toMatchObject({ status: "open", size: "L", area: "web", criteria: ["Sorted by name"] });
+  });
+
+  it("keeps the usual limits: GitHub for an S task, one task at a time, 3 new tasks a day", async () => {
+    const emailOnly = await signInWithEmail(db, "mila@example.org");
+    expect(await code(() => createOwnTask(db, emailOnly, own("S")))).toBe("github_required");
+    // Without GitHub, an M task is still fine: it is only on the board.
+    expect((await createOwnTask(db, emailOnly, own("M"))).status).toBe("open");
+
+    await createOwnTask(db, lena, own("S", "First"));
+    expect(await code(() => createOwnTask(db, lena, own("S", "Second")))).toBe("conflict");
+    // The one that failed rolled back whole: nothing half-made on the board.
+    expect((await db.select().from(tasks).where(eq(tasks.title, "Second"))).length).toBe(0);
+
+    await createOwnTask(db, jonas, own("M", "One"));
+    await createOwnTask(db, jonas, own("M", "Two"));
+    await createOwnTask(db, jonas, own("M", "Three"));
+    expect(await code(() => createOwnTask(db, jonas, own("M", "Four")))).toBe("rate_limited");
+  });
+
+  it("refuses a suspended account", async () => {
+    await db.update(members).set({ suspendedAt: new Date() }).where(eq(members.id, lena.id));
+    const [me] = await db.select().from(members).where(eq(members.id, lena.id));
+    expect(await code(() => createOwnTask(db, me!, own("M")))).toBe("suspended");
   });
 });
 

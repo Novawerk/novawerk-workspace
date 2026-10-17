@@ -67,6 +67,8 @@ commit the migration.
 Anyone can help build this, one task at a time. Pick a task at
 [novawerk.io/tasks](https://novawerk.io/tasks) (launching soon), propose a plan, and once a
 Member assigns it to you, open a pull request from your fork with `Task: NW-<n>` in its body.
+No task for what you want to do? Create one: a small (S) task is yours at once, an M task opens
+for discussion, L and XL are reviewed first.
 Commits are signed off (`git commit -s`).
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): the flow, local setup, conventions, what we review for.

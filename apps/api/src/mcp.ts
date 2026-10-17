@@ -28,6 +28,7 @@ import {
   contributorListQuery,
   formatTaskId,
   parseTaskId,
+  memberTaskInput,
   postInput,
   prLinkInput,
   profileUpdateInput,
@@ -41,6 +42,7 @@ import {
   TaskRuleError,
   addPost,
   checkCanLinkPr,
+  createOwnTask,
   getPublicTask,
   guideFor,
   linkPrByHand,
@@ -61,6 +63,7 @@ import {
 
 import { tellChatProfile } from "./chat-sso.js";
 import { FixedWindowLimiter, clientIp } from "./intake-chat/rate-limit.js";
+import { revalidateWeb } from "./revalidate.js";
 import { invalidTokenMessage, type TokenGate } from "./token-gate.js";
 import type { ApiEnv, AppDeps, Logger } from "./types.js";
 
@@ -273,6 +276,41 @@ export function buildMcpServer(
         const { me, via } = as("suggestions:write");
         const task = await suggestTask(db, me, suggestionInput.parse({ ...rest, doItMyself: do_it_myself ?? false }), new Date(), via);
         return { id: formatTaskId(task.id) };
+      }),
+  );
+
+  server.registerTool(
+    "create_task",
+    {
+      title: "Create a task",
+      description:
+        "Create a task on the board, before you open a pull request for work that has none (look with list_tasks first). S: yours at once, put `Task: NW-<n>` in the pull request. M: open on the board at once, to discuss in public; propose a plan and wait for a maintainer to choose one before you start. L and XL: wait for a maintainer's review first. Public. Up to 3 a day.",
+      inputSchema: {
+        title: z.string(),
+        summary: z.string().optional().describe("One line under the title."),
+        body: z.string().describe("What and why, Markdown."),
+        criteria: z.array(z.string()).describe('"Done when" lines: what a reviewer checks.'),
+        area: z.enum(TASK_AREAS),
+        size: z.enum(TASK_SIZES).describe("S: an hour or two, one small change. M: discussed first. L, XL: reviewed first."),
+        skills: z.array(z.string()).optional(),
+      },
+    },
+    (input) =>
+      run(async () => {
+        const { me, via } = as("tasks:work");
+        const task = await createOwnTask(db, me, memberTaskInput.parse(input), new Date(), via);
+        await revalidateWeb(env.webRevalidate, deps.logger, ["tasks"]);
+        return {
+          id: formatTaskId(task.id),
+          status: task.status,
+          url: `${env.publicUrls.webUrl}/tasks/${formatTaskId(task.id)}`,
+          next:
+            task.status === "assigned"
+              ? `It's yours. Open the pull request with "Task: ${formatTaskId(task.id)}" in its body.`
+              : task.status === "open"
+                ? "It's on the board for discussion. Propose a plan on it; a maintainer chooses one before work starts."
+                : "It waits for a maintainer's review. Don't start yet: once it's accepted, it's yours or open for plans.",
+        };
       }),
   );
 

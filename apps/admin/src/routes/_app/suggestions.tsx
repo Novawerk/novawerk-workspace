@@ -73,7 +73,7 @@ const columns: ColumnDef<AdminSuggestion>[] = [
             )}
           </span>
           <span className="truncate text-xs text-muted-foreground">
-            {s.kind === "bug" ? "Bug" : "Improvement"} · {s.where ? WHERE_LABELS[s.where] : "—"}
+            {kindLabel(s)} · {s.where ? WHERE_LABELS[s.where] : "—"}
             {s.wantsIt ? " · wants to do it" : ""}
           </span>
         </div>
@@ -178,7 +178,7 @@ function Triage({ id }: { id: string }) {
           <Link to="/tasks/$taskId" params={{ taskId: task.id }} className="font-mono hover:underline">
             {task.id}
           </Link>{" "}
-          · {task.kind === "bug" ? "Bug" : "Improvement"} · {task.where ? WHERE_LABELS[task.where] : "—"}
+          · {kindLabel(task)} · {task.where ? WHERE_LABELS[task.where] : "—"}
           {task.wherePath ? ` · ${task.wherePath}` : ""}
         </SheetDescription>
       </SheetHeader>
@@ -225,7 +225,15 @@ function Triage({ id }: { id: string }) {
         </section>
       </div>
 
-      {action === "accept" && <AcceptDialog id={task.id} wantsIt={task.wantsIt} suggester={task.suggestedBy?.handle} onClose={() => setAction(null)} />}
+      {action === "accept" && (
+        <AcceptDialog
+          id={task.id}
+          wantsIt={task.wantsIt}
+          suggester={task.suggestedBy?.handle}
+          initial={{ area: task.area, size: task.size, criteria: task.criteria }}
+          onClose={() => setAction(null)}
+        />
+      )}
       {action === "duplicate" && <DuplicateDialog id={task.id} onClose={() => setAction(null)} />}
       {action === "ask" && (
         <ReasonDialog
@@ -256,11 +264,28 @@ function Triage({ id }: { id: string }) {
   )
 }
 
-function AcceptDialog({ id, wantsIt, suggester, onClose }: { id: string; wantsIt: boolean; suggester?: string; onClose: () => void }) {
+/** A member's own L or XL task waits here too (kind "task"), with its size. */
+const kindLabel = (s: { kind: string; size: TaskSize | null }) =>
+  s.kind === "task" ? `Task${s.size ? ` · ${s.size}` : ""}` : s.kind === "bug" ? "Bug" : "Improvement"
+
+function AcceptDialog({
+  id,
+  wantsIt,
+  suggester,
+  initial,
+  onClose,
+}: {
+  id: string
+  wantsIt: boolean
+  suggester?: string
+  /** What the author already set (a member's own L or XL task); empty for a suggestion. */
+  initial: { area: TaskArea | null; size: TaskSize | null; criteria: string[] }
+  onClose: () => void
+}) {
   const accept = useAcceptSuggestion()
-  const [area, setArea] = React.useState<TaskArea | null>(null)
-  const [size, setSize] = React.useState<TaskSize | null>(null)
-  const [criteria, setCriteria] = React.useState<string[]>([""])
+  const [area, setArea] = React.useState<TaskArea | null>(initial.area)
+  const [size, setSize] = React.useState<TaskSize | null>(initial.size)
+  const [criteria, setCriteria] = React.useState<string[]>(initial.criteria.length ? initial.criteria : [""])
   const [assign, setAssign] = React.useState(false)
 
   const submit = (event: React.FormEvent) => {
