@@ -264,7 +264,7 @@ thread to say who answers. Resend keeps its own copy of each received email.
 
 ## Task board news in the chat
 
-A room in Novawerk Chat (chat.novawerk.io) gets one message per thing on the task board, posted
+An open room in Novawerk Chat (chat.novawerk.io), `#task-board`, gets one message per thing on the task board, posted
 by a bot. **To do**: a new plan waiting for a maintainer (any plan on an M, L or XL task; on an S
 task, a plan the system didn't choose because its author can't take a task now), a pull request
 to review (a task moved to `in_review`), a new suggestion to triage. **FYI**: an S task the
@@ -282,10 +282,11 @@ down a row waits for the next run (three tries); after 48 hours it is skipped. W
 1. **Bot.** Sign in to chat.novawerk.io as an administrator. Account settings → **Bots** → New
    bot (`/account/bots/new`). Name it "Task board", give it a picture, and leave the webhook URL
    empty (it only posts). Open the bot again: **Bot key** shows `<bot id>-<token>`; copy it.
-2. **Room.** New room → **Closed** (`/rooms/closeds/new`), name it e.g. "Task board", and pick
-   the maintainers and the bot "Task board": a bot only posts to rooms it is in (otherwise the
-   chat answers 404). With Novawerk sign-in on, administrators are always in closed rooms. The
-   room's id is the number in its address, `chat.novawerk.io/rooms/<room id>`.
+2. **Room.** Ours is `#task-board`, room 7, **Open** (everyone with a Novawerk account sees it).
+   A bot only posts to rooms it is in (otherwise the chat answers 404): create the room as
+   Closed with the bot picked (`/rooms/closeds/new`), then switch it to Open in its settings;
+   switching keeps the bot. The room's id is the number in its address,
+   `chat.novawerk.io/rooms/<room id>`.
 3. **Vercel.** On `novawerk-api` (Production) set `CHAT_BOT_URL` to
    `https://chat.novawerk.io/rooms/<room id>/<bot key>/messages` and redeploy. The API refuses
    to start with a URL of any other shape.
