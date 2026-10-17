@@ -127,6 +127,16 @@ describe("what an agent writes", () => {
     expect((await getPublicTask(db, task.id))?.proposals).toMatchObject([{ status: "pending", viaAgent: "Claude Code" }]);
   });
 
+  it("never takes an S task by itself: the draft counts, and is chosen, only when its person confirms it", async () => {
+    const task = await openTask({ size: "S" });
+    const { id: tokenId } = await newToken(lena);
+    const draft = await propose(db, lena, task.id, plan, undefined, { tokenId });
+    expect(draft.status).toBe("draft");
+    expect((await db.select().from(tasks))[0]?.status).toBe("open");
+    expect((await confirmDraftProposal(db, lena, draft.id)).status).toBe("chosen");
+    expect((await db.select().from(tasks))[0]).toMatchObject({ status: "assigned", assigneeId: lena.id });
+  });
+
   it("can't confirm a draft once the task moved on, or without GitHub", async () => {
     const task = await openTask();
     const { id: tokenId } = await newToken(lena);

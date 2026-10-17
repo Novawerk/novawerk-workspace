@@ -42,7 +42,7 @@ const plan = (approach = "Add a toggle to the header") => proposalInput.parse({ 
 async function openTask(over: Partial<typeof tasks.$inferInsert> = {}) {
   const [task] = await db
     .insert(tasks)
-    .values({ title: "Open task", area: "web", size: "S", status: "open", criteria: ["It works"], ...over })
+    .values({ title: "Open task", area: "web", size: "M", status: "open", criteria: ["It works"], ...over })
     .returning();
   return task!;
 }

@@ -17,7 +17,7 @@ import {
 } from "@nw/db";
 
 import { canWork } from "./contributors.js";
-import { TaskRuleError } from "./errors.js";
+import { TaskRuleError, isRetryable } from "./errors.js";
 import { idleReleaseAt } from "./idle.js";
 import { IN_PROGRESS_STATUSES, planTransition, type Actor, type TaskAction } from "./state.js";
 
@@ -344,30 +344,58 @@ export async function chooseProposal(
   db: Database,
   input: { proposalId: string; memberId: string; notes?: Record<string, string>; now?: Date },
 ): Promise<Task> {
-  const now = input.now ?? new Date();
-  return db.transaction(async (tx) => {
-    // Read without a lock to learn the task and the person; transitionIn locks the person, then
-    // the task, and the proposal is checked again under those locks.
-    const [proposal] = await tx.select().from(taskProposals).where(eq(taskProposals.id, input.proposalId));
-    if (!proposal || proposal.status === "withdrawn") throw new TaskRuleError("not_found", "No such proposal");
-    if (proposal.status !== "pending") throw new TaskRuleError("invalid_state", "This proposal isn't pending");
-    const task = await transitionIn(tx, {
-      taskId: proposal.taskId,
-      action: "choose",
-      actor: { kind: "member", id: input.memberId },
-      assigneeId: proposal.contributorId,
-      now,
-    });
-    // Withdrawn (or decided) since the first read: the whole choice rolls back.
-    const chosen = await tx
-      .update(taskProposals)
-      .set({ status: "chosen", decidedBy: input.memberId, decidedAt: now, updatedAt: now })
-      .where(and(eq(taskProposals.id, proposal.id), eq(taskProposals.status, "pending")))
-      .returning({ id: taskProposals.id });
-    if (chosen.length === 0) throw new TaskRuleError("invalid_state", "This proposal was withdrawn or decided meanwhile");
-    await declinePending(tx, proposal.taskId, input.memberId, input.notes ?? {}, NOT_CHOSEN_NOTE, now);
-    return task;
+  return db.transaction((tx) =>
+    chooseIn(tx, input.proposalId, { kind: "member", id: input.memberId }, input.notes ?? {}, input.now ?? new Date()),
+  );
+}
+
+/**
+ * S tasks need no maintainer to pick a plan (NB-ADR-0013): a pending proposal on one is chosen
+ * as soon as it is sent, if its author can take a task now. Someone already holding their limit
+ * stays pending, for a maintainer or for the next person who proposes. Runs after the proposal's
+ * own transaction, in a fresh one that keeps the usual lock order. Returns the task when it
+ * assigned it, null when the proposal stays as it was.
+ */
+export async function autoChooseSmall(db: Database, proposalId: string, now = new Date()): Promise<Task | null> {
+  const [row] = await db
+    .select({ status: taskProposals.status, size: tasks.size, taskStatus: tasks.status })
+    .from(taskProposals)
+    .innerJoin(tasks, eq(tasks.id, taskProposals.taskId))
+    .where(eq(taskProposals.id, proposalId));
+  if (!row || row.status !== "pending" || row.size !== "S" || row.taskStatus !== "open") return null;
+  try {
+    return await db.transaction((tx) => chooseIn(tx, proposalId, { kind: "system" }, {}, now));
+  } catch (err) {
+    // At their limit, someone else's plan got there first, or a lock race: the proposal simply
+    // waits, and the proposer still gets their 201.
+    if (err instanceof TaskRuleError || isRetryable(err)) return null;
+    throw err;
+  }
+}
+
+async function chooseIn(tx: Tx, proposalId: string, actor: Actor, notes: Record<string, string>, now: Date): Promise<Task> {
+  const decidedBy = actor.kind === "member" ? actor.id : null;
+  // Read without a lock to learn the task and the person; transitionIn locks the person, then
+  // the task, and the proposal is checked again under those locks.
+  const [proposal] = await tx.select().from(taskProposals).where(eq(taskProposals.id, proposalId));
+  if (!proposal || proposal.status === "withdrawn") throw new TaskRuleError("not_found", "No such proposal");
+  if (proposal.status !== "pending") throw new TaskRuleError("invalid_state", "This proposal isn't pending");
+  const task = await transitionIn(tx, {
+    taskId: proposal.taskId,
+    action: "choose",
+    actor,
+    assigneeId: proposal.contributorId,
+    now,
   });
+  // Withdrawn (or decided) since the first read: the whole choice rolls back.
+  const chosen = await tx
+    .update(taskProposals)
+    .set({ status: "chosen", decidedBy, decidedAt: now, updatedAt: now })
+    .where(and(eq(taskProposals.id, proposal.id), eq(taskProposals.status, "pending")))
+    .returning({ id: taskProposals.id });
+  if (chosen.length === 0) throw new TaskRuleError("invalid_state", "This proposal was withdrawn or decided meanwhile");
+  await declinePending(tx, proposal.taskId, decidedBy, notes, NOT_CHOSEN_NOTE, now);
+  return task;
 }
 
 /**

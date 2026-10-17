@@ -10,7 +10,8 @@ and AGENTS.md there before you change anything.
 ## How it works
 
 1. Find an open task: https://novawerk.io/tasks
-2. Propose a plan on it. A member picks one plan.
+2. Propose a plan on it. A member picks one plan; on an S task the first plan from someone who
+   can take a task gets it at once.
 3. The person whose plan is chosen opens a pull request with `Task: NW-<n>` in its body, from the
    GitHub account linked to their Novawerk profile. Every commit is signed off (`git commit -s`).
 4. When it merges, the task is done and they get its Werk: S 1, M 3, L 8, XL 20. Werk is

@@ -48,7 +48,8 @@ export const TASK_ACTIONS: Record<TaskAction, Rule> = {
   accept_assign: { from: ["suggested"], to: "assigned", event: "accepted", by: ["member"] },
   decline: { from: ["suggested"], to: "declined", event: "declined", by: ["member"] },
   mark_duplicate: { from: ["suggested"], to: "duplicate", event: "duplicate", by: ["member"] },
-  choose: { from: ["open"], to: "assigned", event: "assigned", by: ["member"] },
+  // The system chooses on an S task: the first plan from someone who can take it (NB-ADR-0013).
+  choose: { from: ["open"], to: "assigned", event: "assigned", by: ["member", "system"] },
   release: { from: ["assigned"], to: "open", event: "released", by: ["member", "assignee", "system"] },
   link_pr: { from: ["assigned"], to: "in_review", event: "pr_linked", by: ["member", "assignee", "system"] },
   pr_closed: { from: ["in_review"], to: "assigned", event: "pr_closed", by: ["member", "system"] },

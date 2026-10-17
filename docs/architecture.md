@@ -220,7 +220,9 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
 - **Tasks** are `NW-<n>`. Sizes S/M/L/XL are worth 1/3/8/20 **Werk**: recognition, never money.
   Statuses: `draft` (members only) → `open` → `assigned` → `in_review` → `done`, or `closed`;
   suggestions go `suggested` → `open` / `assigned`, `declined` or `duplicate`. Every transition
-  writes a `task_events` row (the public timeline).
+  writes a `task_events` row (the public timeline). A maintainer picks one plan per task,
+  except on S tasks: a plan that counts (sent, or an agent's draft once confirmed) is chosen at
+  once by the system when its author can take a task (`autoChooseSmall`); otherwise it waits.
 - **Rules live in `@nw/tasks`** (state machine, limits, privacy, the public reads); the API only
   wires them. Limits per contributor: 5 proposals and 30 posts a day, 3 open suggestions, 1 task
   in progress until their first merge, then 2. The limits run with the contributor's row locked,

@@ -7,6 +7,7 @@ import {
   proposalUpdateInput,
   type ContributorMe,
   type ProposalEta,
+  type ProposalResult,
   type PublicProposal,
   type PublicTask,
   type PublicTaskDetail,
@@ -47,7 +48,7 @@ export function ProposeDialog({
   /** Tasks I hold now (other than this one). */
   held: PublicTask[];
   onAskInThread: () => void;
-  onSaved: (edit: boolean) => void | Promise<void>;
+  onSaved: (edit: boolean, chosen: boolean) => void | Promise<void>;
 }) {
   // Mounted only while open, so each opening starts from the proposal as it is now.
   return open ? (
@@ -82,7 +83,7 @@ function ProposeForm({
   held: PublicTask[];
   onClose: () => void;
   onAskInThread: () => void;
-  onSaved: (edit: boolean) => void | Promise<void>;
+  onSaved: (edit: boolean, chosen: boolean) => void | Promise<void>;
 }) {
   const edit = !!mine;
   const [approach, setApproach] = useState(mine?.approach ?? "");
@@ -104,6 +105,8 @@ function ProposeForm({
   const ackId = useId();
 
   const others = task.proposals.filter((p) => p.status === "pending" && p.id !== mine?.id).length;
+  // S tasks go to the first plan whose author can take a task (NB-ADR-0013).
+  const small = task.size === "S";
   const canSend = approach.trim().length > 0 && ack && !busy;
   const dirty = approach !== (mine?.approach ?? "") || testing !== (mine?.testing ?? "") || eta !== (mine?.eta ?? "week");
   /** Escape, the backdrop, × and Cancel all come here: with unsent changes, ask first. */
@@ -162,7 +165,7 @@ function ProposeForm({
     setBusy(true);
     const res = edit
       ? await api(`/contrib/proposals/${mine!.id}`, { method: "PATCH", body: parsed.data })
-      : await api(`/contrib/tasks/${task.id}/proposals`, { method: "POST", body: parsed.data });
+      : await api<ProposalResult>(`/contrib/tasks/${task.id}/proposals`, { method: "POST", body: parsed.data });
     setBusy(false);
     if (!res.ok) {
       track("propose_failed", { reason: res.status === 429 ? "limit" : res.status === 400 || res.status === 409 ? "invalid" : "unavailable" });
@@ -171,7 +174,7 @@ function ProposeForm({
       return;
     }
     track("propose_sent", { edit });
-    await onSaved(edit);
+    await onSaved(edit, !edit && (res.data as ProposalResult).status === "chosen");
   };
 
   const showCriteria = () => {
@@ -284,7 +287,11 @@ function ProposeForm({
       ) : null}
 
       <ul aria-label="Before you send" className="grid gap-2 rounded-xl bg-subtle px-4 py-3.5 text-sm">
-        <Fact>{others ? `${plural(others, "other")} proposed. A maintainer picks one plan.` : "You're the first to propose."}</Fact>
+        {small ? (
+          <Fact>An S task needs no maintainer: if you can take a task now, it&apos;s yours as soon as you send.</Fact>
+        ) : (
+          <Fact>{others ? `${plural(others, "other")} proposed. A maintainer picks one plan.` : "You're the first to propose."}</Fact>
+        )}
         <Fact>
           {TASK_LIMIT_LINE}
           {held.length ? (
@@ -294,7 +301,11 @@ function ProposeForm({
             </>
           ) : null}
         </Fact>
-        <Fact>What happens next: a maintainer replies within about a week. Proposals are public on the task.</Fact>
+        {small ? (
+          <Fact>What happens next: the guide opens on the task. Proposals are public on the task.</Fact>
+        ) : (
+          <Fact>What happens next: a maintainer replies within about a week. Proposals are public on the task.</Fact>
+        )}
       </ul>
 
       <label htmlFor={ackId} className="flex items-start gap-2.5 text-sm">
