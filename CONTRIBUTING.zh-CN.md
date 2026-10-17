@@ -14,11 +14,19 @@
 
 ## 任务看板
 
-所有任务都发布在 [novawerk.io/tasks](https://novawerk.io/tasks)。
+所有任务都发布在 [novawerk.io/tasks](https://novawerk.io/tasks)。请不要为没有对应任务的代码修改提交 Pull Request。发现了 Bug 或有新的想法？请在[任务建议页面](https://novawerk.io/tasks/suggest)提出建议。维护者会将其整理成任务。
 
-请不要为没有对应任务的工作提交 Pull Request。
+已经明确知道自己想开发什么？你可以使用 AI 智能体和自己的 Token，通过 MCP `create_task` 工具自行创建任务（参见 [AGENTS.md](AGENTS.md)）。
 
-发现了 Bug 或有新的想法？请在[任务建议页面](https://novawerk.io/tasks/suggest)提出建议。维护者会将其整理成任务。
+创建任务时，需要提供标题、要做什么及其原因、验收条件（"Done when"），并选择任务规模：
+
+- **S**（一到两个小时）：任务会立即分配给你。你可以直接提交 Pull Request。
+- **M**：任务会发布到任务看板，供成员讨论。你需要像其他成员一样提交实施方案，由维护者选择其中一个。
+- **L** 和 **XL**：任务会先进入建议队列，由维护者审核。
+
+每天最多可以创建 3 个新任务。
+
+文档、帖子、视频的修改以及错别字修复不需要关联任务。提交 Pull Request 时，只需填写 `Task: none` 并说明原因
 
 ## 贡献流程
 
@@ -29,6 +37,8 @@
    提交方案前，需要在设置中关联 GitHub 账户（Settings → Link GitHub），以便我们将你的 Pull Request 与任务对应起来。
 
    多个人可以为同一任务提出方案。维护者会选择其中一个方案，分配任务，并向被选中的贡献者发送任务指南。
+
+   **S 级任务不需要维护者介入：** 第一个提交实施方案且当前符合任务认领条件的成员，会立即获得该任务，并可以在任务页面查看任务指南。
 
 3. **Fork 本仓库。** 将仓库 Fork 到自己的 GitHub 账户，并在自己的 Fork 中创建分支进行开发。
 
