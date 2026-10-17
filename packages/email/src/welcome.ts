@@ -1,5 +1,6 @@
 // sendWelcome — one email when someone makes a Novawerk account (NB-ADR-0014): a greeting by
-// name, what being a member means, and a link to the contribution guide. Like the notices it
+// name, what being a member means, a link to the contribution guide and one to the team chat
+// (novawerk.io/chat, which forwards to the chat, so every link still points at the website). Like the notices it
 // skips the outbox, so the door is narrow:
 //
 //   - a fixed template; the only thing anyone typed in it is their own name, escaped and flattened
@@ -49,7 +50,17 @@ export function welcomeEmail(name: string, webUrl: string): { subject: string; t
     },
     { p: "The contribution guide says how the board works, how to propose, why we ask you to link GitHub, and how to sign off your commits." },
     { button: { href: `${web}/contribute/guide`, label: "Read the guide" } },
-    { p: "你好！欢迎加入 Novawerk。你现在是一名成员。上面的指南介绍任务板如何运作、如何提交方案、关联 GitHub 和 DCO 签名。" },
+    {
+      p:
+        "Come and say hello in the team chat. It signs you in with this same account, and everyone is in #All Talk. " +
+        "Questions about a task go on the task, so the answer stays with it for the next person.",
+    },
+    { button: { href: `${web}/chat`, label: "Open the team chat" } },
+    {
+      p:
+        "你好！欢迎加入 Novawerk。你现在是一名成员。上面的指南介绍任务板如何运作、如何提交方案、关联 GitHub 和 DCO 签名。" +
+        "团队聊天也用同一个账号登录，欢迎来 #All Talk 打个招呼。",
+    },
   ];
   return renderFixedEmail("Welcome to Novawerk", blocks, {
     text: "You get this email once, because you just made a Novawerk account on novawerk.io.",

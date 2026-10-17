@@ -11,6 +11,8 @@ describe("the welcome email (NB-ADR-0014)", () => {
     expect(text).toContain("Maintainers run Novawerk");
     expect(text).toContain("Read the guide: https://novawerk.io/contribute/guide");
     expect(html).toContain('href="https://novawerk.io/contribute/guide"');
+    expect(text).toContain("Open the team chat: https://novawerk.io/chat");
+    expect(html).toContain('href="https://novawerk.io/chat"');
     expect(text).toContain("You get this email once");
   });
 
