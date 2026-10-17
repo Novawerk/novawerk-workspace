@@ -1,5 +1,7 @@
 # Contributing to Novawerk
 
+**Languages:** English | [简体中文](CONTRIBUTING.zh-CN.md)
+
 Thanks for helping. This repo is the software Novawerk runs on: the website, the admin panel,
 the API and the agents. You can help build it, one task at a time.
 
@@ -110,8 +112,8 @@ desktop and phone) to the pull request.
   at the edge and pass values in.
 - **Outbound email** to anyone outside Novawerk goes through the outbox and waits for a
   maintainer. Don't add a path around it.
-- **Plain language** in copy and docs: short sentences, "we", present tense. No *leverage /
-  ecosystem / stakeholders / synergy / disrupt / transform*.
+- **Plain language** in copy and docs: short sentences, "we", present tense. No _leverage /
+  ecosystem / stakeholders / synergy / disrupt / transform_.
 - **Next.js 16** has breaking changes. Read `apps/web/node_modules/next/dist/docs/` before you
   write Next code.
 
