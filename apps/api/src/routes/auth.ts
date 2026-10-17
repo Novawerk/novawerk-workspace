@@ -209,11 +209,14 @@ export function authRoutes({
     .get("/chat", async (c) => {
       if (!env.chatSso) return c.json({ error: "Not found" }, 404);
       const account = await signedIn(c);
-      if (!account) {
-        return c.redirect(`${env.publicUrls.webUrl}/sign-in?returnTo=${encodeURIComponent(`${env.chatSso.url}/`)}`, 302);
-      }
+      const signInFirst = `${env.publicUrls.webUrl}/sign-in?returnTo=${encodeURIComponent(`${env.chatSso.url}/`)}`;
+      if (!account) return c.redirect(signInFirst, 302);
       const refusal = chatRefusal(account);
       if (refusal) return c.redirect(`${env.publicUrls.webUrl}/settings?error=chat-${refusal}`, 302);
+      // A new account sets itself up first (handle, pledge) on novawerk.io: the sign-in page shows
+      // the setup and only then comes back here. Otherwise the chat would take the placeholder handle.
+      const me = toContributorMe(account);
+      if (me.defaultHandle || !me.pledgeAccepted) return c.redirect(signInFirst, 302);
       const ticket = await signChatTicket(account, await chatProfile(db, account, env.publicUrls.webUrl), env.chatSso.secret);
       c.header("Cache-Control", "no-store");
       c.header("Referrer-Policy", "no-referrer");

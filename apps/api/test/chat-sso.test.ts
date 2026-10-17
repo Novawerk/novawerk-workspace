@@ -19,7 +19,8 @@ beforeAll(async () => {
 }, 60_000);
 beforeEach(async () => {
   await resetDb(db);
-  await db.insert(members).values(TEST_MEMBERS);
+  // Set up on novawerk.io (handle and pledge), as the chat needs.
+  await db.insert(members).values(TEST_MEMBERS.map((m) => ({ ...m, pledgeAcceptedAt: new Date() })));
 });
 
 const chatApp = () => makeApp(db, { env: { chatSso: { url: CHAT, secret: SECRET } } }).app;
@@ -60,7 +61,7 @@ describe("GET /auth/chat", () => {
   });
 
   it("gives a member the member role, and a GitHub-only account its GitHub address", async () => {
-    await db.insert(members).values({ id: "lena", handle: "lena", displayName: "Lena", githubId: 3, notifyEmail: "lena@gh.example" });
+    await db.insert(members).values({ id: "lena", handle: "lena", displayName: "Lena", githubId: 3, notifyEmail: "lena@gh.example", pledgeAcceptedAt: new Date() });
     const { location } = await goToChat("lena");
     const { payload } = await jwtVerify(location.searchParams.get("ticket")!, new TextEncoder().encode(SECRET));
     expect(payload).toMatchObject({ sub: "lena", email: "lena@gh.example", role: "member" });
@@ -69,6 +70,18 @@ describe("GET /auth/chat", () => {
   it("sends someone signed out to the website's sign-in, which comes back to the chat", async () => {
     const { location } = await goToChat();
     expect(location.toString()).toBe(`${WEB_ORIGIN}/sign-in?returnTo=${encodeURIComponent(`${CHAT}/`)}`);
+  });
+
+  it("sends a new account to set itself up on the website first, which then comes back to the chat", async () => {
+    await db.insert(members).values([
+      // An email sign-up still on its placeholder handle, pledge accepted.
+      { id: "c1", handle: "contributor-1a2b", displayName: "contributor-1a2b", email: "new@example.org", pledgeAcceptedAt: new Date() },
+      // A GitHub sign-up that hasn't accepted the pledge yet.
+      { id: "c2", handle: "octo", displayName: "Octo", githubId: 5, notifyEmail: "octo@gh.example" },
+    ]);
+    const setupFirst = `${WEB_ORIGIN}/sign-in?returnTo=${encodeURIComponent(`${CHAT}/`)}`;
+    expect((await goToChat("c1")).location.toString()).toBe(setupFirst);
+    expect((await goToChat("c2")).location.toString()).toBe(setupFirst);
   });
 
   it("issues nothing to a suspended account or one without an address", async () => {
