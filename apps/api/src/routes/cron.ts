@@ -7,6 +7,7 @@ import { Hono } from "hono";
 
 import { deleteExpiredAnalyticsEvents } from "../analytics/cleanup.js";
 import { syncWithGitHub } from "../github.js";
+import { runChatNotices } from "../chat-notices.js";
 import { runContributorNotices } from "../contributor-notices.js";
 import { notFound } from "../http.js";
 import { deleteExpiredIntakeSessions } from "../intake-chat/cleanup.js";
@@ -23,7 +24,7 @@ function sameSecret(given: string, expected: string): boolean {
 }
 
 export function cronRoutes(deps: AppDeps & { logger: Logger }) {
-  const { db, env, files, sendContributorNotice, logger } = deps;
+  const { db, env, files, sendContributorNotice, postToChat, logger } = deps;
   return new Hono<ApiEnv>()
     .use("*", async (c, next) => {
       if (!env.cronSecret) return c.json(notFound, 404);
@@ -54,6 +55,19 @@ export function cronRoutes(deps: AppDeps & { logger: Logger }) {
         await runContributorNotices(db, sendContributorNotice, logger, {
           unsubscribe: { apiUrl: env.publicUrls.apiUrl, secret: env.sessionSecret },
         }),
+        200,
+      ),
+    )
+    // Next to the contributor notices (same workflow, same fallback): task board news for the
+    // team's chat room. Without CHAT_BOT_URL it answers { configured: false }.
+    .get("/chat-notices", async (c) =>
+      c.json(
+        await runChatNotices(
+          db,
+          postToChat,
+          { webUrl: env.publicUrls.webUrl, adminUrl: env.adminOrigins.find((o) => o.startsWith("https://")) ?? env.adminOrigins[0] ?? "https://admin.novawerk.io" },
+          logger,
+        ),
         200,
       ),
     )

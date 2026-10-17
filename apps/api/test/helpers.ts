@@ -10,6 +10,7 @@ import type { FileAccess, Files, ListedFile, OpenedFile, StoredFile, TicketReque
 
 import { createApp } from "../src/app.js";
 import { SESSION_COOKIE, signSession } from "../src/auth.js";
+import type { ChatPoster } from "../src/chat-notices.js";
 import type { ContributorNoticeSender } from "../src/contributor-notices.js";
 import type { GitHubOAuth } from "../src/github-auth.js";
 import type {
@@ -66,6 +67,7 @@ export function makeApp(
     githubOAuth?: GitHubOAuth;
     githubApi?: GitHubApi;
     sendContributorNotice?: ContributorNoticeSender;
+    postToChat?: ChatPoster;
   } = {},
 ) {
   const sent: TeamNotification[] = [];
@@ -98,6 +100,7 @@ export function makeApp(
     ...(opts.githubOAuth ? { githubOAuth: opts.githubOAuth } : {}),
     ...(opts.githubApi ? { githubApi: opts.githubApi } : {}),
     ...(opts.sendContributorNotice ? { sendContributorNotice: opts.sendContributorNotice } : {}),
+    ...(opts.postToChat ? { postToChat: opts.postToChat } : {}),
   });
   return { app, notify, sent, logger };
 }

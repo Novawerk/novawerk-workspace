@@ -3,6 +3,7 @@ name: Contributor notices
 # Emails to contributors about their own tasks (NB-ADR-0013, apps/api/src/contributor-notices.ts).
 # Vercel's Hobby plan runs crons once a day, so GitHub calls the API every 10 minutes instead;
 # apps/api/vercel.json keeps a daily run as the fallback. Needs the CRON_SECRET repository secret.
+# The same run posts task board news to the team's chat room (apps/api/src/chat-notices.ts).
 
 on:
   schedule:
@@ -34,3 +35,17 @@ jobs:
           curl --fail-with-body --silent --show-error --max-time 310 \
             -H "Authorization: Bearer $CRON_SECRET" \
             https://api.novawerk.io/cron/contributor-notices
+      - name: Call /cron/chat-notices
+        # Its own job to do: a failed mail run doesn't hold the room's news back.
+        if: ${{ !cancelled() }}
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET isn't set on this repository; nothing to do."
+            exit 0
+          fi
+          # Answers { "configured": false } until the API has CHAT_BOT_URL. At most 50 posts a run.
+          curl --fail-with-body --silent --show-error --max-time 310 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://api.novawerk.io/cron/chat-notices

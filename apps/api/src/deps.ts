@@ -24,6 +24,7 @@ import {
 } from "@nw/email";
 
 import { adminMockStep } from "./admin-chat/mock.js";
+import { chatBotPoster } from "./chat-notices.js";
 import { createGitHubOAuth } from "./github-auth.js";
 import { inProcessIntakeTrigger, inProcessPromoRunner, inProcessPromoTrigger } from "./agents.js";
 import { intakeMockStep } from "./intake-chat/mock.js";
@@ -83,6 +84,8 @@ export interface ResolvedEnv {
   githubApp?: { clientId: string; clientSecret: string };
   /** The same App acting on our repository (GITHUB_APP_ID, _PRIVATE_KEY, _INSTALLATION_ID). */
   githubAppAuth?: { appId: string; privateKey: string; installationId: string };
+  /** CHAT_BOT_URL: the chat bot's messages URL for the team's room. It holds the bot key. */
+  chatBotUrl?: string;
 }
 
 /**
@@ -244,6 +247,11 @@ export function readEnv(env: EnvSource): ResolvedEnv {
     }
     if (!chatOrigin) problems.push("CHAT_URL must be an https origin, e.g. https://chat.novawerk.io");
   }
+  // Task board news in the team's chat room: the bot's URL from the chat (docs/infra.md).
+  const chatBotUrl = get("CHAT_BOT_URL");
+  if (chatBotUrl && !isChatBotUrl(chatBotUrl)) {
+    problems.push("CHAT_BOT_URL must be a chat bot's messages URL, e.g. https://chat.novawerk.io/rooms/<room id>/<bot key>/messages");
+  }
   if (problems.length) throw new Error(`@nw/api env: ${problems.join("; ")}`);
 
   const resendApiKey = get("RESEND_API_KEY");
@@ -294,12 +302,24 @@ export function readEnv(env: EnvSource): ResolvedEnv {
       : {}),
     ...(githubSet.length ? { githubApp: loadConfig(["githubApp"], env).githubApp } : {}),
     ...(appAuthSet.length ? { githubAppAuth: loadConfig(["githubAppAuth"], env).githubAppAuth } : {}),
+    ...(chatBotUrl ? { chatBotUrl } : {}),
   };
+}
+
+/** `https://<chat>/rooms/<room id>/<bot id>-<token>/messages` (http only for localhost). */
+function isChatBotUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const secure = url.protocol === "https:" || (url.protocol === "http:" && url.hostname === "localhost");
+    return secure && !url.search && /^\/rooms\/\d+\/\d+-[A-Za-z0-9]+\/messages$/.test(url.pathname);
+  } catch {
+    return false;
+  }
 }
 
 /** Production deps: a lazy node-postgres pool and `notifyTeam` via Resend (or console). */
 export function depsFromEnv(env: EnvSource): AppDeps {
-  const { databaseUrl, config, notify, outbox, files, anthropicApiKey, intakeChat, inboundMail, githubApp, githubAppAuth } =
+  const { databaseUrl, config, notify, outbox, files, anthropicApiKey, intakeChat, inboundMail, githubApp, githubAppAuth, chatBotUrl } =
     readEnv(env);
   const production = Boolean(env.VERCEL?.trim()) || env.NODE_ENV === "production";
   const db = createDb(databaseUrl);
@@ -363,5 +383,6 @@ export function depsFromEnv(env: EnvSource): AppDeps {
     ...(inboundMail ? { inboundMail } : {}),
     ...(githubApp ? { githubOAuth: createGitHubOAuth(githubApp) } : {}),
     ...(githubAppAuth ? { githubApi: createGitHubApi(githubAppAuth) } : {}),
+    ...(chatBotUrl ? { postToChat: chatBotPoster(chatBotUrl) } : {}),
   };
 }
