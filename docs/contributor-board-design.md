@@ -243,6 +243,12 @@ built this" on `/contribute`.
 - **Blocks**: every merged task is a run of cubes on a 5×5 tower: S 1 cube, M 2, L 3, XL 4.
   Colour by area from the brand palette (web green, admin zinc, api blue, agents deep green,
   docs warm grey, ci light green). Oldest at the bottom; each layer turns its rows 90°.
+- **Ideas** are bricks too, laid when they were accepted: a suggestion a maintainer accepted is
+  one cube (credited to whoever suggested it, so it sits below the block of the task it became);
+  every project pitch not declined is two, laid when it was sent (an unnamed figure until it
+  becomes a project, then credited to the project's initiator). They are amber with a lit
+  window on top, outside the area palette. A pitch shows only its project's name, once the
+  project is public ("A project pitch" before that); nothing it was written with.
 - **The tower** wears a pixel Nova Star above it that bobs gently and rises with each layer.
 - **People**: every contributor is a pixel figure a few pixels tall (head, body in the colour
   of the area they work in most, two legs, a small shadow). They idle on the ground around the
@@ -255,9 +261,11 @@ built this" on `/contribute`.
   its slot (it drops a few pixels and settles), climbs down and walks back. First visit: the
   last five. Nothing new: the newest one again.
 - **Hover or tap** a figure: handle, how many blocks, which areas, link to the profile
-  (initiators: "Started <project>"). A block: task title, who, merge date, size, area, link to
-  the task.
-- Line under it: "142 tasks merged by 38 people. One block at a time."
+  (initiators: "Started <project>"), and how many ideas. A block: task title, who, merge date,
+  size, area, link to the task. An idea: title, "Idea" (accepted date, link to the task) or
+  "Project pitch" (pitched date), who.
+- Line under it: "142 tasks merged and 9 ideas accepted, by 38 people. One block at a time."
+  (no ideas: "142 tasks merged by 38 people. …").
 - **Reduced motion**: a still scene (no walking, no carrying, no bob). Light and dark tokens.
 
 Implementation notes:

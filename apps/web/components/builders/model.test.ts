@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { FIXTURE_PEOPLE, fixtureBlocks } from "./fixtures";
+import { FIXTURE_PEOPLE, fixtureBlocks, fixtureIdeas } from "./fixtures";
 import {
   CELLS,
   SEASON_BLOCKS,
@@ -185,5 +185,36 @@ describe("sceneGeometry", () => {
     const g = sceneGeometry(m, 760, "full");
     expect(g.skyline.length).toBeLessThanOrEqual(3);
     expect(g.skyline.length + g.hiddenSeasons).toBe(4);
+  });
+});
+
+describe("ideas", () => {
+  const idea = (id: string, mergedAt: string, handle: string, extra: Partial<Block> = {}) =>
+    block(id, mergedAt, { kind: "idea", task: id.replace("idea-", ""), handle, ...extra });
+
+  it("lays ideas in the tower in time order, counted apart from merged tasks", () => {
+    const blocks = [
+      block("NW-1", "2026-05-03T00:00:00Z", { handle: "mira" }),
+      idea("idea-NW-1", "2026-05-01T00:00:00Z", "kofi"),
+      idea("idea-p1", "2026-05-02T00:00:00Z", "anon-x", { task: null, area: null, size: "M" }),
+    ];
+    const model = buildModel(blocks, FIXTURE_PEOPLE);
+    expect(model.blocks.map((b) => b.id)).toEqual(["idea-NW-1", "idea-p1", "NW-1"]);
+    expect(model.seasons[0].slots.map((s) => s.cells.length)).toEqual([1, 2, 1]);
+    const kofi = model.builders.find((f) => f.handle === "kofi")!;
+    expect(kofi).toMatchObject({ blocks: 0, ideas: 1, area: "idea", areas: [] });
+    expect(model.builders.find((f) => f.handle === "mira")).toMatchObject({ blocks: 1, ideas: 0, area: "web" });
+    expect(model.peopleCount).toBe(3);
+    expect(summaryLine(model)).toBe("1 task merged and 2 ideas accepted, by 3 people. One block at a time.");
+  });
+
+  it("keeps the old line with no ideas", () => {
+    expect(summaryLine(buildModel([block("NW-1", "2026-05-01T00:00:00Z")], []))).toBe("1 task merged by 1 person. One block at a time.");
+  });
+
+  it("gives every fixture block a unique id", () => {
+    const blocks = fixtureBlocks(142);
+    const all = [...blocks, ...fixtureIdeas(blocks)];
+    expect(new Set(all.map((b) => b.id)).size).toBe(all.length);
   });
 });

@@ -4,7 +4,7 @@
 
 import { createHmac } from "node:crypto";
 
-import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import {
@@ -46,6 +46,7 @@ import {
   contributorTokens,
   members,
   projectMembers,
+  projectSubmissions,
   projects,
   taskEvents,
   taskPosts,
@@ -566,30 +567,98 @@ export async function getPublicContributor(db: Database, handle: string): Promis
 export const anonymousKey = (anonKey: string, seed: string) => `anon-${createHmac("sha256", anonKey).update(seed).digest("hex").slice(0, 8)}`;
 
 /**
- * GET /public/blocks: every merged task, oldest first, for the builders scene. As on the wall, a
- * person is named only with a public profile and an active account; anyone else is an unnamed
- * figure with a stable key (the design: "people without a public profile appear as unnamed
- * figures"). Tasks themselves still show a private person's handle, unlinked (people.ts).
+ * GET /public/blocks: every merged task and every accepted idea, oldest first, for the builders
+ * scene. As on the wall, a person is named only with a public profile and an active account;
+ * anyone else is an unnamed figure with a stable key (the design: "people without a public
+ * profile appear as unnamed figures"). Tasks themselves still show a private person's handle,
+ * unlinked (people.ts).
+ *
+ * Ideas: a suggestion a maintainer accepted is laid at `acceptedAt` and credited to whoever
+ * suggested it. A project pitch (any not declined) is laid when it was sent; once it became a
+ * project, it is credited to the project's initiator. A pitch shows nothing it was written with:
+ * only the project's name, once the project is public.
  */
 export async function listPublicBlocks(db: Database, anonKey: string): Promise<PublicBlock[]> {
-  const rows = await db
-    .select({
-      task: tasks,
-      assignee: { id: assignee.id, handle: assignee.handle, public: assignee.public, suspendedAt: assignee.suspendedAt },
-    })
+  type Who = { id: string; handle: string | null; public: boolean; suspendedAt: Date | null } | null;
+  const handleOf = (who: Who, seed: string) =>
+    who?.public && !who.suspendedAt && who.handle ? who.handle : anonymousKey(anonKey, who ? `contributor:${who.id}` : seed);
+  const person = { id: assignee.id, handle: assignee.handle, public: assignee.public, suspendedAt: assignee.suspendedAt };
+
+  const merged = await db
+    .select({ task: tasks, who: person })
     .from(tasks)
     .leftJoin(assignee, eq(assignee.id, tasks.assigneeId))
     .where(and(eq(tasks.status, "done"), isNotNull(tasks.doneAt)))
     .orderBy(asc(tasks.doneAt), asc(tasks.id));
-  return rows.map(({ task, assignee: who }) => ({
+  const out: PublicBlock[] = merged.map(({ task, who }) => ({
+    kind: "task",
     id: formatTaskId(task.id),
+    task: formatTaskId(task.id),
     title: task.title,
     area: task.area as TaskArea | null,
     size: task.size,
-    // Named only with a public profile and an active account, as on the wall; else an unnamed figure.
-    handle: who?.public && !who.suspendedAt ? who.handle : anonymousKey(anonKey, who ? `contributor:${who.id}` : `task:${task.id}`),
+    handle: handleOf(who, `task:${task.id}`),
     mergedAt: iso(task.doneAt!),
   }));
+
+  const suggested = await db
+    .select({ task: tasks, who: { id: suggester.id, handle: suggester.handle, public: suggester.public, suspendedAt: suggester.suspendedAt } })
+    .from(tasks)
+    .leftJoin(suggester, eq(suggester.id, tasks.suggestedBy))
+    .where(and(isNotNull(tasks.suggestedBy), isNotNull(tasks.acceptedAt)))
+    .orderBy(asc(tasks.acceptedAt), asc(tasks.id));
+  const ideas: PublicBlock[] = suggested.map(({ task, who }) => ({
+    kind: "idea",
+    id: `idea-${formatTaskId(task.id)}`,
+    task: formatTaskId(task.id),
+    title: task.title,
+    area: task.area as TaskArea | null,
+    size: "S",
+    handle: handleOf(who, `suggestion:${task.id}`),
+    mergedAt: iso(task.acceptedAt!),
+  }));
+
+  // Pitches not declined, with the project each became (the first, if several) and its initiator.
+  const pitches = await db
+    .select({
+      id: projectSubmissions.id,
+      createdAt: projectSubmissions.createdAt,
+      project: { id: projects.id, title: projects.title, status: projects.status, createdAt: projects.createdAt },
+    })
+    .from(projectSubmissions)
+    .leftJoin(projects, eq(projects.submissionId, projectSubmissions.id))
+    .where(ne(projectSubmissions.status, "declined"))
+    .orderBy(asc(projectSubmissions.id), asc(projects.createdAt));
+  const projectIds = pitches.flatMap((p) => (p.project ? [p.project.id] : []));
+  const leads = projectIds.length
+    ? await db
+        .select({ projectId: projectMembers.projectId, who: person })
+        .from(projectMembers)
+        .innerJoin(assignee, eq(assignee.id, projectMembers.memberId))
+        .where(and(inArray(projectMembers.projectId, projectIds), sql`lower(trim(${projectMembers.role})) = ${INITIATOR_ROLE.toLowerCase()}`))
+        .orderBy(asc(projectMembers.memberId))
+    : [];
+  const seen = new Set<string>();
+  for (const p of pitches) {
+    if (seen.has(p.id)) continue;
+    seen.add(p.id);
+    const lead = p.project ? (leads.find((l) => l.projectId === p.project!.id)?.who ?? null) : null;
+    const isPublic = !!p.project && (PUBLIC_PROJECT_STATUSES as readonly string[]).includes(p.project.status);
+    ideas.push({
+      kind: "idea",
+      id: `idea-p${createHmac("sha256", anonKey).update(`submission:${p.id}`).digest("hex").slice(0, 8)}`,
+      task: null,
+      title: isPublic ? p.project!.title : "A project pitch",
+      area: null,
+      size: "M",
+      handle: handleOf(lead, `submission:${p.id}`),
+      mergedAt: iso(p.createdAt),
+    });
+  }
+
+  // Oldest first. The sort is stable, so ties keep tasks before ideas and each list's own order.
+  const at = (b: PublicBlock) => Date.parse(b.mergedAt);
+  return [...out, ...ideas].sort((a, b) => at(a) - at(b));
 }
 
 /** GET /contrib/me/tasks: what I hold (in progress or in review) and my pending proposals. */

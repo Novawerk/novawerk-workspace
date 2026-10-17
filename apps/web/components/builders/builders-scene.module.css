@@ -1,7 +1,8 @@
 /*
  * Colours for the builders scene. The canvas reads these with getComputedStyle, so the pixel art
  * follows the theme like the rest of the page. Block colours come from the brand palette: web green,
- * admin zinc, api blue, agents deep green, docs warm grey, ci light green.
+ * admin zinc, api blue, agents deep green, docs warm grey, ci light green. Accepted ideas are amber
+ * bricks with a lit window, outside the area palette.
  * Dark values apply with the system setting (unless the page pins data-theme="light") or with
  * data-theme="dark" on <html>.
  */
@@ -12,6 +13,8 @@
   --bs-agents: #0a3920;
   --bs-docs: #a8a29e;
   --bs-ci: #6fb58c;
+  --bs-idea: #c98a12;
+  --bs-idea-lit: #fff3c4;
   --bs-fig-ink: #3f3f46;
   --bs-fig-head: #e8d9c4;
   --bs-ground: #e4e4e7;
@@ -45,6 +48,8 @@
     --bs-agents: #a7dcbc;
     --bs-docs: #78716c;
     --bs-ci: #2f7d52;
+    --bs-idea: #d99a2b;
+    --bs-idea-lit: #fffbe8;
     --bs-fig-ink: #a1a1aa;
     --bs-fig-head: #c9b79f;
     --bs-ground: #232327;
@@ -62,7 +67,7 @@
     --bs-ink: #f4f4f5;
     --bs-muted: #a1a1aa;
     --bs-line: #3f3f46;
-  --bs-plan: #52525b;
+    --bs-plan: #52525b;
   }
 }
 
@@ -73,6 +78,8 @@
   --bs-agents: #a7dcbc;
   --bs-docs: #78716c;
   --bs-ci: #2f7d52;
+  --bs-idea: #d99a2b;
+  --bs-idea-lit: #fffbe8;
   --bs-fig-ink: #a1a1aa;
   --bs-fig-head: #c9b79f;
   --bs-ground: #232327;

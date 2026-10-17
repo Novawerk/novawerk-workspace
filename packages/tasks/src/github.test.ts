@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { proposalInput } from "@nw/contracts";
-import { members, postReports, taskEvents, tasks, werkLedger, type Member, type Database } from "@nw/db";
+import { members, postReports, projectMembers, projectSubmissions, projects, taskEvents, tasks, werkLedger, type Member, type Database } from "@nw/db";
 import { createTestDb, resetDb } from "@nw/db/testing";
 
 import {
@@ -332,5 +332,32 @@ describe("reports and blocks", () => {
 
     await db.delete(members).where(eq(members.id, lena.id));
     expect((await listPublicBlocks(db, "key"))[1]!.handle).toMatch(/^anon-/);
+  });
+
+  it("lays accepted suggestions and pitches not declined as idea blocks, showing nothing a pitch was written with", async () => {
+    await updateProfile(db, jonas.id, { public: true });
+    const done = await task({ title: "Dark mode", status: "done", suggestedBy: jonas.id, acceptedAt: new Date("2026-10-01"), doneAt: new Date("2026-10-03") });
+    await task({ title: "Still suggested", status: "suggested", assigneeId: null, suggestedBy: jonas.id });
+    const pitch = (fields: Partial<typeof projectSubmissions.$inferInsert>) =>
+      db
+        .insert(projectSubmissions)
+        .values({ name: "Ada", email: "ada@example.com", projectName: "Secret plan", product: "p", userJourney: "u", referencesAndInnovation: "r", team: "t", timeline: "t", consentAt: new Date(), ...fields })
+        .returning()
+        .then((r) => r[0]!);
+    const sent = await pitch({ status: "new", createdAt: new Date("2026-10-02") });
+    await pitch({ status: "declined", createdAt: new Date("2026-10-02") });
+    const kiez = await pitch({ status: "accepted", createdAt: new Date("2026-10-04") });
+    const [project] = await db.insert(projects).values({ slug: "kiezradar", title: "Kiezradar", status: "building", submissionId: kiez.id, createdAt: new Date("2026-10-09") }).returning();
+    await db.insert(projectMembers).values({ projectId: project!.id, memberId: jonas.id, role: "Initiator" });
+
+    const blocks = await listPublicBlocks(db, "key");
+    expect(blocks.map((b) => [b.kind, b.id, b.task, b.title, b.size, b.handle])).toEqual([
+      ["idea", `idea-NW-${done.id}`, `NW-${done.id}`, "Dark mode", "S", "jonas"],
+      ["idea", expect.stringMatching(/^idea-p[0-9a-f]{8}$/), null, "A project pitch", "M", expect.stringMatching(/^anon-/)],
+      ["task", `NW-${done.id}`, `NW-${done.id}`, "Dark mode", "M", expect.stringMatching(/^anon-/)],
+      ["idea", expect.stringMatching(/^idea-p[0-9a-f]{8}$/), null, "Kiezradar", "M", "jonas"],
+    ]);
+    expect(JSON.stringify(blocks)).not.toMatch(/Secret plan|ada@example|Ada/);
+    expect(blocks[1]!.id).not.toContain(sent.id.slice(0, 8));
   });
 });

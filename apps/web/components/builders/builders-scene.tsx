@@ -1,7 +1,7 @@
 "use client";
 
 // "One block at a time" (聚沙成塔): every merged task is a block on a pixel tower, carried up a
-// ladder by the person who did it. Design: docs/contributor-board-design.md.
+// ladder by the person who did it; every accepted idea is a lamplit brick, carried by whoever had it. Design: docs/contributor-board-design.md.
 //
 // The text (summary line, list of the latest merges) renders on the server from the block list.
 // The canvas, the last-visit comparison and all timing start in effects, so the prerendered part
@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import styles from "./builders-scene.module.css";
 import { startScene, type Hit } from "./engine";
 import { blocksToCarry, buildModel, latestBlocks, sceneGeometry, summaryLine, toScreen } from "./model";
-import type { Block, BuildersSize, Person } from "./types";
+import { isIdea, taskOf, type Block, type BuildersSize, type Person } from "./types";
 
 const SEEN_KEY = "nw-blocks-seen";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -182,6 +182,14 @@ export function BuildersScene({
   const H = geo.bh * geo.P;
   const measured = width != null;
   const who = (handle: string) => (named.has(handle) ? `@${handle}` : "A contributor");
+  /** "4 blocks: web, api · 2 ideas" */
+  const tally = (f: { blocks: number; ideas: number; areas: string[] }) =>
+    [
+      f.blocks || !f.ideas ? `${f.blocks} ${f.blocks === 1 ? "block" : "blocks"}${f.areas.length ? `: ${f.areas.join(", ")}` : ""}` : "",
+      f.ideas ? `${f.ideas} ${f.ideas === 1 ? "idea" : "ideas"}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
   return (
     <div className={styles.scene} style={{ maxWidth }}>
@@ -190,7 +198,7 @@ export function BuildersScene({
           <canvas
             ref={canvasRef}
             role="img"
-            aria-label={`${summary} Little pixel people carry each block up a ladder onto a tower crowned with the Nova Star.`}
+            aria-label={`${summary} Little pixel people carry each block up a ladder onto a tower crowned with the Nova Star; ideas are amber bricks with a lit window.`}
             className={styles.canvas}
             style={{ width: "100%", height: "100%" }}
           />
@@ -222,13 +230,22 @@ export function BuildersScene({
                 if (e.pointerType === "mouse" && e.relatedTarget !== canvasRef.current) sceneRef.current?.clear();
               }}
               style={{ left: W < 220 ? W / 2 : Math.min(Math.max(hit.x, 110), W - 110), top: hit.y }}>
-              {hit.kind === "block" ? (
+              {hit.kind === "block" && isIdea(hit.block) ? (
+                <>
+                  <b>{hit.block.title}</b>
+                  <span className={styles.muted}>
+                    {taskOf(hit.block) ? "Idea" : "Project pitch"} · {named.has(hit.block.handle) ? `@${hit.block.handle}` : "Someone"} ·{" "}
+                    {taskOf(hit.block) ? "accepted" : "pitched"} {formatDate(hit.block.mergedAt)}
+                  </span>
+                  {taskOf(hit.block) ? <Link href={`/tasks/${taskOf(hit.block)}`}>Open {taskOf(hit.block)} →</Link> : null}
+                </>
+              ) : hit.kind === "block" ? (
                 <>
                   <b>{hit.block.title}</b>
                   <span className={styles.muted}>
                     {who(hit.block.handle)} · merged {formatDate(hit.block.mergedAt)} · {hit.block.size} · {hit.block.area}
                   </span>
-                  <Link href={`/tasks/${hit.block.id}`}>Open {hit.block.id} →</Link>
+                  <Link href={`/tasks/${taskOf(hit.block)}`}>Open {taskOf(hit.block)} →</Link>
                 </>
               ) : hit.figure.person ? (
                 <>
@@ -236,7 +253,7 @@ export function BuildersScene({
                   <span className={styles.muted}>
                     {hit.figure.person.kind === "initiator" && hit.figure.person.project
                       ? `Started ${hit.figure.person.project}. Initiator.`
-                      : `${hit.figure.person.name} · ${hit.figure.blocks} ${hit.figure.blocks === 1 ? "block" : "blocks"}${hit.figure.areas.length ? `: ${hit.figure.areas.join(", ")}` : ""}`}
+                      : `${hit.figure.person.name} · ${tally(hit.figure)}`}
                   </span>
                   <Link href={`/u/${hit.figure.handle}`}>Profile →</Link>
                 </>
@@ -244,8 +261,7 @@ export function BuildersScene({
                 <>
                   <b>A contributor</b>
                   <span className={styles.muted}>
-                    {hit.figure.blocks} {hit.figure.blocks === 1 ? "block" : "blocks"}
-                    {hit.figure.areas.length ? `: ${hit.figure.areas.join(", ")}` : ""}. Their profile is private.
+                    {tally(hit.figure)}. Their profile is private.
                   </span>
                 </>
               )}
@@ -255,13 +271,17 @@ export function BuildersScene({
       </div>
       <p className={`mt-3 text-center text-sm ${styles.muted}`}>{summary}</p>
       <div className="sr-only">
-        <p>Latest merges</p>
+        <p>Latest merges and ideas</p>
         <ul>
-          {latestBlocks(model).map((b) => (
-            <li key={b.id}>
-              <a href={`/tasks/${b.id}`}>{b.title}</a>, {who(b.handle)}, merged <time dateTime={b.mergedAt}>{formatDate(b.mergedAt)}</time>
-            </li>
-          ))}
+          {latestBlocks(model).map((b) => {
+            const task = taskOf(b);
+            return (
+              <li key={b.id}>
+                {task ? <a href={`/tasks/${task}`}>{b.title}</a> : b.title}, {who(b.handle)}, {!isIdea(b) ? "merged" : task ? "idea accepted" : "pitched"}{" "}
+                <time dateTime={b.mergedAt}>{formatDate(b.mergedAt)}</time>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>

@@ -289,7 +289,7 @@ describe("the assignee's routes, reports and blocks", () => {
     expect(report.status).toBe(200);
 
     const blocks = (await (await app.request("/public/blocks")).json()) as { handle: string; id: string }[];
-    expect(blocks).toEqual([{ id: `NW-${t.id}`, title: "Dark mode toggle", area: "web", size: "L", handle: expect.stringMatching(/^anon-[0-9a-f]{8}$/), mergedAt: expect.any(String) }]);
+    expect(blocks).toEqual([{ kind: "task", id: `NW-${t.id}`, task: `NW-${t.id}`, title: "Dark mode toggle", area: "web", size: "L", handle: expect.stringMatching(/^anon-[0-9a-f]{8}$/), mergedAt: expect.any(String) }]);
   });
 });
 
