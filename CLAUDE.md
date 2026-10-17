@@ -102,6 +102,11 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
   their own env at the edge (route handler / server entry) and pass values in. Two exceptions:
   `packages/db/drizzle.config.ts` (drizzle-kit only) and `@nw/jira`, which hands the env to the
   `jira` CLI it spawns.
+- **A pull request that changes code has a task first** (`Task: NW-<n>` in its body). Find it
+  on novawerk.io/tasks, or create one (MCP `create_task`, `POST /contrib/tasks`): an S task is
+  yours at once, an M task opens on the board for discussion, L and XL wait for a maintainer's
+  review. Docs, posts, videos and typo fixes may say `Task: none (<why>)`. Skill:
+  `nw-pull-request`.
 - Secrets never touch git. Real values live in Vercel / GitHub Actions secrets or `.env` (ignored).
   Environments (local and production; no staging), accounts and DNS: `docs/infra.md`.
 - Brand voice: short sentences, "we", present tense. No *leverage / ecosystem / stakeholders /
@@ -144,6 +149,7 @@ Use pnpm (10.x) and Node 22+. One lockfile at the root.
   Base UI primitives). AI Elements live in `packages/ui/src/ai-elements/`.
 - `nw-back-office` — agents, the outbox gate, and records (in the private repo).
 - `nw-posts` — write a post in `posts/` (format, voice, `pnpm post render | check`).
+- `nw-pull-request` — before opening a PR: find or create its task, then the template and sign-off.
 - `nw-videos` — make or change a short video in `videos/` (brief → storyboard → stills → music
   and sound → films, cover, post copy; platform rules for 小红书).
 

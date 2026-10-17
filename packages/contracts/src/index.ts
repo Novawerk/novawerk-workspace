@@ -1831,6 +1831,8 @@ export const TASK_LIMITS = {
   proposalsPerDay: 5,
   postsPerDay: 30,
   openSuggestions: 3,
+  /** Tasks a member creates themselves (memberTaskInput), per 24 hours. */
+  tasksCreatedPerDay: 3,
   /** One task at a time until the first merge (NB-ADR-0013)… */
   tasksInProgress: 1,
   /** …then up to two. */
@@ -2504,6 +2506,22 @@ export const adminTaskInput = z.object({
   publish: z.boolean().default(false),
 });
 export type AdminTaskInput = z.input<typeof adminTaskInput>;
+
+/**
+ * POST /contrib/tasks and the MCP tool `create_task`: a member creates a task (createOwnTask in
+ * @nw/tasks). S: theirs at once. M: open on the board, no review. L and XL: wait for a
+ * maintainer's review in the suggestions queue. At least one "done when" line.
+ */
+export const memberTaskInput = z.object({
+  title: taskFields.title,
+  summary: taskFields.summary.default(""),
+  body: markdown("What and why", 20, 4000),
+  criteria: doneWhenLines.min(1, "Say when it's done: at least one line"),
+  area: taskFields.area,
+  size: taskFields.size,
+  skills: taskFields.skills.default([]),
+});
+export type MemberTaskInput = z.input<typeof memberTaskInput>;
 
 /**
  * `pnpm import:tasks <file.json>`: a list of tasks to publish as open, each like POST

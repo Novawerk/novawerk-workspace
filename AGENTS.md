@@ -5,7 +5,8 @@ A brief for coding agents working on a contributor's task in this repo. The full
 
 ## The job
 
-- You work on one task from novawerk.io/tasks, assigned to the person you work for.
+- You work on one task from novawerk.io/tasks, assigned to the person you work for. No task
+  for the change yet? Create one first (below, and the `nw-pull-request` skill).
 - Do what the task says and no more. Keep the diff small. Match the code around it.
 - The person reviews your work and opens the pull request. They are the author.
 
@@ -27,7 +28,11 @@ Node 22+, pnpm 10. One lockfile at the root. Tests that need Postgres use `@nw/d
 
 - Branch in the contributor's fork. The pull request targets `main` in
   `Novawerk/novawerk-workspace`.
-- The pull request body has the line `Task: NW-<n>`. Fill in the template.
+- The pull request body has the line `Task: NW-<n>`. Fill in the template. A PR that changes
+  code always has a task; only docs, posts, videos and typo fixes may say `Task: none (<why>)`.
+- No task yet: `create_task` (MCP) or `POST /contrib/tasks`. **S** is the person's at once:
+  open the PR. **M** opens on the board for discussion: propose a plan and wait for a
+  maintainer to choose it. **L** and **XL** wait for a maintainer's review: don't start yet.
 - Title like the log: `Area: what changed` (`Web: …`, `API: …`, `Admin: …`, `Agents: …`,
   `Docs: …`). We squash merge, so the title becomes the commit.
 - Every commit is signed off: `git commit -s`. The sign-off is the person's, not yours.
@@ -57,7 +62,7 @@ Node 22+, pnpm 10. One lockfile at the root. Tests that need Postgres use `@nw/d
 
 ## Task board API and MCP
 
-Coming soon. The board will have a public REST API and an MCP server at
-`https://api.novawerk.io/mcp`, with personal access tokens from novawerk.io/settings/tokens.
-An agent will be able to read tasks, fetch the contribution guide, draft a proposal and link a
-pull request. Until then, the person copies the task and its guide to you.
+The MCP server is at `https://api.novawerk.io/mcp`; the person makes a token at
+novawerk.io/settings/tokens. Reading needs no token. With one you can read the guide, draft a
+proposal (the person confirms it on novawerk.io), create a task, link a pull request and post
+on a task. Tools and rules: [apps/web/public/llms.txt](apps/web/public/llms.txt).

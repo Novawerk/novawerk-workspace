@@ -178,6 +178,7 @@ describe("/mcp", () => {
     const tools = (await rpc(app, "tools/list", {})).body.result.tools.map((t: { name: string }) => t.name);
     expect(tools.sort()).toEqual(
       [
+        "create_task",
         "get_guide",
         "get_task",
         "link_pr",
@@ -253,6 +254,33 @@ describe("/mcp", () => {
     expect((await tool(app, "link_pr", { task_id: `NW-${t.id}`, url: url(7) }, token.secret)).json).toEqual({ status: "in_review", pr_url: url(7) });
     const detail = (await call(app, "GET", `/public/tasks/NW-${t.id}`, {})).body;
     expect(detail.events.at(-1)).toMatchObject({ kind: "pr_linked", viaAgent: "my agent" });
+  });
+
+  it("creates a task: S is the caller's at once, M opens for discussion, L and XL wait for review", async () => {
+    const { app } = makeApp(db);
+    const input = { title: "Sort the wall A–Z", body: "The wall is in join order; people look for names.", criteria: ["Sorted by name"], area: "web" };
+    expect((await tool(app, "create_task", { ...input, size: "S" })).text).toMatch(/personal access token/);
+    const readOnly = await makeToken(app, []);
+    expect((await tool(app, "create_task", { ...input, size: "S" }, readOnly.secret)).text).toMatch(/tasks:work/);
+
+    const token = await makeToken(app, ["tasks:work"], "my agent");
+    const small = await tool(app, "create_task", { ...input, size: "S" }, token.secret);
+    expect(small.json).toMatchObject({ status: "assigned", next: expect.stringContaining(`Task: ${small.json.id}`) });
+    expect(small.json.url).toBe(`https://novawerk.io/tasks/${small.json.id}`);
+    const detail = (await call(app, "GET", `/public/tasks/${small.json.id}`, {})).body;
+    expect(detail.events[0]).toMatchObject({ kind: "created", viaAgent: "my agent" });
+
+    const bigger = await tool(app, "create_task", { ...input, title: "Search the wall", size: "M" }, token.secret);
+    expect(bigger.json).toMatchObject({ status: "open", next: expect.stringContaining("Propose a plan") });
+    expect((await tool(app, "create_task", { ...input, title: "x", criteria: [], size: "M" }, token.secret)).isError).toBe(true);
+
+    const large = await tool(app, "create_task", { ...input, title: "Rebuild the wall", size: "L" }, token.secret);
+    expect(large.json).toMatchObject({ status: "suggested", next: expect.stringContaining("review") });
+
+    // The same over REST, where the fourth of the day is one too many.
+    const rest = await call(app, "POST", "/contrib/tasks", { bearer: token.secret }, { ...input, title: "Filter the wall", size: "XL" });
+    expect(rest).toMatchObject({ status: 429, body: { error: expect.stringContaining("3 new tasks a day") } });
+    expect((await call(app, "POST", "/contrib/tasks", { bearer: readOnly.secret }, { ...input, size: "S" })).status).toBe(403);
   });
 
   it("refuses a bad token outright", async () => {

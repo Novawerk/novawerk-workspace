@@ -20,9 +20,21 @@ the API and the agents. You can help build it, one task at a time.
 ## The task board
 
 Tasks live at [novawerk.io/tasks](https://novawerk.io/tasks). Please don't open pull requests
-for work that has no task. Found a bug or have an idea? Suggest it on the board
+for code that has no task. Found a bug or have an idea? Suggest it on the board
 ([novawerk.io/tasks/suggest](https://novawerk.io/tasks/suggest)); a maintainer turns it into a
 task.
+
+Know exactly what you want to build? Create the task yourself, with an agent and your token
+(MCP `create_task`, see [AGENTS.md](AGENTS.md)). Give it a title, what and why, the "done when"
+lines and a size:
+
+- **S** (an hour or two): it's yours at once. Open your pull request.
+- **M**: it opens on the board, and people can discuss it. Propose your plan on it like anyone
+  else; a maintainer picks one.
+- **L** and **XL**: a maintainer reviews it first, in the suggestions queue.
+
+Up to 3 new tasks a day. Changes to docs, posts and videos, and typo fixes, don't need a task:
+write `Task: none` and why.
 
 ## How it works
 

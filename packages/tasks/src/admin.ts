@@ -186,6 +186,10 @@ export interface AdminSuggestion {
   wherePath: string | null;
   wantsIt: boolean;
   needsInfo: boolean;
+  /** Set when a member created it as an L or XL task (createOwnTask): the accept form starts from them. */
+  area: TaskArea | null;
+  size: TaskSize | null;
+  criteria: string[];
   voteCount: number;
   postCount: number;
   suggestedBy: AdminPerson | null;
@@ -546,6 +550,9 @@ export async function listSuggestions(db: Database, sort: SuggestionSort = "olde
     wherePath: t.wherePath,
     wantsIt: t.wantsIt,
     needsInfo: t.needsInfo,
+    area: t.area as TaskArea | null,
+    size: t.size,
+    criteria: t.criteria,
     voteCount: Number(votes),
     postCount: Number(posts),
     suggestedBy: toPerson(s as PersonCols | null),

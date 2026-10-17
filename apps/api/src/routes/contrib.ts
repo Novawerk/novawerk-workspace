@@ -56,6 +56,7 @@ import {
   releaseInput,
   reportInput,
   suggestionInput,
+  memberTaskInput,
   taskIdParam,
   tokenCreateInput,
   MAX_SUGGESTION_SCREENSHOT_BYTES,
@@ -72,6 +73,7 @@ import {
   addPost,
   checkCanLinkPr,
   confirmDraftProposal,
+  createOwnTask,
   createToken,
   deleteContributor,
   extendTask,
@@ -238,6 +240,12 @@ export function contribRoutes({ db, env, githubApi, files, logger = console }: A
         if (input.screenshot) await checkScreenshot(files, c.get("contributor").id, input.screenshot.pathname);
         const task = await suggestTask(db, c.get("contributor"), input, new Date(), viaOf(c));
         return c.json({ id: formatTaskId(task.id), number: task.id }, 201);
+      })
+      // Create a task: an S task is yours at once, M and bigger open for discussion.
+      .post("/tasks", scope("tasks:work"), zValidator("json", memberTaskInput, rejectInvalid), async (c) => {
+        const task = await createOwnTask(db, c.get("contributor"), c.req.valid("json"), new Date(), viaOf(c));
+        await revalidateWeb(env.webRevalidate, logger, ["tasks"]);
+        return c.json({ id: formatTaskId(task.id), number: task.id, status: task.status }, 201);
       })
       .put("/tasks/:id/vote", scope("suggestions:write"), zValidator("param", taskIdParam, notFoundIfInvalid), async (c) => {
         await vote(db, c.get("contributor"), c.req.valid("param").id);

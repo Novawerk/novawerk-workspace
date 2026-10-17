@@ -9,6 +9,7 @@ import {
   formatTaskId,
   type PostInput,
   type ProposalUpdateInput,
+  memberTaskInput,
   proposalInput,
   suggestionInput,
 } from "@nw/contracts";
@@ -28,12 +29,13 @@ import {
 
 import { canWork } from "./contributors.js";
 import { TaskRuleError, isUniqueViolation } from "./errors.js";
-import { autoChooseSmall } from "./transitions.js";
+import { autoChooseSmall, transitionIn } from "./transitions.js";
 
 const DAY_MS = 24 * 3_600_000;
 
 type ParsedProposal = ReturnType<typeof proposalInput.parse>;
 type ParsedSuggestion = ReturnType<typeof suggestionInput.parse>;
+type ParsedMemberTask = ReturnType<typeof memberTaskInput.parse>;
 
 function notSuspended(c: Member) {
   if (c.suspendedAt) throw new TaskRuleError("suspended", "This account is suspended");
@@ -334,6 +336,86 @@ export async function suggestTask(
       createdAt: now,
     });
     return task!;
+  });
+}
+
+/**
+ * A member creates a task themselves. 3 a day. By size:
+ * - S is theirs at once: created open and given to them in the same transaction (a `choose` by
+ *   the system, with the usual checks: GitHub linked, under their task limit). Next: the PR.
+ * - M goes on the board as an open task, no review: discussed in public, and a maintainer
+ *   chooses a plan (the author proposes like anyone else).
+ * - L and XL wait for a maintainer's review in the suggestions queue (`suggested`, public, with
+ *   the author as suggester and wanting to do it; counts towards their 3 open suggestions).
+ *   Accepting keeps the size, area and done-when lines unless the maintainer changes them.
+ */
+export async function createOwnTask(
+  db: Database,
+  c: Member,
+  input: ParsedMemberTask,
+  now = new Date(),
+  via?: Via,
+): Promise<Task> {
+  // asContributor's transaction, typed as one: an S task moves on with transitionIn.
+  return db.transaction(async (tx) => {
+    const [me] = await tx.select().from(members).where(eq(members.id, c.id)).for("update");
+    if (!me) throw new TaskRuleError("not_found", "Not signed in");
+    const small = input.size === "S";
+    const review = input.size === "L" || input.size === "XL";
+    if (small) mayWork(me);
+    else notSuspended(me);
+    if (review) {
+      const [open] = await tx
+        .select({ n: count() })
+        .from(tasks)
+        .where(and(eq(tasks.suggestedBy, me.id), eq(tasks.status, "suggested")));
+      if ((open?.n ?? 0) >= TASK_LIMITS.openSuggestions) {
+        throw new TaskRuleError(
+          "rate_limited",
+          `You have ${TASK_LIMITS.openSuggestions} tasks or suggestions waiting for review. Wait for a member to look at one first.`,
+        );
+      }
+    }
+    const [today] = await tx
+      .select({ n: count() })
+      .from(tasks)
+      .where(and(eq(tasks.createdByMemberId, me.id), gt(tasks.createdAt, new Date(now.getTime() - DAY_MS))));
+    if ((today?.n ?? 0) >= TASK_LIMITS.tasksCreatedPerDay) {
+      throw new TaskRuleError("rate_limited", `Up to ${TASK_LIMITS.tasksCreatedPerDay} new tasks a day. Try again tomorrow.`);
+    }
+    const [task] = await tx
+      .insert(tasks)
+      .values({
+        ...input,
+        skills: [...new Set(input.skills)],
+        kind: "task",
+        status: review ? "suggested" : "open",
+        createdByMemberId: me.id,
+        ...(review ? { suggestedBy: me.id, wantsIt: true } : {}),
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+    await tx.insert(taskEvents).values({
+      taskId: task!.id,
+      // L and XL show as suggested, like any suggestion waiting for triage.
+      kind: review ? "suggested" : "created",
+      toStatus: review ? "suggested" : "open",
+      actorContributorId: me.id,
+      viaTokenId: via?.tokenId ?? null,
+      createdAt: now,
+    });
+    if (!small) return task!;
+    // Quiet: no "your plan was chosen" mail about their own click.
+    return transitionIn(tx, {
+      taskId: task!.id,
+      action: "choose",
+      actor: { kind: "system" },
+      assigneeId: me.id,
+      quiet: true,
+      ...(via ? { viaTokenId: via.tokenId } : {}),
+      now,
+    });
   });
 }
 

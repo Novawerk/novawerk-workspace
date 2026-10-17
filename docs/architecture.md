@@ -223,6 +223,11 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
   writes a `task_events` row (the public timeline). A maintainer picks one plan per task,
   except on S tasks: a plan that counts (sent, or an agent's draft once confirmed) is chosen at
   once by the system when its author can take a task (`autoChooseSmall`); otherwise it waits.
+  Members create tasks too (`createOwnTask`, MCP `create_task`, `POST /contrib/tasks`; 3 a
+  day): S is theirs at once (created open, then a quiet system `choose` in the same
+  transaction), M is open with no review, L and XL go to the suggestions queue (`suggested`,
+  `kind = task`, size and done-when lines kept on accept). A PR that changes code names a task
+  (skill `nw-pull-request`).
 - **Rules live in `@nw/tasks`** (state machine, limits, privacy, the public reads); the API only
   wires them. Limits per contributor: 5 proposals and 30 posts a day, 3 open suggestions, 1 task
   in progress until their first merge, then 2. The limits run with the contributor's row locked,
