@@ -7,7 +7,7 @@
 //   GET /public/tasks/NW-42
 //   GET /public/contributors?sort=newest|az&area=web&cursor=…   contributors and opted-in initiators
 //   GET /public/contributors/:handle
-//   GET /public/blocks                  every merged task and accepted idea, oldest first (the builders scene)
+//   GET /public/blocks                  every merged task and idea, oldest first (the builders scene)
 //   GET /public/initiators              opted-in Members who started a public project (flags in the scene)
 
 import { createHmac } from "node:crypto";

@@ -244,8 +244,9 @@ built this" on `/contribute`.
   Colour by area from the brand palette (web green, admin zinc, api blue, agents deep green,
   docs warm grey, ci light green). Oldest at the bottom; each layer turns its rows 90°.
 - **Ideas** are bricks too, laid when they were accepted: a suggestion a maintainer accepted is
-  one cube (credited to whoever suggested it, so it sits below the block of the task it became),
-  an accepted project pitch two (credited to the project's initiator). They are amber with a lit
+  one cube (credited to whoever suggested it, so it sits below the block of the task it became);
+  every project pitch not declined is two, laid when it was sent (an unnamed figure until it
+  becomes a project, then credited to the project's initiator). They are amber with a lit
   window on top, outside the area palette. A pitch shows only its project's name, once the
   project is public ("A project pitch" before that); nothing it was written with.
 - **The tower** wears a pixel Nova Star above it that bobs gently and rises with each layer.
@@ -261,8 +262,8 @@ built this" on `/contribute`.
   last five. Nothing new: the newest one again.
 - **Hover or tap** a figure: handle, how many blocks, which areas, link to the profile
   (initiators: "Started <project>"), and how many ideas. A block: task title, who, merge date,
-  size, area, link to the task. An idea: title, "Idea" or "Project pitch", who, acceptance date,
-  link to the task.
+  size, area, link to the task. An idea: title, "Idea" (accepted date, link to the task) or
+  "Project pitch" (pitched date), who.
 - Line under it: "142 tasks merged and 9 ideas accepted, by 38 people. One block at a time."
   (no ideas: "142 tasks merged by 38 people. …").
 - **Reduced motion**: a still scene (no walking, no carrying, no bob). Light and dark tokens.

@@ -334,7 +334,7 @@ describe("reports and blocks", () => {
     expect((await listPublicBlocks(db, "key"))[1]!.handle).toMatch(/^anon-/);
   });
 
-  it("lays accepted ideas as idea blocks, and shows nothing a pitch was written with", async () => {
+  it("lays accepted suggestions and pitches not declined as idea blocks, showing nothing a pitch was written with", async () => {
     await updateProfile(db, jonas.id, { public: true });
     const done = await task({ title: "Dark mode", status: "done", suggestedBy: jonas.id, acceptedAt: new Date("2026-10-01"), doneAt: new Date("2026-10-03") });
     await task({ title: "Still suggested", status: "suggested", assigneeId: null, suggestedBy: jonas.id });
@@ -344,10 +344,10 @@ describe("reports and blocks", () => {
         .values({ name: "Ada", email: "ada@example.com", projectName: "Secret plan", product: "p", userJourney: "u", referencesAndInnovation: "r", team: "t", timeline: "t", consentAt: new Date(), ...fields })
         .returning()
         .then((r) => r[0]!);
-    const accepted = await pitch({ status: "accepted", updatedAt: new Date("2026-10-02") });
-    await pitch({ status: "new" });
-    const kiez = await pitch({ status: "accepted" });
-    const [project] = await db.insert(projects).values({ slug: "kiezradar", title: "Kiezradar", status: "building", submissionId: kiez.id, createdAt: new Date("2026-10-04") }).returning();
+    const sent = await pitch({ status: "new", createdAt: new Date("2026-10-02") });
+    await pitch({ status: "declined", createdAt: new Date("2026-10-02") });
+    const kiez = await pitch({ status: "accepted", createdAt: new Date("2026-10-04") });
+    const [project] = await db.insert(projects).values({ slug: "kiezradar", title: "Kiezradar", status: "building", submissionId: kiez.id, createdAt: new Date("2026-10-09") }).returning();
     await db.insert(projectMembers).values({ projectId: project!.id, memberId: jonas.id, role: "Initiator" });
 
     const blocks = await listPublicBlocks(db, "key");
@@ -358,6 +358,6 @@ describe("reports and blocks", () => {
       ["idea", expect.stringMatching(/^idea-p[0-9a-f]{8}$/), null, "Kiezradar", "M", "jonas"],
     ]);
     expect(JSON.stringify(blocks)).not.toMatch(/Secret plan|ada@example|Ada/);
-    expect(blocks[1]!.id).not.toContain(accepted.id.slice(0, 8));
+    expect(blocks[1]!.id).not.toContain(sent.id.slice(0, 8));
   });
 });

@@ -4,7 +4,7 @@
 
 import { createHmac } from "node:crypto";
 
-import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import {
@@ -574,10 +574,9 @@ export const anonymousKey = (anonKey: string, seed: string) => `anon-${createHma
  * unlinked (people.ts).
  *
  * Ideas: a suggestion a maintainer accepted is laid at `acceptedAt` and credited to whoever
- * suggested it. An accepted project pitch is laid when its project was created (or, with no
- * project yet, when the pitch was last updated, which is when it was accepted) and credited to the
- * project's initiator. A pitch shows nothing it was written with: only the project's name, once
- * the project is public.
+ * suggested it. A project pitch (any not declined) is laid when it was sent; once it became a
+ * project, it is credited to the project's initiator. A pitch shows nothing it was written with:
+ * only the project's name, once the project is public.
  */
 export async function listPublicBlocks(db: Database, anonKey: string): Promise<PublicBlock[]> {
   type Who = { id: string; handle: string | null; public: boolean; suspendedAt: Date | null } | null;
@@ -619,16 +618,16 @@ export async function listPublicBlocks(db: Database, anonKey: string): Promise<P
     mergedAt: iso(task.acceptedAt!),
   }));
 
-  // Accepted pitches, with the project each became (the first, if several) and its initiator.
+  // Pitches not declined, with the project each became (the first, if several) and its initiator.
   const pitches = await db
     .select({
       id: projectSubmissions.id,
-      updatedAt: projectSubmissions.updatedAt,
+      createdAt: projectSubmissions.createdAt,
       project: { id: projects.id, title: projects.title, status: projects.status, createdAt: projects.createdAt },
     })
     .from(projectSubmissions)
     .leftJoin(projects, eq(projects.submissionId, projectSubmissions.id))
-    .where(eq(projectSubmissions.status, "accepted"))
+    .where(ne(projectSubmissions.status, "declined"))
     .orderBy(asc(projectSubmissions.id), asc(projects.createdAt));
   const projectIds = pitches.flatMap((p) => (p.project ? [p.project.id] : []));
   const leads = projectIds.length
@@ -653,7 +652,7 @@ export async function listPublicBlocks(db: Database, anonKey: string): Promise<P
       area: null,
       size: "M",
       handle: handleOf(lead, `submission:${p.id}`),
-      mergedAt: iso(p.project?.createdAt ?? p.updatedAt),
+      mergedAt: iso(p.createdAt),
     });
   }
 

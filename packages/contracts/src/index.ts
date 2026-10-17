@@ -2373,8 +2373,8 @@ export interface MyTasks {
  * `anon-<8 hex>`.
  *
  * An idea is a suggestion a maintainer accepted (credited to whoever suggested it, size S, linked
- * to its task) or an accepted project pitch (size M, no task; titled with the project's name only
- * once the project is public).
+ * to its task) or a project pitch not declined (size M, no task; credited to the project's
+ * initiator once it became one, titled with the project's name only once the project is public).
  */
 export interface PublicBlock {
   kind: "task" | "idea";
@@ -2386,7 +2386,7 @@ export interface PublicBlock {
   area: TaskArea | null;
   size: TaskSize | null;
   handle: string;
-  /** When the block was laid: the merge for a task, the acceptance for an idea. */
+  /** When the block was laid: the merge for a task, the acceptance for a suggestion, the sending for a pitch. */
   mergedAt: string;
 }
 

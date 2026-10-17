@@ -234,8 +234,8 @@ export function BuildersScene({
                 <>
                   <b>{hit.block.title}</b>
                   <span className={styles.muted}>
-                    {taskOf(hit.block) ? "Idea" : "Project pitch"} · {named.has(hit.block.handle) ? `@${hit.block.handle}` : "Someone"} · accepted{" "}
-                    {formatDate(hit.block.mergedAt)}
+                    {taskOf(hit.block) ? "Idea" : "Project pitch"} · {named.has(hit.block.handle) ? `@${hit.block.handle}` : "Someone"} ·{" "}
+                    {taskOf(hit.block) ? "accepted" : "pitched"} {formatDate(hit.block.mergedAt)}
                   </span>
                   {taskOf(hit.block) ? <Link href={`/tasks/${taskOf(hit.block)}`}>Open {taskOf(hit.block)} →</Link> : null}
                 </>
@@ -277,7 +277,7 @@ export function BuildersScene({
             const task = taskOf(b);
             return (
               <li key={b.id}>
-                {task ? <a href={`/tasks/${task}`}>{b.title}</a> : b.title}, {who(b.handle)}, {isIdea(b) ? "idea accepted" : "merged"}{" "}
+                {task ? <a href={`/tasks/${task}`}>{b.title}</a> : b.title}, {who(b.handle)}, {!isIdea(b) ? "merged" : task ? "idea accepted" : "pitched"}{" "}
                 <time dateTime={b.mergedAt}>{formatDate(b.mergedAt)}</time>
               </li>
             );

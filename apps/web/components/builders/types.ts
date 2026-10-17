@@ -9,8 +9,8 @@ export const BLOCK_SIZES = ["S", "M", "L", "XL"] as const;
 export type BlockSize = (typeof BLOCK_SIZES)[number];
 
 /**
- * One merged task, or one accepted idea: a suggestion (size S, linked to its task) or a project
- * pitch (size M, no task, no area). Ideas are drawn as lamplit bricks.
+ * One merged task, or one idea: an accepted suggestion (size S, linked to its task) or a project
+ * pitch not declined (size M, no task, no area). Ideas are drawn as lamplit bricks.
  */
 export type Block = {
   /** "task" when left out (an API from before ideas). */
@@ -28,7 +28,7 @@ export type Block = {
    * stable opaque key instead of their handle; anyone not in `people` is drawn as an unnamed figure.
    */
   handle: string;
-  /** ISO 8601 timestamp of the merge (an idea: of its acceptance). */
+  /** ISO 8601 timestamp of the merge (a suggestion: its acceptance; a pitch: when it was sent). */
   mergedAt: string;
 };
 
