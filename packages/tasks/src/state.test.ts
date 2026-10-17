@@ -71,13 +71,20 @@ describe("the task lifecycle", () => {
 });
 
 describe("who may do what", () => {
-  it("lets only members publish, triage, choose, close and reopen", () => {
-    for (const action of ["publish", "accept", "decline", "mark_duplicate", "choose", "close", "reopen"] as const) {
+  it("lets only members publish, triage, close and reopen", () => {
+    for (const action of ["publish", "accept", "decline", "mark_duplicate", "close", "reopen"] as const) {
       const from = TASK_ACTIONS[action].from[0]!;
       expect(ruleError(() => planTransition({ status: from, assigneeId: "lena" }, action, lena)).code).toBe("forbidden");
       expect(ruleError(() => planTransition({ status: from, assigneeId: null }, action, system)).code).toBe("forbidden");
       expect(planTransition({ status: from, assigneeId: null }, action, member).to).toBe(TASK_ACTIONS[action].to);
     }
+  });
+
+  it("lets members and the system choose a plan, never a contributor", () => {
+    const open = { status: "open" as const, assigneeId: null };
+    expect(planTransition(open, "choose", member).to).toBe("assigned");
+    expect(planTransition(open, "choose", system).to).toBe("assigned");
+    expect(ruleError(() => planTransition(open, "choose", lena)).code).toBe("forbidden");
   });
 
   it("lets the assignee release and link a PR, nobody else among contributors", () => {

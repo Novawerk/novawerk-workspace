@@ -160,6 +160,36 @@ describe("transitions", () => {
     expect(ledger).toMatchObject([{ contributorId: lena.id, delta: 3, taskId: task.id, pr: "https://github.com/Novawerk/novawerk-workspace/pull/212" }]);
   });
 
+  it("gives an S task to the first plan at once, with no maintainer and no decline note left behind", async () => {
+    const task = await openTask({ size: "S" });
+    const mine = await propose(db, lena, task.id, plan());
+    expect(mine).toMatchObject({ status: "chosen", decidedBy: null });
+    expect((await db.select().from(tasks))[0]).toMatchObject({ status: "assigned", assigneeId: lena.id });
+    const events = await db.select().from(taskEvents);
+    expect(events).toMatchObject([{ kind: "assigned", actorMemberId: null, actorContributorId: null, subjectContributorId: lena.id }]);
+    // Taken: nobody else can propose on it.
+    expect(await code(() => propose(db, jonas, task.id, plan()))).toBe("invalid_state");
+  });
+
+  it("leaves an S plan pending while its author is at their limit; the next person who can take it gets it", async () => {
+    await openTask({ status: "assigned", assigneeId: lena.id });
+    const small = await openTask({ title: "Small", size: "S" });
+    const waiting = await propose(db, lena, small.id, plan());
+    expect(waiting.status).toBe("pending");
+    expect((await db.select().from(tasks).where(eq(tasks.id, small.id)))[0]?.status).toBe("open");
+
+    const taken = await propose(db, jonas, small.id, plan("Another way"));
+    expect(taken.status).toBe("chosen");
+    const proposals = await db.select().from(taskProposals).where(eq(taskProposals.taskId, small.id));
+    expect(proposals.find((p) => p.id === waiting.id)).toMatchObject({ status: "not_chosen", declineNote: NOT_CHOSEN_NOTE, decidedBy: null });
+  });
+
+  it("still waits for a maintainer on M and bigger tasks", async () => {
+    const task = await openTask({ size: "M" });
+    expect((await propose(db, lena, task.id, plan())).status).toBe("pending");
+    expect((await db.select().from(tasks))[0]?.status).toBe("open");
+  });
+
   it("awards Werk once per task and PR, and adjustments are new rows with a reason", async () => {
     const task = await openTask({ status: "in_review", assigneeId: lena.id, prUrl: "https://github.com/x/y/pull/1" });
     await transitionTask(db, { taskId: task.id, action: "merge", actor: { kind: "system" } });

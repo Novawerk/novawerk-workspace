@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 
 const STEPS = [
   ["Pick a task", "Every task has a size, an area and a list of what done looks like. Browse without an account."],
-  ["Propose a plan", "Say how you'd do it and roughly how long it takes. A maintainer picks one plan and sends you the guide."],
+  ["Propose a plan", "Say how you'd do it and roughly how long it takes. A maintainer picks one plan and sends you the guide; an S task is yours as soon as you send."],
   ["Open a pull request", "Work in the repo and put a Task: NW-42 line in the pull request. We review it on GitHub."],
   ["Merge, earn Werk", "When it merges, the task is done and the Werk goes on your profile."],
 ] as const;

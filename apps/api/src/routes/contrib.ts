@@ -134,6 +134,8 @@ const BROWSER_ONLY_PROFILE = ["handle", "public", "onWall", "acceptPledge"] as c
 export function contribRoutes({ db, env, githubApi, files, logger = console }: AppDeps, gate: TokenGate, origins: readonly string[]) {
   // A saved profile or a removed person shows at once on /u/<handle> and the wall.
   const refreshProfiles = () => revalidateWeb(env.webRevalidate, logger, ["contributors"]);
+  // A plan on an S task can take the task at once: the board shows it as taken right away.
+  const refreshIfChosen = (row: TaskProposal) => (row.status === "chosen" ? revalidateWeb(env.webRevalidate, logger, ["tasks"]) : undefined);
   const session = (c: Parameters<typeof getCookie>[0]) => currentAccount(db, getCookie(c, SESSION_COOKIE), env.sessionSecret);
   const screenshotTickets = new FixedWindowLimiter(SCREENSHOT_TICKETS_PER_HOUR, 60 * 60_000);
   return (
@@ -162,6 +164,7 @@ export function contribRoutes({ db, env, githubApi, files, logger = console }: A
         async (c) => {
           const me = c.get("contributor");
           const row = await propose(db, me, c.req.valid("param").id, c.req.valid("json"), undefined, viaOf(c));
+          await refreshIfChosen(row);
           return c.json(proposalResult(row, me, c.get("token")?.name ?? null), 201);
         },
       )
@@ -183,6 +186,7 @@ export function contribRoutes({ db, env, githubApi, files, logger = console }: A
       .post("/proposals/:id/confirm", sessionOnly, zValidator("param", uuidParam, notFoundIfInvalid), async (c) => {
         const me = c.get("contributor");
         const row = await confirmDraftProposal(db, me, c.req.valid("param").id);
+        await refreshIfChosen(row);
         return c.json(proposalResult(row, me, null), 200);
       })
 

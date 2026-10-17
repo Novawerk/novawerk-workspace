@@ -16,7 +16,8 @@ runs on (the site, the admin panel, the API, the agents) through an open task bo
 2. A visitor makes a **contributor** account: GitHub sign-in (to match pull requests), or an
    emailed code as a fallback. An email-only account can browse, discuss and suggest tasks;
    proposing needs a linked GitHub account.
-3. They propose a plan on a task. Several people may propose. A member picks one.
+3. They propose a plan on a task. Several people may propose. A member picks one. On an S task
+   nobody picks: the first plan from someone who can take a task now gets it at once.
 4. The chosen person gets the contribution guide, opens a PR with a `Task: NW-42` line in its
    description, and we review on GitHub.
 5. When the PR merges, the task is done and they earn the task's points.

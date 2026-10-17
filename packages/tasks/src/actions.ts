@@ -28,6 +28,7 @@ import {
 
 import { canWork } from "./contributors.js";
 import { TaskRuleError, isUniqueViolation } from "./errors.js";
+import { autoChooseSmall } from "./transitions.js";
 
 const DAY_MS = 24 * 3_600_000;
 
@@ -94,7 +95,8 @@ async function asContributor<T>(db: Database, c: Member, fn: (tx: Database, me: 
 /**
  * Propose a plan on an open task. 5 a day (drafts count); one open proposal per task. Through a
  * token it is a draft: it counts only once its person confirms it in the browser
- * (confirmDraftProposal).
+ * (confirmDraftProposal). On an S task a plan that counts is chosen at once when its author can
+ * take a task (autoChooseSmall): the returned row then says "chosen".
  */
 export async function propose(
   db: Database,
@@ -105,7 +107,7 @@ export async function propose(
   via?: Via,
 ): Promise<TaskProposal> {
   const now = at ?? new Date();
-  return asContributor(db, c, async (tx, me) => {
+  const row = await asContributor(db, c, async (tx, me) => {
     const task = await publicTask(tx, taskId, true);
     mayWork(me);
     if (task.status !== "open") throw new TaskRuleError("invalid_state", "This task isn't open for proposals");
@@ -150,6 +152,14 @@ export async function propose(
     if (!via) await touch(tx, taskId, now);
     return row!;
   });
+  return row.status === "pending" ? chooseIfSmall(db, row, now) : row;
+}
+
+/** An S task's plan, once it counts: chosen now if it can be, else it stays as it is. */
+async function chooseIfSmall(db: Database, row: TaskProposal, now: Date): Promise<TaskProposal> {
+  if (!(await autoChooseSmall(db, row.id, now))) return row;
+  const [fresh] = await db.select().from(taskProposals).where(eq(taskProposals.id, row.id));
+  return fresh ?? row;
 }
 
 const ALREADY_PROPOSED = "You already proposed on this task. Edit that proposal instead.";
@@ -159,7 +169,7 @@ const ALREADY_PROPOSED = "You already proposed on this task. Edit that proposal 
  * as one written by hand (task open, GitHub linked, one pending per task).
  */
 export async function confirmDraftProposal(db: Database, c: Member, proposalId: string, now = new Date()): Promise<TaskProposal> {
-  return asContributor(db, c, async (tx, me) => {
+  const confirmed = await asContributor(db, c, async (tx, me) => {
     const proposal = await ownPendingProposal(tx, me, proposalId);
     if (proposal.status !== "draft") throw new TaskRuleError("invalid_state", "This proposal isn't a draft");
     const task = await publicTask(tx, proposal.taskId, true);
@@ -178,6 +188,7 @@ export async function confirmDraftProposal(db: Database, c: Member, proposalId: 
     await touch(tx, proposal.taskId, now);
     return row;
   });
+  return chooseIfSmall(db, confirmed, now);
 }
 
 /** Edit your own pending proposal while the task is open. */

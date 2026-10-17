@@ -1,6 +1,6 @@
 "use client";
 
-import type { MyProposal, MyTasks, PublicPerson, PublicTask, PublicTaskDetail, PublicTaskEvent } from "@nw/contracts";
+import type { MyProposal, MyTasks, ProposalResult, PublicPerson, PublicTask, PublicTaskDetail, PublicTaskEvent } from "@nw/contracts";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
@@ -306,9 +306,9 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
           isDraft={!!editingDraft}
           held={held.filter((h) => h.id !== task.id)}
           onAskInThread={focusThread}
-          onSaved={async (edit) => {
+          onSaved={async (edit, chosen) => {
             setProposing(false);
-            toast(editingDraft ? "Draft saved. Confirm it to send it." : edit ? "Changes saved." : "Proposal sent. A maintainer replies within about a week.");
+            toast(editingDraft ? "Draft saved. Confirm it to send it." : edit ? "Changes saved." : sentToast(chosen));
             setEditingDraft(null);
             await refreshAll();
           }}
@@ -327,6 +327,10 @@ export function TaskView({ initial }: { initial: PublicTaskDetail }) {
     </div>
   );
 }
+
+/** On an S task the plan can take the task at once: then the toast says so. */
+const sentToast = (chosen: boolean) =>
+  chosen ? "It's yours. The contribution guide is on this page." : "Proposal sent. A maintainer replies within about a week.";
 
 /** "via agent · claude-laptop": written with a token. */
 export function AgentTag({ name }: { name: string }) {
@@ -366,11 +370,11 @@ function DraftCard({
 
   const confirm = async () => {
     setBusy(true);
-    const res = await api(`/contrib/proposals/${draft.id}/confirm`, { method: "POST", body: {} });
+    const res = await api<ProposalResult>(`/contrib/proposals/${draft.id}/confirm`, { method: "POST", body: {} });
     setBusy(false);
     if (!res.ok) return toast(res.error);
     track("propose_sent", { edit: false });
-    toast("Proposal sent. A maintainer replies within about a week.");
+    toast(sentToast(res.data.status === "chosen"));
     await onChanged();
   };
   const discard = async () => {
@@ -602,7 +606,13 @@ function ActionCard({
       <button type="button" className={`${buttonAccent} h-12 w-full`} onClick={onPropose}>
         Propose a plan
       </button>
-      <p className="text-[13px] text-muted">{pending ? `${plural(pending, "proposal")} so far. A maintainer picks one.` : "No proposals yet. Be the first."}</p>
+      <p className="text-[13px] text-muted">
+        {task.size === "S"
+          ? "An S task goes straight to the first plan from someone who can take a task."
+          : pending
+            ? `${plural(pending, "proposal")} so far. A maintainer picks one.`
+            : "No proposals yet. Be the first."}
+      </p>
     </>
   );
 }

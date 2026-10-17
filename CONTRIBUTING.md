@@ -31,7 +31,8 @@ task.
    GitHub or a code we email you (Google too, once we switch it on), and say how you'd do it
    and when. Proposing needs GitHub linked (Settings → Link GitHub), so we can match your pull
    request to the task. Several people may propose. A maintainer picks one plan, assigns the task and sends you the
-   task's guide.
+   task's guide. An **S** task needs no maintainer: the first plan from someone who can take a
+   task now gets it at once, and the guide opens on the task.
 3. **Fork this repo** and work on a branch in your fork.
 4. **Open a pull request** against `main`. Its body has the line `Task: NW-<n>` (the template
    has it). Our GitHub App links the pull request to the task only if you are the assignee.
