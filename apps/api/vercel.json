@@ -49,6 +49,10 @@
       "schedule": "15 4 * * *"
     },
     {
+      "path": "/cron/chat-notices",
+      "schedule": "20 4 * * *"
+    },
+    {
       "path": "/cron/newsletter-cleanup",
       "schedule": "30 4 * * *"
     }

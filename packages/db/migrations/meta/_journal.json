@@ -169,6 +169,13 @@
       "when": 1792166237913,
       "tag": "0023_welcome_email_existing_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792264424631,
+      "tag": "0024_chat_notices",
+      "breakpoints": true
     }
   ]
 }

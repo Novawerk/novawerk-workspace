@@ -175,6 +175,19 @@ without signing in. Deleting an account queues one last `account_deleted` mail i
 transaction, with the address on the row; the address is cleared once it is sent, or after 7
 days.
 
+### Task board news in the chat
+
+`GET /cron/chat-notices` (`apps/api/src/chat-notices.ts`) runs in the same workflow and posts
+to the team's room in Novawerk Chat through a bot (`CHAT_BOT_URL`, docs/infra.md). It scans the
+database rather than hooking each route, because plans, suggestions and PRs arrive through the
+website, MCP tokens, the GitHub webhook and the nightly sync alike, and a chat that is down
+then only delays the news. It queues into `chat_notices` (unique key per proposal, event or
+suggestion; 24-hour lookback): pending plans on open tasks (on an S task only after 2 minutes,
+so `autoChooseSmall` goes first), `assigned` events with no actor (the system gave an S task
+away: news only), `pr_linked` events, and suggestions still `suggested`. Three tries per row,
+the run stops at the first failure, rows older than 48 hours are skipped, finished rows go
+after 30 days.
+
 ## Who sees what in the admin panel
 
 Everyone is a member, with one account (`members`, NB-ADR-0014). Maintainers (`role =

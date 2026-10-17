@@ -1008,6 +1008,35 @@ export const contributorNotices = pgTable(
   ],
 );
 
+/**
+ * Task board news for the team's room in Novawerk Chat (apps/api/src/chat-notices.ts): a plan
+ * waiting for a maintainer, an S task the system gave away, a PR to review, a suggestion to
+ * triage. GET /cron/chat-notices fills it from proposals, task events and suggestions, then posts
+ * each row once through the chat's bot. `key` is unique, so a row is queued once; finished rows
+ * are pruned after 30 days. `body` holds only the task number, its title, a handle and links.
+ */
+export const chatNotices = pgTable(
+  "chat_notices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Where it came from, e.g. `proposal:<id>`, `event:812`, `suggestion:42`. */
+    key: text("key").notNull().unique(),
+    /** CHAT_NOTICE_KINDS in apps/api/src/chat-notices.ts. */
+    kind: text("kind").notNull(),
+    taskId: integer("task_id").references(() => tasks.id, { onDelete: "cascade" }),
+    /** The message as the room shows it (HTML: plain text and links). */
+    body: text("body").notNull(),
+    /** pending → sending → sent, or failed after MAX_SEND_ATTEMPTS. */
+    status: contributorNoticeStatus("status").notNull().default("pending"),
+    reason: text("reason"),
+    attempts: integer("attempts").notNull().default(0),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("chat_notices_status_idx").on(t.status, t.createdAt)],
+);
+
 // ─── Usage analytics ─────────────────────────────────────────────────────────
 
 /**
@@ -1081,4 +1110,5 @@ export type TaskEvent = typeof taskEvents.$inferSelect;
 export type WerkEntry = typeof werkLedger.$inferSelect;
 export type PostReport = typeof postReports.$inferSelect;
 export type ContributorNotice = typeof contributorNotices.$inferSelect;
+export type ChatNotice = typeof chatNotices.$inferSelect;
 export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert;

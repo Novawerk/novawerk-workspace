@@ -8,6 +8,7 @@ import type { GitHubApi } from "@nw/github";
 import type { TokenContext } from "@nw/tasks";
 
 import type { GitHubOAuth } from "./github-auth.js";
+import type { ChatPoster } from "./chat-notices.js";
 import type { ContributorNoticeSender } from "./contributor-notices.js";
 
 /** Plain config values. Built from env in src/deps.ts; tests pass their own. */
@@ -179,6 +180,8 @@ export interface AppDeps {
   sendWelcome?: WelcomeSender;
   /** Emails to contributors about their own tasks (src/contributor-notices.ts). Optional: without it the cron queues but sends nothing. */
   sendContributorNotice?: ContributorNoticeSender;
+  /** Task board news for the team's chat room (src/chat-notices.ts, CHAT_BOT_URL). Optional: without it /cron/chat-notices does nothing. */
+  postToChat?: ChatPoster;
   /** Double opt-in emails. Optional: without it POST /public/subscribe answers 503. */
   sendNewsletterConfirmation?: NewsletterConfirmationSender;
   /** Optional: without it POST /webhooks/resend answers 404. */

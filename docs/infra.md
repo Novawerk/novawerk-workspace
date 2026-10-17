@@ -144,6 +144,7 @@ and production. "—" means unset.
 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` | the GitHub App's, or unset (email codes still work) | the GitHub App `novawerk-task-board` |
 | `CONTRIBUTOR_ORIGINS` | default | `https://novawerk.io,https://www.novawerk.io` |
 | `CHAT_URL`, `CHAT_SSO_SECRET` | — (`/auth/chat` answers 404) | `https://chat.novawerk.io` and 32+ random characters, the same as the chat's `CHAT_SSO_SECRET` (NB-ADR-0014). Rotate both together |
+| `CHAT_BOT_URL` | — (`/cron/chat-notices` does nothing) | the bot's messages URL for the task board room, `https://chat.novawerk.io/rooms/<room id>/<bot key>/messages`. Secret: the bot key is in it. See "Task board news in the chat" |
 | `WEB_READ_KEY` | — | 32+ random characters, the same on the web (`WEB_READ_KEY`): the website's server reads the task board without the anonymous 600/h limit |
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_INSTALLATION_ID` | — (the board moves tasks without replying on PRs) | the App's id `5317582`, its private key (PEM), installation `171409213` |
 | `GITHUB_WEBHOOK_SECRET` | — (`/webhooks/github` answers 404) | the App's webhook secret, 16+ characters |
@@ -260,6 +261,43 @@ thread to say who answers. Resend keeps its own copy of each received email.
   Check that it came through the group, or set `INBOUND_LIST_ID`.
 - Nothing in Resend at all: the address is no longer a member of the group, or Google held
   the email as spam (it then reaches no member).
+
+## Task board news in the chat
+
+A room in Novawerk Chat (chat.novawerk.io) gets one message per thing on the task board, posted
+by a bot. **To do**: a new plan waiting for a maintainer (any plan on an M, L or XL task; on an S
+task, a plan the system didn't choose because its author can't take a task now), a pull request
+to review (a task moved to `in_review`), a new suggestion to triage. **FYI**: an S task the
+system gave to the first plan. Each message has the task number and title, a handle and links
+(the task, the admin queue, the PR); never an email address, a plan's text or a decline note.
+
+`GET /cron/chat-notices` (`apps/api/src/chat-notices.ts`) runs every 10 minutes in the same
+GitHub Actions workflow as the contributor notices, daily from Vercel as the fallback. It looks
+at the last 24 hours, queues each thing once in `chat_notices`, and posts it. If the chat is
+down a row waits for the next run (three tries); after 48 hours it is skipped. Without
+`CHAT_BOT_URL` it does nothing and queues nothing.
+
+### Set it up
+
+1. **Bot.** Sign in to chat.novawerk.io as an administrator. Account settings → **Bots** → New
+   bot (`/account/bots/new`). Name it "Task board", give it a picture, and leave the webhook URL
+   empty (it only posts). Open the bot again: **Bot key** shows `<bot id>-<token>`; copy it.
+2. **Room.** New room → **Closed** (`/rooms/closeds/new`), name it e.g. "Task board", and pick
+   the maintainers and the bot "Task board": a bot only posts to rooms it is in (otherwise the
+   chat answers 404). With Novawerk sign-in on, administrators are always in closed rooms. The
+   room's id is the number in its address, `chat.novawerk.io/rooms/<room id>`.
+3. **Vercel.** On `novawerk-api` (Production) set `CHAT_BOT_URL` to
+   `https://chat.novawerk.io/rooms/<room id>/<bot key>/messages` and redeploy. The API refuses
+   to start with a URL of any other shape.
+4. **Test.** Check by hand: `curl -X POST -H 'Content-Type: text/html' -d '<strong>hello</strong>'
+   "$CHAT_BOT_URL"` answers `201` and the message shows in the room. Then run the workflow
+   "Contributor notices" (Run workflow): the `/cron/chat-notices` step answers
+   `{"configured":true,…}`.
+
+Resetting the bot key (the bot's page → Reset key) breaks the old URL: update `CHAT_BOT_URL`.
+When nothing shows up: the step's answer says `failed`, and the Vercel log has
+`[chat-notices] posting … failed: the chat answered <status>` (404: wrong room id, or the bot
+isn't in the room; 401/302: wrong key).
 
 ## Before launch
 
