@@ -302,7 +302,7 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
 | `POST /contrib/tasks/:id/posts`, `POST /contrib/suggestions`, `PUT`/`DELETE /contrib/tasks/:id/vote` | contributor | thread, suggestions, +1 |
 | `GET /contrib/me/tasks`, `GET /contrib/tasks/:id/guide`, `POST /contrib/tasks/:id/pr` / `release` / `extend` | contributor (the assignee) | my tasks, the guide, link a PR, give it back, a week more |
 | `POST /contrib/posts/:id/report` | contributor | report a post (`post_reports`) |
-| `GET /public/blocks` | anyone | merged tasks for the builders scene; private people as `anon-<hash>` |
+| `GET /public/blocks` | anyone | merged tasks and accepted ideas (suggestions, pitches) for the builders scene; private people as `anon-<hash>` |
 | `GET /public/initiators` | anyone | opted-in Members who started a public project |
 | `GET`/`PATCH /admin/me` | the member themself | their own public profile (`publicProfile`, `profileHandle`, `profileBio`) |
 | `POST /webhooks/github`, `GET /cron/github-sync` | GitHub, Vercel Cron | pull requests move tasks; reconcile and inactivity |

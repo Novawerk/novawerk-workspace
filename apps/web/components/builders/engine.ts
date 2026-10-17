@@ -11,7 +11,7 @@ import {
   type Slot,
   type Tower,
 } from "./model";
-import type { Block, BlockArea } from "./types";
+import { isIdea, type Block, type BlockArea } from "./types";
 
 export type Hit =
   | { kind: "figure"; figure: Figure; x: number; y: number }
@@ -50,6 +50,9 @@ const STAR_PX = [".....#.....", ".....#.....", ".....#.....", "....#c#....", "..
 type Faces = [top: string, left: string, right: string];
 type Colors = {
   face: Record<BlockArea, Faces>;
+  /** Accepted ideas: lamplit bricks, outside the area palette. */
+  idea: Faces;
+  ideaLit: string;
   ink: string;
   head: string;
   g1: string;
@@ -82,6 +85,8 @@ function readColors(el: Element): Colors {
   const ground = g("--bs-ground");
   return {
     face,
+    idea: faces(g("--bs-idea")),
+    ideaLit: g("--bs-idea-lit"),
     ink: g("--bs-fig-ink"),
     head: g("--bs-fig-head"),
     g1: ground,
@@ -131,6 +136,8 @@ export function startScene(o: SceneOptions) {
     g.fillRect(x, y, w, h);
   };
   const scr = (x: number, y: number, z: number) => toScreen(T, x, y, z);
+  const facesOf = (b: Block): Faces => (isIdea(b) ? C.idea : (b.area && C.face[b.area]) || C.face.web);
+  const bodyOf = (area: BlockArea | "idea"): Faces => (area === "idea" ? C.idea : (C.face[area] ?? C.face.web));
 
   /** A cube whose top face has its top vertex at (sx, sy). */
   function cube([top, left, right]: Faces, sx: number, sy: number, c: number, h: number) {
@@ -140,6 +147,11 @@ export function startScene(o: SceneOptions) {
       px(sx + c - 1 - j, t, 1, h, right);
     }
     tile(top, sx, sy, c);
+  }
+  /** An idea's cube: a lit window in the middle of its top face. */
+  function ideaCube(sx: number, sy: number, c: number, h: number) {
+    cube(C.idea, sx, sy, c, h);
+    px(sx - 1, sy + Math.floor(c / 2) - 1, 2, 1, C.ideaLit);
   }
   function tile(fill: string, sx: number, sy: number, c: number) {
     for (let r = 0; r < c; r++) {
@@ -236,10 +248,10 @@ export function startScene(o: SceneOptions) {
   const endAt = trips.length ? Math.max(...trips.map((t) => t.start + t.dur)) : 0;
   let settled = trips.length === 0;
 
-  function sprite(f: { area: BlockArea; ph: number }, gx: number, gy: number, gz: number, pose: Pose, t: number, carry: boolean) {
+  function sprite(f: { area: BlockArea | "idea"; ph: number }, gx: number, gy: number, gz: number, pose: Pose, t: number, carry: boolean) {
     const [sx, sy] = scr(gx, gy, gz);
     const step = Math.floor(t * 6) % 2;
-    const face = C.face[f.area] ?? C.face.web;
+    const face = bodyOf(f.area);
     px(sx - 2, sy, 4, 1, C.shadow);
     if (pose === "rest") {
       px(sx - 1, sy - 1, 3, 1, C.ink);
@@ -296,7 +308,7 @@ export function startScene(o: SceneOptions) {
       items.sort((a, b) => a.k - b.k);
       for (const it of items) {
         const [sx, sy] = toScreen(s, it.cell.x, it.cell.y, it.cell.z + 1);
-        cube(C.face[past.blocks[it.i].area] ?? C.face.web, sx, sy, s.c, s.h);
+        cube(facesOf(past.blocks[it.i]), sx, sy, s.c, s.h);
       }
       const [stx, sty] = toScreen(s, N / 2, N / 2, past.layers);
       star(stx, sty - SKY_STAR_RISE, 1, true);
@@ -329,7 +341,8 @@ export function startScene(o: SceneOptions) {
           draw: () => {
             const [sx, sy] = scr(q.x, q.y, q.z + 1);
             const yy = sy - dz * T.h;
-            cube(C.face[blocks[i].area] ?? C.face.web, sx, yy, T.c, T.h);
+            if (isIdea(blocks[i])) ideaCube(sx, yy, T.c, T.h);
+            else cube(facesOf(blocks[i]), sx, yy, T.c, T.h);
             hitCubes.push([sx, yy, i]);
             if (i === hiBlock) px(sx - 1, yy - 1, 2, 1, C.ring);
           },
@@ -379,7 +392,7 @@ export function startScene(o: SceneOptions) {
       const p = lerp(s.from, s.to, s.kind === "place" ? 1 : u);
       const carry = tr.segs.indexOf(s) < 3;
       const pose: Pose = s.kind === "climb" ? "climb" : s.kind === "place" ? "stand" : "walk";
-      const who = tr.fig ?? { area: tr.block.area, ph: 0 };
+      const who = tr.fig ?? { area: isIdea(tr.block) ? ("idea" as const) : (tr.block.area ?? "web"), ph: 0 };
       items.push({
         k: p[0] + p[1] + p[2] + 0.6,
         late: p[2] > 0 || s.kind === "climb",
@@ -387,10 +400,11 @@ export function startScene(o: SceneOptions) {
           const top = sprite(who, p[0], p[1], p[2], pose, t, carry);
           if (carry) {
             const [sx] = scr(p[0], p[1], p[2]);
-            const fc = C.face[tr.block.area] ?? C.face.web;
+            const fc = facesOf(tr.block);
             px(sx - 2, top - 3, 4, 1, fc[0]);
             px(sx - 2, top - 2, 2, 2, fc[1]);
             px(sx, top - 2, 2, 2, fc[2]);
+            if (isIdea(tr.block)) px(sx - 1, top - 3, 2, 1, C.ideaLit);
           }
         },
       });

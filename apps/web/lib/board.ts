@@ -96,15 +96,15 @@ export async function getProfile(handle: string): Promise<PublicContributorProfi
   return res.ok ? res.data : res.notFound ? "missing" : null;
 }
 
-/** Every merged task, for the builders scene (GET /public/blocks), oldest first. */
+/** Every merged task and accepted idea, for the builders scene (GET /public/blocks), oldest first. */
 export async function getBlocks(): Promise<Block[]> {
   "use cache";
   cacheTag(TASKS_TAG, CONTRIBUTORS_TAG);
   const res = await read<PublicBlock[]>("/public/blocks");
   lifetime(res.ok || res.notFound);
   if (!res.ok || !Array.isArray(res.data)) return [];
-  // A merged task always has an area and a size; skip a row that somehow doesn't.
-  return res.data.flatMap((b) => (b.area && b.size ? [{ ...b, area: b.area, size: b.size }] : []));
+  // A merged task always has an area and a size, an idea a size; skip a row that somehow doesn't.
+  return res.data.flatMap((b) => (b.size && (b.area || b.kind === "idea") ? [{ ...b, area: b.area, size: b.size }] : []));
 }
 
 /** Initiators who opted in, one row per public project (GET /public/initiators); [] until the API has it. */

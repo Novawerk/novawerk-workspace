@@ -2368,15 +2368,25 @@ export interface MyTasks {
 }
 
 /**
- * GET /public/blocks: every merged task, oldest first, for the builders scene. `handle` is the
- * real handle only for a public profile; anyone else is a stable opaque `anon-<8 hex>`.
+ * GET /public/blocks: every merged task and every accepted idea, oldest first, for the builders
+ * scene. `handle` is the real handle only for a public profile; anyone else is a stable opaque
+ * `anon-<8 hex>`.
+ *
+ * An idea is a suggestion a maintainer accepted (credited to whoever suggested it, size S, linked
+ * to its task) or an accepted project pitch (size M, no task; titled with the project's name only
+ * once the project is public).
  */
 export interface PublicBlock {
+  kind: "task" | "idea";
+  /** Unique per row: "NW-42" for a task, "idea-NW-42" for its suggestion, "idea-p<8 hex>" for a pitch. */
   id: string;
+  /** The task the block links to, "NW-42"; null for a pitch. */
+  task: string | null;
   title: string;
   area: TaskArea | null;
   size: TaskSize | null;
   handle: string;
+  /** When the block was laid: the merge for a task, the acceptance for an idea. */
   mergedAt: string;
 }
 

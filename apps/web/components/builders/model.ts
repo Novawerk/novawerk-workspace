@@ -2,7 +2,7 @@
 // the geometry, the width), so every visitor sees the same tower and the server can prerender the
 // text parts. No clocks, no randomness.
 
-import { BLOCK_AREAS, type Block, type BlockArea, type BlockSize, type BuildersSize, type Person } from "./types";
+import { BLOCK_AREAS, isIdea, type Block, type BlockArea, type BlockSize, type BuildersSize, type Person } from "./types";
 
 /** Cubes a block covers, by size. */
 export const CELLS: Record<BlockSize, number> = { S: 1, M: 2, L: 3, XL: 4 };
@@ -27,9 +27,12 @@ export type Season = {
 export type Figure = {
   handle: string;
   person: Person | null;
+  /** Merged tasks. */
   blocks: number;
-  /** The area they built in most; colours the figure's body. */
-  area: BlockArea;
+  /** Accepted ideas. */
+  ideas: number;
+  /** The area they built in most, colouring the figure's body; "idea" for someone with only ideas. */
+  area: BlockArea | "idea";
   areas: BlockArea[];
 };
 
@@ -121,18 +124,22 @@ function mainArea(counts: Map<BlockArea, number>): BlockArea {
 export function buildModel(blocks: readonly Block[], people: readonly Person[]): SceneModel {
   const sorted = sortBlocks(blocks);
   const byHandle = new Map(people.map((p) => [p.handle, p]));
-  const stats = new Map<string, { n: number; last: number; areas: Map<BlockArea, number> }>();
+  const stats = new Map<string, { n: number; ideas: number; last: number; areas: Map<BlockArea, number> }>();
   sorted.forEach((b, i) => {
-    const s = stats.get(b.handle) ?? { n: 0, last: 0, areas: new Map() };
-    s.n++;
+    const s = stats.get(b.handle) ?? { n: 0, ideas: 0, last: 0, areas: new Map() };
+    if (isIdea(b)) s.ideas++;
+    else {
+      s.n++;
+      if (b.area) s.areas.set(b.area, (s.areas.get(b.area) ?? 0) + 1);
+    }
     s.last = i;
-    s.areas.set(b.area, (s.areas.get(b.area) ?? 0) + 1);
     stats.set(b.handle, s);
   });
   const figure = (handle: string): Figure => {
     const s = stats.get(handle);
     const areas = s ? BLOCK_AREAS.filter((a) => s.areas.has(a)) : [];
-    return { handle, person: byHandle.get(handle) ?? null, blocks: s?.n ?? 0, area: s ? mainArea(s.areas) : "admin", areas };
+    const area = !s ? "admin" : areas.length ? mainArea(s.areas) : s.ideas ? "idea" : "admin";
+    return { handle, person: byHandle.get(handle) ?? null, blocks: s?.n ?? 0, ideas: s?.ideas ?? 0, area, areas };
   };
   const last = (h: string) => stats.get(h)?.last ?? -1;
   const named = people
@@ -155,12 +162,16 @@ export function buildModel(blocks: readonly Block[], people: readonly Person[]):
   };
 }
 
-/** "142 tasks merged by 38 people. One block at a time." */
+/** "142 tasks merged and 9 ideas accepted, by 38 people. One block at a time." */
 export function summaryLine(model: Pick<SceneModel, "blocks" | "peopleCount">): string {
-  const n = model.blocks.length;
+  const k = model.blocks.filter(isIdea).length;
+  const n = model.blocks.length - k;
   const m = model.peopleCount;
   const f = (x: number) => x.toLocaleString("en-US");
-  return `${f(n)} ${n === 1 ? "task" : "tasks"} merged by ${f(m)} ${m === 1 ? "person" : "people"}. One block at a time.`;
+  const tasks = `${f(n)} ${n === 1 ? "task" : "tasks"} merged`;
+  const people = `${f(m)} ${m === 1 ? "person" : "people"}`;
+  if (!k) return `${tasks} by ${people}. One block at a time.`;
+  return `${tasks} and ${f(k)} ${k === 1 ? "idea" : "ideas"} accepted, by ${people}. One block at a time.`;
 }
 
 /** Newest first, for the accessible list. */

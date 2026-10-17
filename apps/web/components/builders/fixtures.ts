@@ -62,5 +62,22 @@ export function fixtureBlocks(count: number, from = "2026-05-01", to = "2026-10-
   });
 }
 
+/**
+ * Accepted ideas for `blocks`: about one task in seven came from a suggestion, accepted two days
+ * before it merged, and one pitch every 50 tasks. Deterministic, like the blocks.
+ */
+export function fixtureIdeas(blocks: readonly Block[]): Block[] {
+  const SUGGESTERS = ["mira", "priya", "anon-7", "kofi", "lena-k"];
+  const ideas: Block[] = [];
+  blocks.forEach((b, i) => {
+    const at = new Date(Date.parse(b.mergedAt) - 2 * DAY).toISOString();
+    if (i % 7 === 3)
+      ideas.push({ kind: "idea", id: `idea-${b.id}`, task: b.id, title: b.title, area: b.area, size: "S", handle: SUGGESTERS[i % SUGGESTERS.length], mergedAt: at });
+    if (i % 50 === 20)
+      ideas.push({ kind: "idea", id: `idea-p${i}`, task: null, title: i % 100 === 20 ? "Kiezradar" : "A project pitch", area: null, size: "M", handle: i % 100 === 20 ? "sara-n" : `anon-p${i}`, mergedAt: at });
+  });
+  return ideas;
+}
+
 /** The default sample: 142 tasks since May. */
 export const FIXTURE_BLOCKS: Block[] = fixtureBlocks(142);

@@ -3,13 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { BuildersScene } from "@/components/builders/builders-scene";
-import { FIXTURE_PEOPLE, fixtureBlocks } from "@/components/builders/fixtures";
+import { FIXTURE_PEOPLE, fixtureBlocks, fixtureIdeas } from "@/components/builders/fixtures";
 import type { BuildersSize } from "@/components/builders/types";
 
 import styles from "./preview.module.css";
 
+const withIdeas = (blocks: ReturnType<typeof fixtureBlocks>) => [...blocks, ...fixtureIdeas(blocks)];
+
 const DATASETS = {
+  "142 blocks + ideas": () => withIdeas(fixtureBlocks(142)),
   "142 blocks": () => fixtureBlocks(142),
+  "12 blocks + ideas": () => withIdeas(fixtureBlocks(12, "2026-09-20")),
   "12 blocks": () => fixtureBlocks(12, "2026-09-20"),
   "1 block": () => fixtureBlocks(1, "2026-10-15"),
   "5 blocks": () => fixtureBlocks(5, "2026-10-01"),
@@ -35,7 +39,7 @@ function Seg<T extends string>({ label, value, options, onChange }: { label: str
 }
 
 export function BuildersPreview() {
-  const [dataset, setDataset] = useState<Dataset>("142 blocks");
+  const [dataset, setDataset] = useState<Dataset>("142 blocks + ideas");
   const [size, setSize] = useState<BuildersSize>("full");
   const [theme, setTheme] = useState<Theme>("system");
   const [motion, setMotion] = useState<"animated" | "still">("animated");
