@@ -30,6 +30,7 @@ import { Page } from "@/components/page"
 import {
   boardTaskQueryOptions,
   suggestionsQueryOptions,
+  suggestionScreenshotQueryOptions,
   useAcceptSuggestion,
   useAskForInfo,
   useDeclineSuggestion,
@@ -191,6 +192,7 @@ function Triage({ id }: { id: string }) {
           {task.wantsIt && <Badge variant="outline">Wants to do it</Badge>}
         </div>
         <p className="text-sm whitespace-pre-wrap">{task.body}</p>
+        <SuggestionScreenshot key={task.id} id={task.id} attached={task.screenshot.attached} />
         {task.voters.length > 0 && (
           <p className="text-xs text-muted-foreground">+1 from {task.voters.map((v) => `@${v.handle}`).join(", ")}</p>
         )}
@@ -261,6 +263,56 @@ function Triage({ id }: { id: string }) {
         />
       )}
     </>
+  )
+}
+
+function SuggestionScreenshot({ id, attached }: { id: string; attached: boolean }) {
+  const { data: blob, isPending, isError, error, refetch } = useQuery({
+    ...suggestionScreenshotQueryOptions(id),
+    enabled: attached,
+  })
+  const [url, setUrl] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!blob) return
+    const objectUrl = URL.createObjectURL(blob)
+    setUrl(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [blob])
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-sm font-medium">Screenshot</h3>
+      {!attached ? (
+        <p className="text-sm text-muted-foreground">No screenshot attached.</p>
+      ) : isError ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm" role="alert">
+          <span className="text-destructive">We couldn’t load the screenshot: {errorMessage(error)}</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
+            Try again
+          </Button>
+        </div>
+      ) : isPending || !url ? (
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          Loading screenshot…
+        </p>
+      ) : (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label={`Open ${id} screenshot at full size`}
+          className="block overflow-hidden rounded-md border bg-muted"
+        >
+          <img
+            src={url}
+            alt={`Screenshot attached to ${id}`}
+            className="max-h-[60vh] w-full object-contain"
+          />
+          <span className="block px-3 py-2 text-xs text-muted-foreground">Open full size</span>
+        </a>
+      )}
+    </section>
   )
 }
 

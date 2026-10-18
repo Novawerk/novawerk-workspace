@@ -11,6 +11,7 @@ export const boardKeys = {
   task: (id: string) => ["board", "task", id] as const,
   proposals: ["board", "proposals"] as const,
   suggestions: (sort: SuggestionSort) => ["board", "suggestions", sort] as const,
+  suggestionScreenshot: (id: string) => ["board", "suggestion-screenshot", id] as const,
   discussions: (filter: DiscussionFilter) => ["board", "discussions", filter] as const,
   contributors: ["board", "contributors"] as const,
   werk: (contributorId?: string) => ["board", "werk", contributorId ?? "all"] as const,
@@ -26,6 +27,13 @@ export const proposalQueueQueryOptions = queryOptions({ queryKey: boardKeys.prop
 
 export const suggestionsQueryOptions = (sort: SuggestionSort) =>
   queryOptions({ queryKey: boardKeys.suggestions(sort), queryFn: () => boardSource.listSuggestions(sort) })
+
+export const suggestionScreenshotQueryOptions = (id: string) =>
+  queryOptions({
+    queryKey: boardKeys.suggestionScreenshot(id),
+    queryFn: () => boardSource.getSuggestionScreenshot(id),
+    gcTime: 0,
+  })
 
 export const discussionsQueryOptions = (filter: DiscussionFilter) =>
   queryOptions({ queryKey: boardKeys.discussions(filter), queryFn: () => boardSource.listDiscussions(filter) })
