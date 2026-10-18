@@ -27,7 +27,7 @@ Node 22+, pnpm 10. One lockfile at the root. Tests that need Postgres use `@nw/d
 Running the apps: the `.env` values, signing in (GitHub is simulated locally), uploads
 (`.local-files/`, no Vercel account), pull requests on `localhost:8787/dev/github` and the site's
 cache are in [CONTRIBUTING.md](CONTRIBUTING.md#local-setup). In Claude Code, the
-`nw-contribute` skill does the setup and connects the task board.
+`nw-setup` skill does the setup and connects the task board.
 
 ## Task and pull request conventions
 
@@ -75,4 +75,4 @@ novawerk.io/settings/tokens. Reading needs no token. With one you can read the g
 proposal (the person confirms it on novawerk.io), create a task, link a pull request and post
 on a task. Tools and rules: [apps/web/public/llms.txt](apps/web/public/llms.txt). The person
 adds the server themself (the token is theirs; never ask for it in chat): see the
-`nw-contribute` skill.
+`nw-setup` skill.

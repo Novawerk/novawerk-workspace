@@ -1,9 +1,9 @@
 ---
-name: nw-contribute
+name: nw-setup
 description: Get a contributor going in Novawerk/novawerk-workspace. Set up the stack locally (env files, Postgres, seed, dev sign-in, uploads without Vercel, the site's cache), connect the task board's MCP server with the person's own token, then find or claim the task to work on. Use when someone says "help me contribute", "set this repo up", "how do I run it locally", "connect the task board / MCP", "how do I test uploads/screenshots locally", or starts work here without a running stack or a task.
 ---
 
-# Contributing to Novawerk
+# Setting up to contribute to Novawerk
 
 Three things, in order: a running local stack, the task board connected, a task the person holds.
 The human-facing version is CONTRIBUTING.md (#local-setup); AGENTS.md has the rules for the

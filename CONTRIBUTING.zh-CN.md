@@ -139,7 +139,7 @@ pnpm dev                # Web 运行在 :3000，管理后台在 :5173，API 在 
 
 ### 使用 AI 编程智能体
 
-使用 Claude Code 或其他编程智能体？它会阅读 [AGENTS.md](AGENTS.md)。在 Claude Code 中，`nw-contribute` Skill 会引导它完成上述环境配置、连接任务看板（MCP），以及查找或创建你的任务。
+使用 Claude Code 或其他编程智能体？它会阅读 [AGENTS.md](AGENTS.md)。在 Claude Code 中，`nw-setup` Skill 会引导它完成上述环境配置、连接任务看板（MCP），以及查找或创建你的任务。
 
 ## 提交 Pull Request 之前
 

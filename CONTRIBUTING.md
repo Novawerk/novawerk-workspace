@@ -164,7 +164,7 @@ the agents that run from GitHub Actions in the private repo (`pnpm agent <id> --
 ### Working with an agent
 
 Using Claude Code or another coding agent? It reads [AGENTS.md](AGENTS.md). In Claude Code the
-`nw-contribute` skill walks it through this setup, connecting the task board (MCP) and finding
+`nw-setup` skill walks it through this setup, connecting the task board (MCP) and finding
 or creating your task.
 
 ## Before you open a pull request

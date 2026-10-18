@@ -49,7 +49,7 @@ day per person; an S task needs GitHub linked. Don't make a task bigger or small
 a step; split real work into S tasks instead when it can be split.
 
 No token? The person makes one at novawerk.io/settings/tokens and adds the server once, in
-their own terminal (never paste the token into the chat; the `nw-contribute` skill has the
+their own terminal (never paste the token into the chat; the `nw-setup` skill has the
 steps):
 
 ```bash
@@ -68,7 +68,7 @@ claude mcp add --scope user --transport http novawerk https://api.novawerk.io/mc
   (env vars, scripts, ports, seed data, a dev-only route, a mock, a CI step) or a contributor
   flow (tasks, proposals, PR linking, limits), update in the same PR: CONTRIBUTING.md **and**
   CONTRIBUTING.zh-CN.md (keep them saying the same thing), the `.env.example` it touches,
-  AGENTS.md, docs/infra.md and the skills in `.claude/skills/` (`nw-contribute` for setup).
+  AGENTS.md, docs/infra.md and the skills in `.claude/skills/` (`nw-setup` for setup).
   Then tick the template's docs line.
 
 Once it's open the board moves the task to `in_review` by itself. If it doesn't (the body
