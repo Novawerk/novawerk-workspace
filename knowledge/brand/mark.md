@@ -16,15 +16,23 @@ It functions as both favicon and inline accent throughout the site.
 ## The shape
 
 A four-pointed star on a `100 × 100` viewBox, drawn as **two concentric
-closed paths** — an outer star and an inner depth core. The four outer
+closed paths** — an outer star and an inner core that is **cut out** of it. The four outer
 points sit at the cardinal compass positions (N / E / S / W) and the
 four inner points pinch tightly toward the centre (±5 units from the
 midpoint), giving the star its sharp, spike-like silhouette.
 
-The inner core is the same shape at ~28% scale, in a deeper green —
-reading as depth, ambiguous between *contracting* and *expanding*.
+The inner core is the same shape at ~28% scale and is **negative space**:
+it is not filled with any colour, so whatever is behind the star shows
+through — cream on cream, ink on ink, transparent on a transparent PNG.
+It reads as depth, ambiguous between *contracting* and *expanding*.
 
-**SVG paths:**
+Draw it as one `<path>` holding both sub-paths with `fill-rule="evenodd"`.
+Never fill the core with a colour (earlier assets used deep green
+`#0a3920`; that is superseded). The design-history deck
+[`knowledge/slides/logo-and-vi.html`](../slides/logo-and-vi.html) still shows
+the old deep-green core.
+
+**SVG paths** (one `<path fill-rule="evenodd">`, outer then core):
 
 ```
 Outer:  M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z
@@ -40,25 +48,24 @@ Source of truth: `app/(frontend)/globals.css` (`@theme` block).
 
 | Token                      | Hex       | Where it's used                                  |
 |----------------------------|-----------|--------------------------------------------------|
-| `--color-accent`           | `#1f7a4a` | Outer star fill                                  |
-| `--color-accent-core`      | `#0a3920` | Inner depth core                                 |
+| `--color-accent`           | `#1f7a4a` | Star fill (the core is a cutout, never filled)   |
 | `--color-accent-deep`      | `#155a36` | Hover / pressed accent                           |
 | `--color-background`       | `#efe9d8` | Page background (cream)                          |
 | `--color-foreground`       | `#0f0f0f` | Body text, dark CTA blocks                       |
 
-The canonical rendering is a **green star with deep-green core on cream
+The canonical rendering is a **green star with a cut-out core on cream
 background**, with no enclosing tile or shape — the star is the entire mark.
 
-For B&W contexts (single-ink print, dark UIs), outer is `#0f0f0f` and
-the core is `#ffffff` — reading as a cutout / event horizon. See
-[`assets/nova-star-bw.svg`](./assets/nova-star-bw.svg).
+For B&W contexts (single-ink print, dark UIs), the star is `#0f0f0f`; the
+core is still a cutout and shows the ground — reading as an event horizon.
+See [`assets/nova-star-bw.svg`](./assets/nova-star-bw.svg).
 
 ## Asset files in this repo
 
 | File                                                                                                | viewBox       | Use case                                                                          |
 |-----------------------------------------------------------------------------------------------------|---------------|-----------------------------------------------------------------------------------|
-| [`assets/nova-star.svg`](./assets/nova-star.svg)                                       | `0 0 100 100` | Mark — colour, two-path depth, transparent.                                       |
-| [`assets/nova-star-bw.svg`](./assets/nova-star-bw.svg)                                 | `0 0 100 100` | Mark — single-ink (ink + cream cutout).                                           |
+| [`assets/nova-star.svg`](./assets/nova-star.svg)                                       | `0 0 100 100` | Mark — colour, cut-out core, transparent.                                         |
+| [`assets/nova-star-bw.svg`](./assets/nova-star-bw.svg)                                 | `0 0 100 100` | Mark — single-ink, cut-out core.                                                  |
 | [`assets/nova-star-dark.svg`](./assets/nova-star-dark.svg)                             | `0 0 100 100` | Mark — dark, cream star on ink ground.                                            |
 | [`assets/nova-star-horizontal.svg`](./assets/nova-star-horizontal.svg)                 | `0 0 460 120` | Horizontal lockup — colour default. See [VI guide](./visual-identity.md#1-logo-system). |
 | [`assets/nova-star-horizontal-mixed.svg`](./assets/nova-star-horizontal-mixed.svg)     | `0 0 460 120` | Horizontal lockup — green mark + ink wordmark.                                    |
@@ -115,8 +122,9 @@ Silenced under `@media (prefers-reduced-motion: reduce)`.
 - Don't enclose the mark in a rounded square, circle, or any other
   container shape. The star stands alone.
 - Don't add gradients, shadows, or strokes. The mark is solid-fill only —
-  depth comes from the two concentric layers, not effects.
-- Don't drop the depth core unless rendering at < 16 px, where it
+  depth comes from the cut-out core, not effects.
+- Don't fill the core with a colour. It is always a cutout showing the ground.
+- Don't drop the core unless rendering at < 16 px, where it
   becomes a single solid star for legibility.
 
 ## In AI-generated images
@@ -160,7 +168,7 @@ describe the star precisely:
 A four-pointed star with sharp pinched arms — points at top, bottom,
 left, right; the inner pinch sits close to the center. Solid fill in
 forest green (#1f7a4a), with a smaller concentric four-pointed star
-at the center in deeper green (#0a3920). NO rounding, NO gradient,
+cut out of the center so the background shows through. NO rounding, NO gradient,
 NO glow, NO lens flare, NO sparkle, NO enclosing circle or square,
 NO outline, NO drop shadow. Solid silhouette only. Sharp edges.
 The star sits alone on the surface.

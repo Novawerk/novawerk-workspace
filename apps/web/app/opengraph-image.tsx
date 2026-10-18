@@ -32,8 +32,7 @@ export default function OpengraphImage() {
         >
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
             <svg width="64" height="64" viewBox="0 0 100 100">
-              <path d={OUTER} fill="#1f7a4a" />
-              <path d={CORE} fill="#0a3920" />
+              <path d={`${OUTER} ${CORE}`} fill="#1f7a4a" fillRule="evenodd" />
             </svg>
             <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: -1.5 }}>Novawerk</div>
           </div>

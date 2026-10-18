@@ -95,6 +95,7 @@ export function SiteFooter() {
         <ul className="flex gap-5 text-xs text-muted">
           <li><Link className={textLink} href="/privacy">Privacy</Link></li>
           <li><Link className={textLink} href="/imprint">Imprint</Link></li>
+          <li><Link className={textLink} href="/brand">Brand</Link></li>
         </ul>
       </div>
     </footer>
