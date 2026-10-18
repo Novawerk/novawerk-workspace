@@ -122,7 +122,7 @@ add others.
 
 Then the pledge line, **How it works** (4 real
 steps), **What Werk is**, **What to expect** (not membership; we don't mentor whole projects;
-one task at a time while you're new, two after your first merge), three featured open tasks, **Work with your coding agent**
+release a task if life gets busy), three featured open tasks, **Work with your coding agent**
 (→ tokens), newsletter signup.
 States: visitor · signed in · arrived from `/join` (info note).
 
@@ -188,7 +188,7 @@ A dialog on desktop; a full-screen sheet with a sticky footer on a phone.
 - Afterwards the proposer sees **Chosen** (the guide appears) or **Not chosen** (a note only
   they see).
 
-Limits: 5 proposals a day; one task in progress until the first merged task, then two.
+Limits: 5 proposals a day; no limit on tasks in progress.
 Proposing needs a linked GitHub account: for an email-only account the dialog says "Link
 GitHub to propose" and links it in place.
 

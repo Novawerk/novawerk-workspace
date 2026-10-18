@@ -158,12 +158,12 @@ describe("/admin/proposals", () => {
     expect((await adminFetch(app, "POST", "/admin/proposals/00000000-0000-4000-8000-000000000000/decline", { note: "x" })).status).toBe(404);
   });
 
-  it("refuses to give someone a second task before their first merge", async () => {
+  it("gives someone a second task while they hold one", async () => {
     await openTask({ title: "Held", status: "assigned", assigneeId: lena.id });
     const task = await openTask();
     const p = await propose(db, lena, task.id, plan());
     const res = await adminFetch(app, "POST", `/admin/proposals/${p.id}/choose`, {});
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(200);
   });
 });
 
