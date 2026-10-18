@@ -44,7 +44,7 @@ the Werk (S 1, M 3, L 8, XL 20) and what happens next:
 | **M** | open on the board, no review | propose a plan; start when a maintainer chooses it |
 | **L**, **XL** | waits for a maintainer's review (the suggestions queue) | don't start until it's accepted |
 
-The answer has the id (`NW-<n>`), the status and a `next` line: follow it. Up to 3 new tasks a
+The answer has the id (`NW-<n>`), the status and a `next` line: follow it. Up to 10 new tasks a
 day per person; an S task needs GitHub linked. Don't make a task bigger or smaller to get around
 a step; split real work into S tasks instead when it can be split.
 

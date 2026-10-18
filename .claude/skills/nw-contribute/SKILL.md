@@ -53,12 +53,19 @@ What works without any account:
 - **Uploads**: with `DEV_LOGIN` and no `BLOB_*` token they go to `.local-files/` (private ones
   in `.local-files/_private/`, never served). The API logs `Uploads go to …` at start. Never
   use production's Blob tokens or database locally.
-- **The chats**: `LLM_PROVIDER=mock` answers from a script.
+- **GitHub**: "Continue with GitHub" and Link GitHub open a local page; type any login (the same
+  login is always the same account). `lena-k` is the seeded contributor holding tasks. Pull
+  requests: open, merge or close them at `http://localhost:8787/dev/github`; with
+  `Task: NW-<n>` in the body they move the task like real ones.
+- **The chats and the post writer**: `LLM_PROVIDER=mock` answers from a script.
 - **Email**: printed in the API log without `RESEND_API_KEY`.
 
-Test a whole flow, e.g. a suggestion with a screenshot: sign in on the site, /tasks/suggest,
-attach a PNG, send; sign in to the admin as the maintainer, Suggestions → Accept. The task page
-on the site then shows the screenshot from `http://localhost:8787/dev/files/tasks/…`.
+Test whole flows, e.g.:
+
+- A suggestion with a screenshot: sign in on the site, /tasks/suggest, attach a PNG, send; sign
+  in to the admin as the maintainer, Suggestions → Accept. The task page shows the screenshot.
+- Taking and finishing a task: sign in with GitHub (any login), propose on an open S task (it's
+  yours at once), open a PR on /dev/github with `Task: NW-<n>`, merge it: the task is done.
 
 `pnpm typecheck && pnpm test && pnpm lint` need no Docker (tests use PGlite).
 

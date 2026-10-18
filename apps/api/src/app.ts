@@ -22,6 +22,7 @@ import { boardRoutes } from "./routes/board.js";
 import { contribRoutes } from "./routes/contrib.js";
 import { mcpRoutes } from "./mcp.js";
 import { TokenGate } from "./token-gate.js";
+import { devGitHubRoutes } from "./dev-github.js";
 import { cronRoutes } from "./routes/cron.js";
 import { postExportRoutes } from "./routes/admin/post-exports.js";
 import { publicRoutes } from "./routes/public.js";
@@ -102,7 +103,8 @@ export function createApp(deps: AppDeps) {
     .route("/admin", adminRoutes({ ...deps, logger }))
     .route("/cron", cronRoutes({ ...deps, logger }))
     .route("/exports", postExportRoutes(deps))
-    .route("/webhooks", webhookRoutes({ ...deps, logger }));
+    .route("/webhooks", webhookRoutes({ ...deps, logger }))
+    .route("/dev/github", devGitHubRoutes({ ...deps, logger }));
 
   app.notFound((c) => c.json(notFound, 404));
   app.onError((err, c) => {

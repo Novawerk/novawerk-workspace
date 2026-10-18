@@ -1834,7 +1834,7 @@ export const TASK_LIMITS = {
   postsPerDay: 30,
   openSuggestions: 3,
   /** Tasks a member creates themselves (memberTaskInput), per 24 hours. */
-  tasksCreatedPerDay: 3,
+  tasksCreatedPerDay: 10,
   /** Tasks go back on the board after this many days without activity… */
   idleReleaseDays: 14,
   /** …with a reminder this many days before… */

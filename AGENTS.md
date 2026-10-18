@@ -24,8 +24,9 @@ pnpm --filter <package> test                        # one package
 Node 22+, pnpm 10. One lockfile at the root. Tests that need Postgres use `@nw/db/testing`
 (PGlite in memory); they need no Docker.
 
-Running the apps: the `.env` values, signing in, uploads (`.local-files/`, no Vercel account)
-and the site's cache are in [CONTRIBUTING.md](CONTRIBUTING.md#local-setup). In Claude Code, the
+Running the apps: the `.env` values, signing in (GitHub is simulated locally), uploads
+(`.local-files/`, no Vercel account), pull requests on `localhost:8787/dev/github` and the site's
+cache are in [CONTRIBUTING.md](CONTRIBUTING.md#local-setup). In Claude Code, the
 `nw-contribute` skill does the setup and connects the task board.
 
 ## Task and pull request conventions

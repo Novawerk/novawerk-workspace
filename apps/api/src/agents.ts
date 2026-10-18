@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import { waitUntil } from "@vercel/functions";
 
-import { createClaude, type Claude } from "@nw/agent-core";
+import { createClaude, stubClaude, type Claude } from "@nw/agent-core";
 import type { Database } from "@nw/db";
 import { runIntake } from "@nw/intake";
 import { knowledgeDir, readFact } from "@nw/kb";
@@ -35,6 +35,22 @@ const claudeFrom = ({ claude, logger }: AgentRunnerOptions): Claude =>
         onUsage: (u) => logger.info(`[agents] claude ${u.model}: ${u.inputTokens} in (${u.cacheReadTokens} cached) / ${u.outputTokens} out tokens`),
       })
     : claude;
+
+/**
+ * Local development with LLM_PROVIDER=mock and no key: the agents run on canned answers, so the
+ * summaries and the post writer work without Claude. A JSON call gets a post draft, the only one.
+ */
+export function mockClaude(): Claude {
+  const card = (headline: string) => ({ eyebrow: "Mock", headline, lede: "", points: [], quote: { text: "", by: "" }, stats: [], footer: "" });
+  return stubClaude((call) =>
+    "schema" in call
+      ? {
+          zh: { title: "【mock】草稿", body: "这是本地 mock 写的草稿（LLM_PROVIDER=mock）。", card: card("本地草稿") },
+          en: { title: "Mock draft", body: "A draft from the local mock (LLM_PROVIDER=mock).", card: card("Local draft") },
+        }
+      : "A summary from the local mock (LLM_PROVIDER=mock).",
+  );
+}
 
 /** Starts `job` without waiting for it; its failure is logged. */
 function inBackground(opts: AgentRunnerOptions, label: string, job: () => Promise<unknown>): Promise<void> {

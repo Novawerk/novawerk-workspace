@@ -44,9 +44,9 @@ jobs:
           path: packages/db/node_modules/.cache/nw-test-db
           key: nw-test-db-${{ hashFiles('packages/db/migrations/**', 'pnpm-lock.yaml') }}
 
-      # One run, so typecheck and tests share the runner's two cores instead of queueing. Three
+      # One run, so typecheck, lint and tests share the runner's two cores instead of queueing. Three
       # tasks at a time: Turbo's default of ten only stretches each task (and its timeouts).
-      - run: pnpm turbo run typecheck test --concurrency=3
+      - run: pnpm turbo run typecheck lint test --concurrency=3
         env:
           TURBO_TELEMETRY_DISABLED: 1
 

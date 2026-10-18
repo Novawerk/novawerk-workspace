@@ -193,11 +193,13 @@ on conflict do nothing;
 -- Real work on this repo, so the board and the API have something to show. Two demo contributors
 -- (fictional, example.com): Lena with a public profile and one merged task, and someone who signed in by
 -- email, has no GitHub yet and still has the neutral handle. Task numbers are fixed so links like /tasks/NW-3 stay stable.
+-- Lena's GitHub id is the one the local GitHub gives the login lena-k (apps/api/src/dev-github.ts), so
+-- "Continue with GitHub" as lena-k signs in as her: the tasks she holds, her PRs on /dev/github.
 
 insert into members (id, profile_handle, display_name, profile_bio, public_profile, github_id, github_login, email, created_at)
 values
   ('c1000000-0000-4000-8000-000000000001', 'lena-k', 'Lena Krause', 'Frontend, accessibility, small fixes.', true,
-   90000001, 'lena-k', null, now() - interval '40 days'),
+   1832353955, 'lena-k', null, now() - interval '40 days'),
   ('c1000000-0000-4000-8000-000000000002', 'contributor-3b9e', 'contributor-3b9e', null, false,
    null, null, 'mira@example.com', now() - interval '3 days')
 on conflict do nothing;

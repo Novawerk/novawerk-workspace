@@ -4,7 +4,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { contributorListQuery, memberTaskInput, proposalInput, suggestionInput, taskListQuery } from "@nw/contracts";
+import { TASK_LIMITS, contributorListQuery, memberTaskInput, proposalInput, suggestionInput, taskListQuery } from "@nw/contracts";
 import {
   members,
   taskEvents,
@@ -362,7 +362,7 @@ describe("tasks members create", () => {
     expect(accepted).toMatchObject({ status: "open", size: "L", area: "web", criteria: ["Sorted by name"] });
   });
 
-  it("keeps the usual limits: GitHub for an S task, 3 new tasks a day, but none on tasks held", async () => {
+  it("keeps the usual limits: GitHub for an S task, 10 new tasks a day, but none on tasks held", async () => {
     const emailOnly = await signInWithEmail(db, "mila@example.org");
     expect(await code(() => createOwnTask(db, emailOnly, own("S")))).toBe("github_required");
     // Without GitHub, an M task is still fine: it is only on the board.
@@ -373,10 +373,8 @@ describe("tasks members create", () => {
     expect((await createOwnTask(db, lena, own("S", "Second"))).status).toBe("assigned");
     expect((await createOwnTask(db, lena, own("S", "Third"))).status).toBe("assigned");
 
-    await createOwnTask(db, jonas, own("M", "One"));
-    await createOwnTask(db, jonas, own("M", "Two"));
-    await createOwnTask(db, jonas, own("M", "Three"));
-    expect(await code(() => createOwnTask(db, jonas, own("M", "Four")))).toBe("rate_limited");
+    for (let i = 1; i <= TASK_LIMITS.tasksCreatedPerDay; i++) await createOwnTask(db, jonas, own("M", `Task ${i}`));
+    expect(await code(() => createOwnTask(db, jonas, own("M", "One too many")))).toBe("rate_limited");
   });
 
   it("refuses a suspended account", async () => {

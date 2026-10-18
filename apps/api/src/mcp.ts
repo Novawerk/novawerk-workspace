@@ -284,7 +284,7 @@ export function buildMcpServer(
     {
       title: "Create a task",
       description:
-        "Create a task on the board, before you open a pull request for work that has none (look with list_tasks first). S: yours at once, put `Task: NW-<n>` in the pull request. M: open on the board at once, to discuss in public; propose a plan and wait for a maintainer to choose one before you start. L and XL: wait for a maintainer's review first. Public. Up to 3 a day.",
+        "Create a task on the board, before you open a pull request for work that has none (look with list_tasks first). S: yours at once, put `Task: NW-<n>` in the pull request. M: open on the board at once, to discuss in public; propose a plan and wait for a maintainer to choose one before you start. L and XL: wait for a maintainer's review first. Public. Up to 10 a day.",
       inputSchema: {
         title: z.string(),
         summary: z.string().optional().describe("One line under the title."),
