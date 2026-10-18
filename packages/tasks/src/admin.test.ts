@@ -91,10 +91,9 @@ const kinds = async (taskId: number) =>
   (await db.select().from(taskEvents).where(eq(taskEvents.taskId, taskId)).orderBy(taskEvents.id)).map((e) => e.kind);
 
 describe("assigning", () => {
-  it("never lets two members give the same person two tasks at once", async () => {
+  it("lets two members give the same person two tasks at once", async () => {
     // Two open tasks, Lena proposed on both; Ada and Grace each pick her plan at the same moment.
-    // checkCanTake locks Lena's row, so the second assignment sees the first one's task. (PGlite
-    // runs transactions one at a time anyway; on Postgres the lock is what makes this hold.)
+    // There's no limit on tasks held, so both choices stand.
     const a = await openTask({ title: "A" });
     const b = await openTask({ title: "B" });
     const pa = await propose(db, lena, a.id, plan());
@@ -103,8 +102,8 @@ describe("assigning", () => {
       code(() => chooseProposal(db, { proposalId: pa.id, memberId: "ada" })),
       code(() => chooseProposal(db, { proposalId: pb.id, memberId: "grace" })),
     ]);
-    expect(results.sort()).toEqual(["conflict", "ok"]);
-    expect(await db.select().from(tasks).where(eq(tasks.assigneeId, lena.id))).toHaveLength(1);
+    expect(results).toEqual(["ok", "ok"]);
+    expect(await db.select().from(tasks).where(eq(tasks.assigneeId, lena.id))).toHaveLength(2);
   });
 
   it("records each plan that wasn't chosen, without its private note", async () => {

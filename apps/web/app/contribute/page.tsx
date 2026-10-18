@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { Avatar, SizeBadge } from "@/components/board/bits";
-import { TASK_LIMIT_LINE } from "@/components/board/labels";
 import { TaskList } from "@/components/board/task-row";
 import { SCENE_MIN_BLOCKS, scenePeople } from "@/components/board/wall";
 import { buildModel, summaryLine } from "@/components/builders/model";
@@ -100,7 +99,7 @@ export default async function ContributePage() {
             <ul className="grid list-disc gap-2 pl-5 text-muted">
               <li>Signing in makes you a Novawerk member: one account, no ranks. Maintainers run the board.</li>
               <li>We don&apos;t mentor whole projects. Tasks are small enough to finish alone.</li>
-              <li>{TASK_LIMIT_LINE} Release a task if life gets busy; nothing counts against you.</li>
+              <li>Take on as many tasks as you can finish. Release one if life gets busy; nothing counts against you.</li>
             </ul>
             <p className="text-muted">
               Before you propose, read the{" "}

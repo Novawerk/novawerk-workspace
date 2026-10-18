@@ -1833,10 +1833,6 @@ export const TASK_LIMITS = {
   openSuggestions: 3,
   /** Tasks a member creates themselves (memberTaskInput), per 24 hours. */
   tasksCreatedPerDay: 3,
-  /** One task at a time until the first merge (NB-ADR-0013)… */
-  tasksInProgress: 1,
-  /** …then up to two. */
-  tasksInProgressAfterFirstMerge: 2,
   /** Tasks go back on the board after this many days without activity… */
   idleReleaseDays: 14,
   /** …with a reminder this many days before… */

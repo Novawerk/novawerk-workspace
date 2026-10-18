@@ -3,9 +3,9 @@
 // task's Werk, once (the ledger's unique task + PR key). Member and GitHub actions call these;
 // the routes for them come with the admin pages and the webhook.
 
-import { and, count, eq, inArray, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-import { TASK_LIMITS, TASK_SIZE_WERK, formatTaskId, type TaskArea, type TaskSize } from "@nw/contracts";
+import { TASK_SIZE_WERK, formatTaskId, type TaskArea, type TaskSize } from "@nw/contracts";
 import {
   members,
   taskEvents,
@@ -19,7 +19,7 @@ import {
 import { canWork } from "./contributors.js";
 import { TaskRuleError, isRetryable } from "./errors.js";
 import { idleReleaseAt } from "./idle.js";
-import { IN_PROGRESS_STATUSES, planTransition, type Actor, type TaskAction } from "./state.js";
+import { planTransition, type Actor, type TaskAction } from "./state.js";
 
 export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
@@ -103,32 +103,15 @@ async function lockTask(tx: Tx, taskId: number): Promise<Task> {
 }
 
 /**
- * Can this contributor take a task now: GitHub linked, not suspended, and holding fewer than the
- * limit (1 until their first merged task, then 2). Their row stays locked until the transaction
- * ends, so two members assigning the same person at once (on two tasks) run one after the
- * other, and the second sees the first one's task.
+ * Can this contributor take a task now: GitHub linked and not suspended. There's no limit on how
+ * many they hold. Their row stays locked until the transaction ends, in the usual lock order
+ * (the person, then the task).
  */
-async function checkCanTake(tx: Tx, contributorId: string, taskId: number): Promise<void> {
+async function checkCanTake(tx: Tx, contributorId: string): Promise<void> {
   const person = await lockContributor(tx, contributorId);
   if (!person) throw new TaskRuleError("not_found", "No such contributor");
   if (!canWork(person)) {
     throw new TaskRuleError("github_required", "They need GitHub linked (and an active account) to work on a task");
-  }
-  const [held] = await tx
-    .select({ n: count() })
-    .from(tasks)
-    .where(and(eq(tasks.assigneeId, contributorId), inArray(tasks.status, [...IN_PROGRESS_STATUSES]), ne(tasks.id, taskId)));
-  const [merged] = await tx
-    .select({ id: tasks.id })
-    .from(tasks)
-    .where(and(eq(tasks.assigneeId, contributorId), eq(tasks.status, "done")))
-    .limit(1);
-  const limit = merged ? TASK_LIMITS.tasksInProgressAfterFirstMerge : TASK_LIMITS.tasksInProgress;
-  if ((held?.n ?? 0) >= limit) {
-    throw new TaskRuleError(
-      "conflict",
-      merged ? `They already hold ${limit} tasks.` : "They already hold a task. One at a time until their first merge.",
-    );
   }
 }
 
@@ -201,7 +184,7 @@ export async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task
         if (!assigneeId || assigneeId !== task.suggestedBy || !task.wantsIt) {
           throw new TaskRuleError("invalid", "Only the person who suggested it, and asked to do it, can get it directly");
         }
-        await checkCanTake(tx, assigneeId, task.id);
+        await checkCanTake(tx, assigneeId);
         Object.assign(patch, { assigneeId, assignedAt: now, lastActivityAt: now, extendedAt: null });
       }
       break;
@@ -222,7 +205,7 @@ export async function transitionIn(tx: Tx, input: TransitionInput): Promise<Task
     }
     case "choose":
       if (!input.assigneeId) throw new TaskRuleError("invalid", "Who gets it?");
-      await checkCanTake(tx, input.assigneeId, task.id);
+      await checkCanTake(tx, input.assigneeId);
       Object.assign(patch, { assigneeId: input.assigneeId, assignedAt: now, lastActivityAt: now, extendedAt: null });
       break;
     case "release":
@@ -351,8 +334,8 @@ export async function chooseProposal(
 
 /**
  * S tasks need no maintainer to pick a plan (NB-ADR-0013): a pending proposal on one is chosen
- * as soon as it is sent, if its author can take a task now. Someone already holding their limit
- * stays pending, for a maintainer or for the next person who proposes. Runs after the proposal's
+ * as soon as it is sent, if its author can take a task now. If that fails (someone else's plan
+ * got there first, a lock race), it stays pending, for a maintainer or the next person who proposes. Runs after the proposal's
  * own transaction, in a fresh one that keeps the usual lock order. Returns the task when it
  * assigned it, null when the proposal stays as it was.
  */
@@ -366,8 +349,7 @@ export async function autoChooseSmall(db: Database, proposalId: string, now = ne
   try {
     return await db.transaction((tx) => chooseIn(tx, proposalId, { kind: "system" }, {}, now));
   } catch (err) {
-    // At their limit, someone else's plan got there first, or a lock race: the proposal simply
-    // waits, and the proposer still gets their 201.
+    // Someone else's plan got there first, or a lock race: the proposal simply waits, and the proposer still gets their 201.
     if (err instanceof TaskRuleError || isRetryable(err)) return null;
     throw err;
   }

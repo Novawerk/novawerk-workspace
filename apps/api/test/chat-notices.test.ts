@@ -1,6 +1,7 @@
 // Task board news in the team's chat room: what needs one of us and what is only news, posted
 // once each, with links and nothing private.
 
+import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { proposalInput, suggestionInput } from "@nw/contracts";
@@ -72,10 +73,10 @@ describe("what goes to the room", () => {
   });
 
   it("gives an S task's plan time to be chosen automatically, then says it waits", async () => {
-    // Lena holds a task already (the limit before a first merge): her S plan can't take it.
-    await openTask({ title: "Held", status: "assigned", assigneeId: lena.id });
-    const small = await openTask({ title: "Small", size: "S" });
+    // A plan the system didn't choose (here: the task was an M when she sent it).
+    const small = await openTask({ title: "Small", size: "M" });
     expect((await propose(db, lena, small.id, plan)).status).toBe("pending");
+    await db.update(tasks).set({ size: "S" }).where(eq(tasks.id, small.id));
 
     await run(new Date());
     expect(posts).toEqual([]);

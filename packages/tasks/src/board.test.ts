@@ -172,17 +172,11 @@ describe("transitions", () => {
     expect(await code(() => propose(db, jonas, task.id, plan()))).toBe("invalid_state");
   });
 
-  it("leaves an S plan pending while its author is at their limit; the next person who can take it gets it", async () => {
+  it("gives an S task to its author's plan even while they hold other tasks", async () => {
     await openTask({ status: "assigned", assigneeId: lena.id });
     const small = await openTask({ title: "Small", size: "S" });
-    const waiting = await propose(db, lena, small.id, plan());
-    expect(waiting.status).toBe("pending");
-    expect((await db.select().from(tasks).where(eq(tasks.id, small.id)))[0]?.status).toBe("open");
-
-    const taken = await propose(db, jonas, small.id, plan("Another way"));
-    expect(taken.status).toBe("chosen");
-    const proposals = await db.select().from(taskProposals).where(eq(taskProposals.taskId, small.id));
-    expect(proposals.find((p) => p.id === waiting.id)).toMatchObject({ status: "not_chosen", declineNote: NOT_CHOSEN_NOTE, decidedBy: null });
+    expect((await propose(db, lena, small.id, plan())).status).toBe("chosen");
+    expect((await db.select().from(tasks).where(eq(tasks.id, small.id)))[0]).toMatchObject({ status: "assigned", assigneeId: lena.id });
   });
 
   it("still waits for a maintainer on M and bigger tasks", async () => {
@@ -203,20 +197,12 @@ describe("transitions", () => {
     expect((await getPublicContributor(db, "lena-k"))?.stats).toEqual({ done: 1, inProgress: 0, werk: 0 });
   });
 
-  it("allows two tasks in progress after the first merge", async () => {
-    await openTask({ status: "done", assigneeId: lena.id, doneAt: new Date() });
+  it("lets a person hold any number of tasks, and GitHub is needed to get one", async () => {
     await openTask({ status: "assigned", assigneeId: lena.id });
-    const second = await propose(db, lena, (await openTask({ title: "Second" })).id, plan());
-    await chooseProposal(db, { proposalId: second.id, memberId: "ada" });
-    const third = await propose(db, lena, (await openTask({ title: "Third" })).id, plan());
-    expect(await code(() => chooseProposal(db, { proposalId: third.id, memberId: "ada" }))).toBe("conflict");
-  });
-
-  it("keeps one task in progress per person, and GitHub is needed to get one", async () => {
-    await openTask({ status: "assigned", assigneeId: lena.id });
+    await openTask({ status: "in_review", assigneeId: lena.id });
     const second = await openTask({ title: "Another" });
     const p = await propose(db, lena, second.id, plan());
-    expect(await code(() => chooseProposal(db, { proposalId: p.id, memberId: "ada" }))).toBe("conflict");
+    expect((await chooseProposal(db, { proposalId: p.id, memberId: "ada" })).assigneeId).toBe(lena.id);
 
     const mira = await signInWithEmail(db, "mira@example.com");
     expect(await code(() => propose(db, mira, second.id, plan()))).toBe("github_required");
@@ -376,16 +362,16 @@ describe("tasks members create", () => {
     expect(accepted).toMatchObject({ status: "open", size: "L", area: "web", criteria: ["Sorted by name"] });
   });
 
-  it("keeps the usual limits: GitHub for an S task, one task at a time, 3 new tasks a day", async () => {
+  it("keeps the usual limits: GitHub for an S task, 3 new tasks a day, but none on tasks held", async () => {
     const emailOnly = await signInWithEmail(db, "mila@example.org");
     expect(await code(() => createOwnTask(db, emailOnly, own("S")))).toBe("github_required");
     // Without GitHub, an M task is still fine: it is only on the board.
     expect((await createOwnTask(db, emailOnly, own("M"))).status).toBe("open");
 
-    await createOwnTask(db, lena, own("S", "First"));
-    expect(await code(() => createOwnTask(db, lena, own("S", "Second")))).toBe("conflict");
-    // The one that failed rolled back whole: nothing half-made on the board.
-    expect((await db.select().from(tasks).where(eq(tasks.title, "Second"))).length).toBe(0);
+    // Lena holds as many tasks as she likes.
+    expect((await createOwnTask(db, lena, own("S", "First"))).status).toBe("assigned");
+    expect((await createOwnTask(db, lena, own("S", "Second"))).status).toBe("assigned");
+    expect((await createOwnTask(db, lena, own("S", "Third"))).status).toBe("assigned");
 
     await createOwnTask(db, jonas, own("M", "One"));
     await createOwnTask(db, jonas, own("M", "Two"));

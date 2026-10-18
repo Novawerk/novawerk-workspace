@@ -45,8 +45,7 @@ the Werk (S 1, M 3, L 8, XL 20) and what happens next:
 | **L**, **XL** | waits for a maintainer's review (the suggestions queue) | don't start until it's accepted |
 
 The answer has the id (`NW-<n>`), the status and a `next` line: follow it. Up to 3 new tasks a
-day per person; an S task needs GitHub linked and counts towards the person's task limit (one
-at a time until their first merge, then two). Don't make a task bigger or smaller to get around
+day per person; an S task needs GitHub linked. Don't make a task bigger or smaller to get around
 a step; split real work into S tasks instead when it can be split.
 
 No token? The person makes one at novawerk.io/settings/tokens and adds the server once:

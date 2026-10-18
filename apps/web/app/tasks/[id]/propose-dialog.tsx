@@ -16,7 +16,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { Markdown } from "@/components/board/bits";
 import { Dialog, dialogButton, dialogButtonAccent, dialogField, Pills } from "@/components/board/dialog";
-import { ETA_LABELS, plural, TASK_LIMIT_LINE } from "@/components/board/labels";
+import { ETA_LABELS, plural } from "@/components/board/labels";
 import { textLink } from "@/components/ui";
 import { track } from "@/lib/analytics";
 import { api, githubStartUrl } from "@/lib/contrib-api";
@@ -292,15 +292,11 @@ function ProposeForm({
         ) : (
           <Fact>{others ? `${plural(others, "other")} proposed. A maintainer picks one plan.` : "You're the first to propose."}</Fact>
         )}
-        <Fact>
-          {TASK_LIMIT_LINE}
-          {held.length ? (
-            <>
-              {" "}
-              You hold <span className="font-mono">{held.map((h) => h.id).join(", ")}</span> now; if you&apos;re chosen here, finish or release it first.
-            </>
-          ) : null}
-        </Fact>
+        {held.length ? (
+          <Fact>
+            You also hold <span className="font-mono">{held.map((h) => h.id).join(", ")}</span>. Release a task you won&apos;t get to.
+          </Fact>
+        ) : null}
         {small ? (
           <Fact>What happens next: the guide opens on the task. Proposals are public on the task.</Fact>
         ) : (

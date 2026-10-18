@@ -242,8 +242,8 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
   `kind = task`, size and done-when lines kept on accept). A PR that changes code names a task
   (skill `nw-pull-request`).
 - **Rules live in `@nw/tasks`** (state machine, limits, privacy, the public reads); the API only
-  wires them. Limits per contributor: 5 proposals and 30 posts a day, 3 open suggestions, 1 task
-  in progress until their first merge, then 2. The limits run with the contributor's row locked,
+  wires them. Limits per contributor: 5 proposals and 30 posts a day, 3 open suggestions; no limit
+  on tasks in progress. The limits run with the contributor's row locked,
   so parallel requests can't pass one twice. No +1 on your own suggestion; votes close at
   triage. A suspended contributor reads but doesn't write, and leaves the wall and their profile.
 - **Privacy.** Profiles are private until `public` is on (`on_wall` lets a public profile leave

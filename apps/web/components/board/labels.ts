@@ -62,8 +62,6 @@ export const WHERE_LABELS: Record<SuggestionWhere, string> = {
 
 export const werkOf = (size: TaskSize) => TASK_SIZE_WERK[size];
 
-/** The one way we say the task limit (TASK_LIMITS: 1, then 2 after the first merge). */
-export const TASK_LIMIT_LINE = "One task at a time until your first merge, then two.";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
