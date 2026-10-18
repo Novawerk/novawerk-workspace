@@ -2,5 +2,5 @@
 -- Apply after migrations:  psql "$DATABASE_URL" -f packages/db/seed.sql
 
 insert into members (id, profile_handle, display_name, email, role, active)
-values ('haodong', 'haodong', 'Haodong Ju', 'juhaodong@gmail.com', 'maintainer', true)
+values ('haodong', 'haodong', 'Haodong Ju', 'maintainer@example.com', 'maintainer', true)
 on conflict (id) do nothing;

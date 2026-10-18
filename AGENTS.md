@@ -24,6 +24,11 @@ pnpm --filter <package> test                        # one package
 Node 22+, pnpm 10. One lockfile at the root. Tests that need Postgres use `@nw/db/testing`
 (PGlite in memory); they need no Docker.
 
+Running the apps: the `.env` values, signing in (GitHub is simulated locally), uploads
+(`.local-files/`, no Vercel account), pull requests on `localhost:8787/dev/github` and the site's
+cache are in [CONTRIBUTING.md](CONTRIBUTING.md#local-setup). In Claude Code, the
+`nw-setup` skill does the setup and connects the task board.
+
 ## Task and pull request conventions
 
 - Branch in the contributor's fork. The pull request targets `main` in
@@ -37,6 +42,9 @@ Node 22+, pnpm 10. One lockfile at the root. Tests that need Postgres use `@nw/d
   `Docs: …`). We squash merge, so the title becomes the commit.
 - Every commit is signed off: `git commit -s`. The sign-off is the person's, not yours.
 - UI changes need screenshots in the pull request.
+- Changed setup, env vars, scripts, mocks, CI or a contributor flow? Update the docs in the same
+  pull request: CONTRIBUTING.md and CONTRIBUTING.zh-CN.md together, the `.env.example` files,
+  this file and the skills in `.claude/skills/`.
 
 ## Rules you will hit most
 
@@ -65,4 +73,6 @@ Node 22+, pnpm 10. One lockfile at the root. Tests that need Postgres use `@nw/d
 The MCP server is at `https://api.novawerk.io/mcp`; the person makes a token at
 novawerk.io/settings/tokens. Reading needs no token. With one you can read the guide, draft a
 proposal (the person confirms it on novawerk.io), create a task, link a pull request and post
-on a task. Tools and rules: [apps/web/public/llms.txt](apps/web/public/llms.txt).
+on a task. Tools and rules: [apps/web/public/llms.txt](apps/web/public/llms.txt). The person
+adds the server themself (the token is theirs; never ask for it in chat): see the
+`nw-setup` skill.

@@ -12,6 +12,7 @@ import { createApp } from "../src/app.js";
 import { SESSION_COOKIE, signSession } from "../src/auth.js";
 import type { ChatPoster } from "../src/chat-notices.js";
 import type { ContributorNoticeSender } from "../src/contributor-notices.js";
+import type { DevGitHub } from "../src/dev-github.js";
 import type { GitHubOAuth } from "../src/github-auth.js";
 import type {
   AdminChatDeps,
@@ -66,6 +67,7 @@ export function makeApp(
     inboundMail?: InboundMailOptions;
     githubOAuth?: GitHubOAuth;
     githubApi?: GitHubApi;
+    devGitHub?: DevGitHub;
     sendContributorNotice?: ContributorNoticeSender;
     postToChat?: ChatPoster;
   } = {},
@@ -99,6 +101,7 @@ export function makeApp(
     ...(opts.inboundMail ? { inboundMail: opts.inboundMail } : {}),
     ...(opts.githubOAuth ? { githubOAuth: opts.githubOAuth } : {}),
     ...(opts.githubApi ? { githubApi: opts.githubApi } : {}),
+    ...(opts.devGitHub ? { devGitHub: opts.devGitHub, githubOAuth: opts.devGitHub, githubApi: opts.devGitHub } : {}),
     ...(opts.sendContributorNotice ? { sendContributorNotice: opts.sendContributorNotice } : {}),
     ...(opts.postToChat ? { postToChat: opts.postToChat } : {}),
   });

@@ -7,6 +7,7 @@ import type { TeamNotification } from "@nw/email";
 import type { GitHubApi } from "@nw/github";
 import type { TokenContext } from "@nw/tasks";
 
+import type { DevGitHub } from "./dev-github.js";
 import type { GitHubOAuth } from "./github-auth.js";
 import type { ChatPoster } from "./chat-notices.js";
 import type { ContributorNoticeSender } from "./contributor-notices.js";
@@ -193,6 +194,8 @@ export interface AppDeps {
    * it the webhook still moves tasks but says nothing on the PR, and the reconcile is skipped.
    */
   githubApi?: GitHubApi;
+  /** Local development without the App: GitHub simulated in the process (src/dev-github.ts, /dev/github). */
+  devGitHub?: DevGitHub;
 }
 
 /** The signed-in member as the admin panel sees it. */

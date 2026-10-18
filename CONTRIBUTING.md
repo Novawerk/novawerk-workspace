@@ -35,7 +35,7 @@ lines and a size:
   else; a maintainer picks one.
 - **L** and **XL**: a maintainer reviews it first, in the suggestions queue.
 
-Up to 3 new tasks a day. Changes to docs, posts and videos, and typo fixes, don't need a task:
+Up to 10 new tasks a day. Changes to docs, posts and videos, and typo fixes, don't need a task:
 write `Task: none` and why.
 
 ## How it works
@@ -81,14 +81,91 @@ You need Node 22+, pnpm 10 and Docker (or OrbStack) for the local Postgres.
 nvm use                 # Node 22, from .nvmrc
 corepack enable         # pnpm 10, from package.json
 pnpm install
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
+cp apps/admin/.env.example apps/admin/.env.local
+```
+
+In `apps/api/.env` set these (everything else can stay empty):
+
+```bash
+DATABASE_URL=postgres://novawerk:novawerk@localhost:5432/novawerk
+GOOGLE_CLIENT_ID=local                    # any placeholder
+SESSION_SECRET=<32+ random characters>    # openssl rand -base64 48
+DEV_LOGIN=true
+LLM_PROVIDER=mock                         # the chats and the post writer answer from a script, no key
+WEB_REVALIDATE_URL=http://localhost:3000/api/revalidate
+WEB_REVALIDATE_SECRET=change-me           # the REVALIDATE_SECRET in apps/web/.env.local
+```
+
+and `VITE_DEV_LOGIN=true` in `apps/admin/.env.local`. Then:
+
+```bash
 pnpm db:up && pnpm db:migrate && pnpm db:seed:dev
 pnpm dev                # web on :3000, admin on :5173, api on :8787
 ```
 
-Each app has a `.env.example`. Copy it to `apps/api/.env`, `apps/web/.env.local` and
-`apps/admin/.env.local`. Set `DEV_LOGIN=true` (API) and `VITE_DEV_LOGIN=true` (admin) to sign
-in to the admin panel locally without Google. With `DEV_LOGIN`, uploads (screenshots, CVs, project
-pictures and files) go to `.local-files/` in the repo. You don't need any real keys for most tasks.
+You don't need any real keys for most tasks.
+
+### Signing in locally
+
+- **On the site** (localhost:3000): sign in with any email. Without a Resend key the code is
+  printed in the API's log (`sign-in code for you@example.com: 123456`).
+- **With GitHub**: "Continue with GitHub" (or Settings → Link GitHub) opens a local page instead
+  of github.com. Type any GitHub login: the same login is always the same account. Proposing on a
+  task and taking an S task need GitHub linked, so this is how you test them. `lena-k` is the
+  seeded contributor who holds tasks.
+- **In the admin** (localhost:5173): use the local dev sign-in with a seeded account:
+  `maintainer@example.com` is a maintainer (accepts suggestions, assigns tasks), `mara@example.com`
+  a member. Set `VITE_DEV_LOGIN_EMAIL` to fill it in. The site and the admin share one session,
+  so sign out of one account before you sign in as another.
+
+### Uploads
+
+With `DEV_LOGIN=true` and no `BLOB_*` token, every upload (suggestion screenshots, CVs, project
+pictures, documents and project files) goes to `.local-files/` in the repo instead of Vercel
+Blob. You don't need a Vercel account. Public files are served by the API at
+`http://localhost:8787/dev/files/…`; private ones sit in `.local-files/_private/`, and the API
+streams them only to whoever may open them, as in production. Delete the folder to start over.
+Never put production's Blob tokens in your `.env`.
+
+### Pull requests and the task board
+
+Without our GitHub App's keys the API simulates GitHub at
+[localhost:8787/dev/github](http://localhost:8787/dev/github). Open a pull request there as the
+GitHub login you linked, with `Task: NW-<n>` in the body: the board links it and the task goes to
+review, as with a real PR. Merge it there and the task is done. "Link a PR by hand" on a task
+finds the PRs opened there too. They live in memory until the API restarts.
+
+### Emails, crons and agents
+
+- **Email** isn't sent without a Resend key: sign-in codes, notices and team notes are printed in
+  the API's log. An outbox email you approve stays "Approved, not sent".
+- **Crons** (reminders and releases, notices, cleanups) run when you call them. Set any
+  `CRON_SECRET` of 16+ characters in `apps/api/.env`, then e.g.
+  `curl -H "Authorization: Bearer $CRON_SECRET" localhost:8787/cron/github-sync`. To see a
+  reminder or a release, move a task's `assigned_at` and `last_activity_at` back 8 or 15 days in
+  the database first.
+- **The task board's MCP** works against the local API too: make a token on
+  localhost:3000/settings/tokens and add `http://localhost:8787/mcp` as its own server (e.g.
+  `novawerk-local`), next to the real one.
+
+### Seeing your changes on the site
+
+The site caches projects and tasks (Next.js Cache Components). The `WEB_REVALIDATE_*` lines
+above let the API refresh it after a change; without them a change in the admin shows only
+after a while.
+
+### What stays off locally
+
+The team chat (chat.novawerk.io is a separate app), Google sign-in (needs our OAuth client), and
+the agents that run from GitHub Actions in the private repo (`pnpm agent <id> --dry-run` works).
+
+### Working with an agent
+
+Using Claude Code or another coding agent? It reads [AGENTS.md](AGENTS.md). In Claude Code the
+`nw-setup` skill walks it through this setup, connecting the task board (MCP) and finding
+or creating your task.
 
 ## Before you open a pull request
 
@@ -98,6 +175,11 @@ pnpm typecheck && pnpm test && pnpm lint
 
 All three must pass. CI runs the same checks. For UI changes, add screenshots (light and dark,
 desktop and phone) to the pull request.
+
+Changed how the repo is set up, run or tested (env vars, scripts, seed data, mocks, CI), or a
+contributor flow? Update the docs in the same pull request: this guide and its Chinese version
+([CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md)) together, the `.env.example` files, AGENTS.md
+and the skills in `.claude/skills/`.
 
 ## Conventions
 

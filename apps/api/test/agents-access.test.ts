@@ -4,7 +4,7 @@
 
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { TOKEN_LIMITS } from "@nw/contracts";
+import { TASK_LIMITS, TOKEN_LIMITS } from "@nw/contracts";
 import { members, taskProposals, tasks, type Database } from "@nw/db";
 
 import { contributorCookie, createTestDb, makeApp, resetDb, sessionCookie, TEST_MEMBERS, type TestApp } from "./helpers.js";
@@ -277,9 +277,12 @@ describe("/mcp", () => {
     const large = await tool(app, "create_task", { ...input, title: "Rebuild the wall", size: "L" }, token.secret);
     expect(large.json).toMatchObject({ status: "suggested", next: expect.stringContaining("review") });
 
-    // The same over REST, where the fourth of the day is one too many.
+    // Up to the day's limit, then the same over REST is one too many.
+    for (let i = 3; i < TASK_LIMITS.tasksCreatedPerDay; i++) {
+      expect((await tool(app, "create_task", { ...input, title: `Wall idea ${i}`, size: "M" }, token.secret)).isError).toBeFalsy();
+    }
     const rest = await call(app, "POST", "/contrib/tasks", { bearer: token.secret }, { ...input, title: "Filter the wall", size: "XL" });
-    expect(rest).toMatchObject({ status: 429, body: { error: expect.stringContaining("3 new tasks a day") } });
+    expect(rest).toMatchObject({ status: 429, body: { error: expect.stringContaining(`${TASK_LIMITS.tasksCreatedPerDay} new tasks a day`) } });
     expect((await call(app, "POST", "/contrib/tasks", { bearer: readOnly.secret }, { ...input, size: "S" })).status).toBe(403);
   });
 

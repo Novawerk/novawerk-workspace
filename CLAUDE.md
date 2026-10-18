@@ -149,6 +149,8 @@ Use pnpm (10.x) and Node 22+. One lockfile at the root.
   Base UI primitives). AI Elements live in `packages/ui/src/ai-elements/`.
 - `nw-back-office` — agents, the outbox gate, and records (in the private repo).
 - `nw-posts` — write a post in `posts/` (format, voice, `pnpm post render | check`).
+- `nw-setup` — getting started: the local stack (dev sign-in, uploads in `.local-files/`),
+  connecting the task board's MCP with the person's token, finding or claiming a task.
 - `nw-pull-request` — before opening a PR: find or create its task, then the template and sign-off.
 - `nw-videos` — make or change a short video in `videos/` (brief → storyboard → stills → music
   and sound → films, cover, post copy; platform rules for 小红书).

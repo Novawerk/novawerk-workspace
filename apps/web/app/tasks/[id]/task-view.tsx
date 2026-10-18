@@ -895,12 +895,13 @@ function Timeline({ task, state }: { task: PublicTaskDetail; state: BoardState }
   );
 }
 
-/** Only an https picture: the public copy a member's accept made. */
-function httpsUrl(url: string | null): string | null {
+/** The public copy a member's accept made: https, or http on this machine (the local API serves it). */
+function pictureUrl(url: string | null): string | null {
   if (!url) return null;
   try {
     const u = new URL(url);
-    return u.protocol === "https:" ? u.href : null;
+    const local = u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1");
+    return u.protocol === "https:" || local ? u.href : null;
   } catch {
     return null;
   }
@@ -909,7 +910,7 @@ function httpsUrl(url: string | null): string | null {
 /** An accepted suggestion's screenshot (public, copied without metadata). Hidden if it won't load. */
 function Screenshot({ url, title }: { url: string | null; title: string }) {
   const [broken, setBroken] = useState<string | null>(null);
-  const href = httpsUrl(url);
+  const href = pictureUrl(url);
   if (!href || broken === href) return null;
   return (
     <a href={href} target="_blank" rel="noopener noreferrer" className="mt-5 block max-w-[68ch] border border-line bg-paper">

@@ -59,6 +59,8 @@ We have no staging. We test locally, then release to production.
 | Intake chat, admin assistant, post writer | your own `ANTHROPIC_API_KEY`, or `LLM_PROVIDER=mock` | production key |
 | Agents | `pnpm agent <id> --dry-run` | GitHub Actions (private repo) |
 | File uploads | `.local-files/` in the repo, with `DEV_LOGIN` and no `BLOB_*` token | Vercel Blob |
+| GitHub (sign-in, pull requests) | simulated at `localhost:8787/dev/github`, with `DEV_LOGIN` and no App keys | the GitHub App `novawerk-task-board` |
+| Site cache | revalidated when `WEB_REVALIDATE_URL` points at `localhost:3000/api/revalidate` | revalidated by the API |
 | Admin sign-in | `DEV_LOGIN`, real Google (localhost is an allowed origin), or an email code printed to the API log | Google, or an email code via Resend |
 
 ### Rules
@@ -142,13 +144,13 @@ and production. "—" means unset.
 | `BLOB_PUBLIC_READ_WRITE_TOKEN`, `BLOB_PRIVATE_READ_WRITE_TOKEN` | unset: with `DEV_LOGIN`, uploads go to `.local-files/` (private ones in `_private/`, never served); don't pull production's | set by connecting the stores |
 | `CRON_SECRET` | — | set; Vercel Cron sends it to `/cron/*`. Also a GitHub Actions secret on this repo for `contributor-notices.yml` |
 | `RESEND_WEBHOOK_SECRET`, `RESEND_RECEIVING_API_KEY`, `SLACK_INBOX_WEBHOOK_URL` | — | set; see "info@ in Slack" |
-| `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` | the GitHub App's, or unset (email codes still work) | the GitHub App `novawerk-task-board` |
+| `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` | unset: with `DEV_LOGIN`, GitHub is simulated (`/dev/github`, src/dev-github.ts) | the GitHub App `novawerk-task-board` |
 | `CONTRIBUTOR_ORIGINS` | default | `https://novawerk.io,https://www.novawerk.io` |
 | `CHAT_URL`, `CHAT_SSO_SECRET` | — (`/auth/chat` answers 404) | `https://chat.novawerk.io` and 32+ random characters, the same as the chat's `CHAT_SSO_SECRET` (NB-ADR-0014). Rotate both together |
 | `CHAT_BOT_URL` | — (`/cron/chat-notices` does nothing) | the bot's messages URL for the task board room, `https://chat.novawerk.io/rooms/<room id>/<bot key>/messages`. Secret: the bot key is in it. See "Task board news in the chat" |
 | `WEB_READ_KEY` | — | 32+ random characters, the same on the web (`WEB_READ_KEY`): the website's server reads the task board without the anonymous 600/h limit |
-| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_INSTALLATION_ID` | — (the board moves tasks without replying on PRs) | the App's id `5317582`, its private key (PEM), installation `171409213` |
-| `GITHUB_WEBHOOK_SECRET` | — (`/webhooks/github` answers 404) | the App's webhook secret, 16+ characters |
+| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_INSTALLATION_ID` | — (with `DEV_LOGIN`, pull requests are opened and merged on `/dev/github`) | the App's id `5317582`, its private key (PEM), installation `171409213` |
+| `GITHUB_WEBHOOK_SECRET` | — (`/webhooks/github` answers 404; `/dev/github` delivers instead) | the App's webhook secret, 16+ characters |
 
 Signing in with GitHub (everyone, NB-ADR-0014) goes through the GitHub App `novawerk-task-board` (user authorization only).
 Its callback URLs are `https://api.novawerk.io/auth/contributor/github/callback` and

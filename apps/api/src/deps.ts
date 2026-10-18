@@ -28,8 +28,9 @@ import {
 
 import { adminMockStep } from "./admin-chat/mock.js";
 import { chatBotPoster } from "./chat-notices.js";
+import { DevGitHub } from "./dev-github.js";
 import { createGitHubOAuth } from "./github-auth.js";
-import { inProcessIntakeTrigger, inProcessPromoRunner, inProcessPromoTrigger } from "./agents.js";
+import { inProcessIntakeTrigger, inProcessPromoRunner, inProcessPromoTrigger, mockClaude } from "./agents.js";
 import { intakeMockStep } from "./intake-chat/mock.js";
 import type {
   AdminChatDeps,
@@ -205,8 +206,10 @@ export function readEnv(env: EnvSource): ResolvedEnv {
   if (slackWebhookUrl && !slackWebhookUrl.startsWith("https://hooks.slack.com/")) {
     problems.push("SLACK_INBOX_WEBHOOK_URL must be a Slack incoming webhook (https://hooks.slack.com/…)");
   }
+  // With DEV_LOGIN the links (sign-in returns, emails) point at this machine unless set.
+  const localDefaults = { PUBLIC_API_URL: `http://localhost:${get("PORT") ?? 8787}`, PUBLIC_WEB_URL: "http://localhost:3000" };
   const origin = (key: "PUBLIC_API_URL" | "PUBLIC_WEB_URL") => {
-    const value = get(key) ?? ENV_DEFAULTS[key];
+    const value = get(key) ?? (devLogin ? localDefaults[key] : ENV_DEFAULTS[key]);
     try {
       const url = new URL(value);
       if (url.protocol === "https:" || url.protocol === "http:") return url.origin;
@@ -342,10 +345,18 @@ export function depsFromEnv(env: EnvSource): AppDeps {
     readEnv(env);
   const production = Boolean(env.VERCEL?.trim()) || env.NODE_ENV === "production";
   const db = createDb(databaseUrl);
-  const agents = anthropicApiKey ? { db, claude: { apiKey: anthropicApiKey }, logger: console } : undefined;
+  // The agents run here with a key, or locally on canned answers with LLM_PROVIDER=mock.
+  const mockAgents = !production && "llm" in intakeChat && intakeChat.llm.provider === "mock";
+  const agents = anthropicApiKey
+    ? { db, claude: { apiKey: anthropicApiKey }, logger: console }
+    : mockAgents
+      ? { db, claude: mockClaude(), logger: console }
+      : undefined;
   const triggerIntake: IntakeTrigger | undefined = agents && inProcessIntakeTrigger(agents);
   const triggerPromo: PromoTrigger | undefined = agents && inProcessPromoTrigger(agents);
   const draftPromo = agents && inProcessPromoRunner(agents);
+  // Local development without the GitHub App: GitHub simulated here (src/dev-github.ts).
+  const devGitHub = config.devLogin && !githubApp && !githubAppAuth ? new DevGitHub(config.publicUrls.apiUrl) : undefined;
   return {
     db,
     env: config,
@@ -400,8 +411,9 @@ export function depsFromEnv(env: EnvSource): AppDeps {
         }
       : {}),
     ...(inboundMail ? { inboundMail } : {}),
-    ...(githubApp ? { githubOAuth: createGitHubOAuth(githubApp) } : {}),
-    ...(githubAppAuth ? { githubApi: createGitHubApi(githubAppAuth) } : {}),
+    ...(githubApp ? { githubOAuth: createGitHubOAuth(githubApp) } : devGitHub ? { githubOAuth: devGitHub } : {}),
+    ...(githubAppAuth ? { githubApi: createGitHubApi(githubAppAuth) } : devGitHub ? { githubApi: devGitHub } : {}),
+    ...(devGitHub ? { devGitHub } : {}),
     ...(chatBotUrl ? { postToChat: chatBotPoster(chatBotUrl) } : {}),
   };
 }

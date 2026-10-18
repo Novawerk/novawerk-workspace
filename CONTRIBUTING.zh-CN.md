@@ -24,7 +24,7 @@
 - **M**：任务会发布到任务看板，供成员讨论。你需要像其他成员一样提交实施方案，由维护者选择其中一个。
 - **L** 和 **XL**：任务会先进入建议队列，由维护者审核。
 
-每天最多可以创建 3 个新任务。
+每天最多可以创建 10 个新任务。
 
 文档、帖子、视频的修改以及错别字修复不需要关联任务。提交 Pull Request 时，只需填写 `Task: none` 并说明原因
 
@@ -77,19 +77,69 @@
 nvm use                 # 使用 .nvmrc 指定的 Node.js 22
 corepack enable         # 启用 package.json 指定的 pnpm 10
 pnpm install
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
+cp apps/admin/.env.example apps/admin/.env.local
+```
+
+在 `apps/api/.env` 中设置以下变量（其余变量可以留空）：
+
+```bash
+DATABASE_URL=postgres://novawerk:novawerk@localhost:5432/novawerk
+GOOGLE_CLIENT_ID=local                    # 任意占位值
+SESSION_SECRET=<32 个以上的随机字符>        # openssl rand -base64 48
+DEV_LOGIN=true
+LLM_PROVIDER=mock                         # 聊天和帖子写手使用脚本回复，无需密钥
+WEB_REVALIDATE_URL=http://localhost:3000/api/revalidate
+WEB_REVALIDATE_SECRET=change-me           # 与 apps/web/.env.local 中的 REVALIDATE_SECRET 相同
+```
+
+并在 `apps/admin/.env.local` 中设置 `VITE_DEV_LOGIN=true`。然后运行：
+
+```bash
 pnpm db:up && pnpm db:migrate && pnpm db:seed:dev
 pnpm dev                # Web 运行在 :3000，管理后台在 :5173，API 在 :8787
 ```
 
-每个应用都有自己的 `.env.example` 文件。将对应的示例配置复制到以下位置：
+大多数任务不需要使用任何真实密钥。
 
-- `apps/api/.env`
-- `apps/web/.env.local`
-- `apps/admin/.env.local`
+### 本地登录
 
-在 API 中设置 `DEV_LOGIN=true`，在管理后台中设置 `VITE_DEV_LOGIN=true`，即可在本地无需 Google 登录就能进入管理后台。
+- **网站**（localhost:3000）：使用任意邮箱登录。没有 Resend 密钥时，验证码会打印在 API 日志中（`sign-in code for you@example.com: 123456`）。
+- **使用 GitHub 登录**："Continue with GitHub"（以及 Settings → Link GitHub）会打开一个本地页面，而不是 github.com。输入任意 GitHub 用户名即可，同一个用户名始终对应同一个账户。提交实施方案和认领 S 级任务都需要关联 GitHub，你可以用这种方式在本地测试。`lena-k` 是示例数据中持有任务的贡献者。
+- **管理后台**（localhost:5173）：使用本地开发登录，并填写示例数据中的账户：`maintainer@example.com` 是维护者（可以接受建议、分配任务），`mara@example.com` 是普通成员。设置 `VITE_DEV_LOGIN_EMAIL` 可以自动填入邮箱。网站和管理后台共用同一个会话，切换账户前请先退出登录。
 
-大多数任务不需要使用真实密钥。
+### 文件上传
+
+设置 `DEV_LOGIN=true` 且没有配置 `BLOB_*` Token 时，所有上传（建议截图、简历、项目图片、文档和项目文件）都会保存到仓库中的 `.local-files/` 目录，而不是 Vercel Blob。你不需要 Vercel 账户。
+
+公开文件由 API 通过 `http://localhost:8787/dev/files/…` 提供；私有文件保存在 `.local-files/_private/` 中，和生产环境一样，API 只会把它们发给有权限查看的人。删除该目录即可重新开始。
+
+不要把生产环境的 Blob Token 放进你的 `.env`。
+
+### Pull Request 与任务看板
+
+没有我们 GitHub App 的密钥时，API 会在 [localhost:8787/dev/github](http://localhost:8787/dev/github) 模拟 GitHub。
+
+以你关联的 GitHub 用户名在这里创建 Pull Request，并在描述中写上 `Task: NW-<n>`：任务看板会关联它，任务进入审核状态，和真实的 PR 一样。在这里合并后，任务就会完成。任务页面上的“Link a PR by hand”也能找到在这里创建的 PR。这些 PR 保存在内存中，API 重启后会清空。
+
+### 邮件、定时任务和智能体
+
+- **邮件**：没有 Resend 密钥时不会真正发送。登录验证码、通知和团队提醒都会打印在 API 日志中。你在 Outbox 中批准的邮件会显示为“已批准，未发送”。
+- **定时任务**（提醒与自动释放、通知、清理）需要手动调用。在 `apps/api/.env` 中设置任意 16 个字符以上的 `CRON_SECRET`，然后运行，例如：`curl -H "Authorization: Bearer $CRON_SECRET" localhost:8787/cron/github-sync`。如果想看到提醒或自动释放，先在数据库中把任务的 `assigned_at` 和 `last_activity_at` 往前调 8 天或 15 天。
+- **任务看板的 MCP** 也可以连接本地 API：在 localhost:3000/settings/tokens 创建 Token，并把 `http://localhost:8787/mcp` 添加为单独的服务器（例如 `novawerk-local`），与正式的服务器分开。
+
+### 在网站上看到你的修改
+
+网站会缓存项目和任务（Next.js Cache Components）。上面的 `WEB_REVALIDATE_*` 配置让 API 在数据变更后刷新缓存；没有这两项时，管理后台中的修改要过一段时间才会显示在网站上。
+
+### 本地无法使用的功能
+
+团队聊天（chat.novawerk.io 是单独部署的应用）、Google 登录（需要我们的 OAuth 客户端），以及在私有仓库 GitHub Actions 中运行的智能体（可以使用 `pnpm agent <id> --dry-run`）。
+
+### 使用 AI 编程智能体
+
+使用 Claude Code 或其他编程智能体？它会阅读 [AGENTS.md](AGENTS.md)。在 Claude Code 中，`nw-setup` Skill 会引导它完成上述环境配置、连接任务看板（MCP），以及查找或创建你的任务。
 
 ## 提交 Pull Request 之前
 
@@ -100,6 +150,8 @@ pnpm typecheck && pnpm test && pnpm lint
 以上三项检查必须全部通过。CI 也会运行相同的检查。
 
 如果修改了用户界面，请在 Pull Request 中附上截图，包括浅色和深色模式，以及桌面端和手机端的显示效果。
+
+如果修改了仓库的配置、运行或测试方式（环境变量、脚本、示例数据、Mock、CI），或改动了贡献流程，请在同一个 Pull Request 中同步更新文档：本指南和英文版（[CONTRIBUTING.md](CONTRIBUTING.md)）要一起改，还有相关的 `.env.example` 文件、AGENTS.md，以及 `.claude/skills/` 中的 Skill。
 
 ## 开发规范
 

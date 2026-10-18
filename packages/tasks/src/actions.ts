@@ -340,7 +340,7 @@ export async function suggestTask(
 }
 
 /**
- * A member creates a task themselves. 3 a day. By size:
+ * A member creates a task themselves. 10 a day. By size:
  * - S is theirs at once: created open and given to them in the same transaction (a `choose` by
  *   the system, with the usual checks: GitHub linked, under their task limit). Next: the PR.
  * - M goes on the board as an open task, no review: discussed in public, and a maintainer
