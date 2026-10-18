@@ -27,8 +27,19 @@ const LONG_FIELDS = new Set(["product", "userJourney", "referencesAndInnovation"
 
 function patchFor(draft: IntakeDraft, field: string, text: string): Record<string, unknown> {
   if (field === "mode") return { mode: /join|member|mitmach|beitreten|加入/i.test(text) ? "join" : "pitch" };
+  // An email from the message, or a placeholder: the field is validated, and a message that isn't
+  // one would be asked for again forever.
+  const email = () => /[\w.+-]+@[\w-]+(\.[\w-]+)+/.exec(text)?.[0] ?? "visitor@example.com";
   const value =
-    field === "functions" ? ["other"] : field === "availability" ? "2to5" : LONG_FIELDS.has(field) ? text.padEnd(20, ".") : text;
+    field === "functions"
+      ? ["other"]
+      : field === "availability"
+        ? "2to5"
+        : field === "email"
+          ? email()
+          : LONG_FIELDS.has(field)
+            ? text.padEnd(20, ".")
+            : text;
   return { [draft.mode!]: { [field]: value } };
 }
 

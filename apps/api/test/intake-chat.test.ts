@@ -566,5 +566,8 @@ describe("dev mock", () => {
     expect(first.find((e) => e.type === "draft")).toMatchObject({ draft: { mode: "join" } });
     const second = await sendText("Grace");
     expect(second.find((e) => e.type === "draft")).toMatchObject({ draft: { join: { name: "Grace" } } });
+    // Not an email: a placeholder, so the next message goes on to the next field.
+    const third = await sendText("I build things");
+    expect(third.find((e) => e.type === "draft")).toMatchObject({ draft: { join: { email: "visitor@example.com" } } });
   });
 });

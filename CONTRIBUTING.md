@@ -137,6 +137,19 @@ GitHub login you linked, with `Task: NW-<n>` in the body: the board links it and
 review, as with a real PR. Merge it there and the task is done. "Link a PR by hand" on a task
 finds the PRs opened there too. They live in memory until the API restarts.
 
+### Emails, crons and agents
+
+- **Email** isn't sent without a Resend key: sign-in codes, notices and team notes are printed in
+  the API's log. An outbox email you approve stays "Approved, not sent".
+- **Crons** (reminders and releases, notices, cleanups) run when you call them. Set any
+  `CRON_SECRET` of 16+ characters in `apps/api/.env`, then e.g.
+  `curl -H "Authorization: Bearer $CRON_SECRET" localhost:8787/cron/github-sync`. To see a
+  reminder or a release, move a task's `assigned_at` and `last_activity_at` back 8 or 15 days in
+  the database first.
+- **The task board's MCP** works against the local API too: make a token on
+  localhost:3000/settings/tokens and add `http://localhost:8787/mcp` as its own server (e.g.
+  `novawerk-local`), next to the real one.
+
 ### Seeing your changes on the site
 
 The site caches projects and tasks (Next.js Cache Components). The `WEB_REVALIDATE_*` lines

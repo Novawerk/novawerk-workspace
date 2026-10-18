@@ -58,7 +58,13 @@ What works without any account:
   requests: open, merge or close them at `http://localhost:8787/dev/github`; with
   `Task: NW-<n>` in the body they move the task like real ones.
 - **The chats and the post writer**: `LLM_PROVIDER=mock` answers from a script.
-- **Email**: printed in the API log without `RESEND_API_KEY`.
+- **Email**: printed in the API log without `RESEND_API_KEY`; an approved outbox email stays
+  "Approved, not sent".
+- **Crons**: set `CRON_SECRET` (16+ characters) and `curl -H "Authorization: Bearer …"
+  localhost:8787/cron/<name>` (`github-sync` for reminders and releases, `contributor-notices`).
+- **A local MCP**: a token from localhost:3000/settings/tokens and the server
+  `http://localhost:8787/mcp`, under its own name (e.g. `novawerk-local`). Never point the
+  person's real `novawerk` server at localhost.
 
 Test whole flows, e.g.:
 
