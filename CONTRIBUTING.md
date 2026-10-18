@@ -87,7 +87,8 @@ pnpm dev                # web on :3000, admin on :5173, api on :8787
 
 Each app has a `.env.example`. Copy it to `apps/api/.env`, `apps/web/.env.local` and
 `apps/admin/.env.local`. Set `DEV_LOGIN=true` (API) and `VITE_DEV_LOGIN=true` (admin) to sign
-in to the admin panel locally without Google. You don't need any real keys for most tasks.
+in to the admin panel locally without Google. With `DEV_LOGIN`, uploads (screenshots, CVs, project
+pictures and files) go to `.local-files/` in the repo. You don't need any real keys for most tasks.
 
 ## Before you open a pull request
 

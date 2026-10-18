@@ -232,7 +232,7 @@ export function contribRoutes({ db, env, githubApi, files, logger = console }: A
             contentTypes: [contentType],
             maxBytes: MAX_SUGGESTION_SCREENSHOT_BYTES,
           });
-          return c.json({ token: ticket.token, pathname: ticket.pathname } satisfies SuggestionScreenshotTicket, 200);
+          return c.json({ token: ticket.token, pathname: ticket.pathname, ...(ticket.uploadUrl ? { uploadUrl: ticket.uploadUrl } : {}) } satisfies SuggestionScreenshotTicket, 200);
         },
       )
       .post("/suggestions", scope("suggestions:write"), zValidator("json", suggestionInput, rejectInvalid), async (c) => {

@@ -29,6 +29,8 @@ export interface UploadTicket {
   token: string;
   pathname: string;
   access: FileAccess;
+  /** Set by the local store: PUT the file here instead of uploading to Blob. */
+  uploadUrl?: string;
 }
 
 export interface TicketRequest {

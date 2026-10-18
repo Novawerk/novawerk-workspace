@@ -1,5 +1,6 @@
 // Uploads go straight from the browser to Vercel Blob: the API hands out a ticket (a client token
 // for one pathname, type and size), then `put` sends the file. Nothing passes through our API.
+// A local API without Blob tokens puts an `uploadUrl` on the ticket; the file is PUT there.
 
 import { put } from "@vercel/blob/client"
 
@@ -18,6 +19,26 @@ import { dataSource } from "./data-source"
 
 export type Progress = (percent: number) => void
 
+type Ticket = { token: string; pathname: string; uploadUrl?: string }
+
+/** Send the file where the ticket says. Returns its URL (the public store) or pathname. */
+async function send(ticket: Ticket, file: File, access: "public" | "private", contentType: string, onProgress?: Progress) {
+  if (ticket.uploadUrl) {
+    const res = await fetch(ticket.uploadUrl, { method: "PUT", headers: { "content-type": contentType }, body: file })
+    const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string }
+    if (!res.ok) throw new Error(body.error ?? `Upload failed (${res.status})`)
+    onProgress?.(100)
+    return body.url ?? ticket.pathname
+  }
+  const blob = await put(ticket.pathname, file, {
+    access,
+    token: ticket.token,
+    contentType,
+    onUploadProgress: onProgress ? ({ percentage }) => onProgress(percentage) : undefined,
+  })
+  return access === "public" ? blob.url : ticket.pathname
+}
+
 /** Thrown before any network call when a file can't be uploaded. */
 export class UploadRefused extends Error {
   override name = "UploadRefused"
@@ -35,13 +56,7 @@ export async function uploadImage(file: File, onProgress?: Progress): Promise<st
   check(file, IMAGE_CONTENT_TYPES, MAX_IMAGE_BYTES, "use a JPEG, PNG, WebP, GIF or AVIF image.")
   const contentType = file.type as ImageUploadInput["contentType"] // checked above
   const ticket = await dataSource.imageTicket({ filename: file.name, contentType, size: file.size })
-  const blob = await put(ticket.pathname, file, {
-    access: "public",
-    token: ticket.token,
-    contentType: file.type,
-    onUploadProgress: onProgress ? ({ percentage }) => onProgress(percentage) : undefined,
-  })
-  return blob.url
+  return send(ticket, file, "public", file.type, onProgress)
 }
 
 /** Upload a document to the private store. Returns the pathname to record with createDocument. */
@@ -49,13 +64,7 @@ export async function uploadDocument(file: File, onProgress?: Progress): Promise
   check(file, DOCUMENT_CONTENT_TYPES, MAX_DOCUMENT_BYTES, "use a PDF, an image, or a Word or Excel file.")
   const contentType = file.type as DocumentUploadInput["contentType"] // checked above
   const ticket = await dataSource.documentTicket({ filename: file.name, contentType, size: file.size })
-  await put(ticket.pathname, file, {
-    access: "private",
-    token: ticket.token,
-    contentType: file.type,
-    onUploadProgress: onProgress ? ({ percentage }) => onProgress(percentage) : undefined,
-  })
-  return ticket.pathname
+  return send(ticket, file, "private", file.type, onProgress)
 }
 
 /** Upload one of a project's files to the private store. Returns the pathname to record. */
@@ -65,13 +74,7 @@ export async function uploadProjectFile(projectId: string, file: File, onProgres
   check(file, PROJECT_FILE_CONTENT_TYPES, MAX_DOCUMENT_BYTES, "use a PDF, an image, a Word, Excel or PowerPoint file, text, Markdown or a zip.", type)
   const contentType = type as ProjectFileUploadInput["contentType"] // checked above
   const ticket = await dataSource.projectFileTicket(projectId, { filename: file.name, contentType, size: file.size })
-  await put(ticket.pathname, file, {
-    access: "private",
-    token: ticket.token,
-    contentType,
-    onUploadProgress: onProgress ? ({ percentage }) => onProgress(percentage) : undefined,
-  })
-  return ticket.pathname
+  return send(ticket, file, "private", contentType, onProgress)
 }
 
 /** "Grant agreement.pdf" → "Grant agreement": a default title for an uploaded document. */

@@ -1,5 +1,7 @@
 // Turns an env object into AppDeps. Pure: the entry files pass `process.env` in.
 
+import { fileURLToPath } from "node:url";
+
 import {
   LLM_PROVIDERS,
   LlmConfigError,
@@ -12,7 +14,8 @@ import {
 import { loadConfig, requiredVars } from "@nw/config";
 import { createDb } from "@nw/db";
 import { createGitHubApi } from "@nw/github";
-import { BlobFiles, type FileStoreConfig } from "@nw/object-store";
+import { BlobFiles, type FileStoreConfig, type Files } from "@nw/object-store";
+import { LocalFiles } from "@nw/object-store/local";
 import {
   notifyTeam,
   sendContributorNotice,
@@ -76,6 +79,8 @@ export interface ResolvedEnv {
   outbox: OutboxSender;
   /** Vercel Blob tokens, set when the stores are connected to the project. */
   files: FileStoreConfig;
+  /** DEV_LOGIN without any BLOB_* token: both stores in .local-files/, served by the local API. */
+  localFiles?: { apiUrl: string };
   /** Set: the intake and promo agents run in the API after a form, a status change or a draft request. */
   anthropicApiKey?: string;
   intakeChat: IntakeChatEnv;
@@ -283,6 +288,9 @@ export function readEnv(env: EnvSource): ResolvedEnv {
       ...(get("BLOB_PUBLIC_READ_WRITE_TOKEN") ? { publicToken: get("BLOB_PUBLIC_READ_WRITE_TOKEN") } : {}),
       ...(get("BLOB_PRIVATE_READ_WRITE_TOKEN") ? { privateToken: get("BLOB_PRIVATE_READ_WRITE_TOKEN") } : {}),
     },
+    ...(devLogin && !get("BLOB_PUBLIC_READ_WRITE_TOKEN") && !get("BLOB_PRIVATE_READ_WRITE_TOKEN")
+      ? { localFiles: { apiUrl: `http://localhost:${get("PORT") ?? 8787}` } }
+      : {}),
     // Approved outbox emails go out from the same address; replies land in our inbox.
     outbox: {
       from: get("NOTIFY_FROM") ?? ENV_DEFAULTS.NOTIFY_FROM,
@@ -317,9 +325,20 @@ function isChatBotUrl(value: string): boolean {
   }
 }
 
+/** .local-files/ at the repo root; src/server.ts serves /dev/files/ and takes /dev/uploads/. */
+export const LOCAL_FILES_ROOT = new URL("../../../.local-files/", import.meta.url);
+
+export function localFileStore(apiUrl: string): Files {
+  return new LocalFiles({
+    root: fileURLToPath(LOCAL_FILES_ROOT),
+    publicBase: `${apiUrl}/dev/files/`,
+    uploadBase: `${apiUrl}/dev/uploads/`,
+  });
+}
+
 /** Production deps: a lazy node-postgres pool and `notifyTeam` via Resend (or console). */
 export function depsFromEnv(env: EnvSource): AppDeps {
-  const { databaseUrl, config, notify, outbox, files, anthropicApiKey, intakeChat, inboundMail, githubApp, githubAppAuth, chatBotUrl } =
+  const { databaseUrl, config, notify, outbox, files, localFiles, anthropicApiKey, intakeChat, inboundMail, githubApp, githubAppAuth, chatBotUrl } =
     readEnv(env);
   const production = Boolean(env.VERCEL?.trim()) || env.NODE_ENV === "production";
   const db = createDb(databaseUrl);
@@ -337,7 +356,7 @@ export function depsFromEnv(env: EnvSource): AppDeps {
     ...(draftPromo ? { draftPost: (postId: string) => draftPromo({ postId }) } : {}),
     intakeChat: intakeChatDeps(intakeChat),
     adminChat: adminChatDeps(intakeChat),
-    files: new BlobFiles(files),
+    files: localFiles ? localFileStore(localFiles.apiUrl) : new BlobFiles(files),
     // Sign-in codes go out through Resend. Locally without a key they are printed to the console;
     // in production without a key, signing in by email is off (GitHub and Google still work).
     ...(outbox.resendApiKey || !production
