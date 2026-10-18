@@ -263,7 +263,7 @@ describe("any post", () => {
       app,
       "POST",
       "/admin/posts",
-      { kind: "custom", label: "Open day", langs: ["en"], platforms: ["linkedin", "discord"], withCard: false, dueOn: "2026-10-18" },
+      { kind: "custom", label: "Open day", langs: ["en"], platforms: ["linkedin", "discord"], withCard: false, dueOn: "2099-10-18" },
       201,
     );
     expect(post).toMatchObject({
@@ -280,7 +280,8 @@ describe("any post", () => {
     expect(dispatched).toBe(true);
     expect(woken).toEqual([{ postId: post.id }]);
 
-    // The next one gets the next number; the board shows them apart from the projects.
+    // The next one gets the next number and is due today, so it comes first (by due date). The
+    // board shows them apart from the projects.
     const second = await adminJson(app, "POST", "/admin/posts", { kind: "custom", label: "Thanks", draft: false }, 201);
     expect(second.post).toMatchObject({ seq: 2, langs: ["zh", "en"], platforms: null, draftRequestedAt: null });
     const { general } = await adminJson(app, "GET", "/admin/posts/board");
