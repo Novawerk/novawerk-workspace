@@ -61,4 +61,10 @@ describe("DEV_LOGIN in readEnv", () => {
     expect(() => readEnv({ ...required, DEV_LOGIN: "true", VERCEL: "1" })).toThrow(/DEV_LOGIN/);
     expect(() => readEnv({ ...required, DEV_LOGIN: "true", NODE_ENV: "production" })).toThrow(/DEV_LOGIN/);
   });
+
+  it("keeps files in .local-files/ only with DEV_LOGIN and no Blob token", () => {
+    expect(readEnv({ ...required, DEV_LOGIN: "true", PORT: "9000" }).localFiles).toEqual({ apiUrl: "http://localhost:9000" });
+    expect(readEnv(required).localFiles).toBeUndefined();
+    expect(readEnv({ ...required, DEV_LOGIN: "true", BLOB_PRIVATE_READ_WRITE_TOKEN: "t" }).localFiles).toBeUndefined();
+  });
 });

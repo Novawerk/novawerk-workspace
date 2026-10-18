@@ -46,6 +46,29 @@ export class UploadError extends Error {
 
 const TRY_AGAIN = "The upload didn't work. Please try again.";
 
+/** Send the file to the private store, or where a local API without Blob says (`uploadUrl`). */
+async function sendPrivate(
+  ticket: { token: string; pathname: string; uploadUrl?: string },
+  file: File,
+  contentType: string,
+  onProgress?: (percent: number) => void,
+): Promise<void> {
+  if (ticket.uploadUrl) {
+    const res = await fetch(ticket.uploadUrl, { method: "PUT", headers: { "content-type": contentType }, body: file });
+    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+    onProgress?.(100);
+    return;
+  }
+  // Loaded on first use: most visitors never attach a file.
+  const { put } = await import("@vercel/blob/client");
+  await put(ticket.pathname, file, {
+    access: "private",
+    token: ticket.token,
+    contentType,
+    onUploadProgress: onProgress ? ({ percentage }) => onProgress(percentage) : undefined,
+  });
+}
+
 async function requestTicket(file: File, contentType: ResumeContentType): Promise<ResumeUploadTicket> {
   // Must be referenced literally so Next inlines it into the client bundle.
   const base = process.env.NEXT_PUBLIC_API_URL?.trim();
@@ -83,15 +106,8 @@ export async function uploadResume(file: File, onProgress?: (percent: number) =>
   }
 
   const ticket = await requestTicket(file, contentType);
-  // Loaded on first use: most visitors never attach a file.
-  const { put } = await import("@vercel/blob/client");
   try {
-    await put(ticket.pathname, file, {
-      access: "private",
-      token: ticket.token,
-      contentType,
-      onUploadProgress: onProgress ? ({ percentage }) => onProgress(percentage) : undefined,
-    });
+    await sendPrivate(ticket, file, contentType, onProgress);
   } catch {
     throw new UploadError(TRY_AGAIN);
   }
@@ -144,14 +160,8 @@ export async function uploadSuggestionScreenshot(file: File, onProgress?: (perce
     throw new UploadError(Object.values(ticket.issues).flat()[0] ?? ticket.error);
   }
 
-  const { put } = await import("@vercel/blob/client");
   try {
-    await put(ticket.data.pathname, file, {
-      access: "private",
-      token: ticket.data.token,
-      contentType,
-      onUploadProgress: onProgress ? ({ percentage }) => onProgress(percentage) : undefined,
-    });
+    await sendPrivate(ticket.data, file, contentType, onProgress);
   } catch {
     throw new UploadError(TRY_AGAIN);
   }

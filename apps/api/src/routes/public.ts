@@ -96,7 +96,7 @@ export function publicRoutes({
         contentTypes: [contentType],
         maxBytes: MAX_RESUME_BYTES,
       });
-      return c.json({ token: ticket.token, pathname: ticket.pathname } satisfies ResumeUploadTicket, 200);
+      return c.json({ token: ticket.token, pathname: ticket.pathname, ...(ticket.uploadUrl ? { uploadUrl: ticket.uploadUrl } : {}) } satisfies ResumeUploadTicket, 200);
     })
 
     .post("/submissions", zValidator("json", projectSubmissionInput, rejectInvalidForm), async (c) => {

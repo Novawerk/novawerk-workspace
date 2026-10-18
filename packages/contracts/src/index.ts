@@ -450,6 +450,18 @@ const nullableUrl = (protocol: RegExp, error: string) =>
     .pipe(z.url({ protocol, error }).nullable())
     .nullable();
 
+/** https, or http on this machine (pictures in local development, served by the API). */
+const isPictureLink = (url: string) => {
+  try {
+    const { protocol, hostname } = new URL(url);
+    return protocol === "https:" || (protocol === "http:" && (hostname === "localhost" || hostname === "127.0.0.1"));
+  } catch {
+    return false;
+  }
+};
+const pictureLink = z.string().trim().max(2000, "Keep the link under 2000 characters").refine(isPictureLink, "Use an https:// image link");
+const photoUrl = pictureLink.or(z.literal("").transform(() => null)).nullable();
+
 const nullableEmail = z
   .string()
   .trim()
@@ -609,7 +621,7 @@ export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 
 /** One picture in a project's gallery. */
 const galleryImage = z.object({
-  url: z.string().trim().max(2000).pipe(z.url({ protocol: /^https$/, error: "Use an https:// image link" })),
+  url: pictureLink,
   caption: z.string().trim().max(200, "Keep the caption under 200 characters").optional(),
 });
 
@@ -625,7 +637,7 @@ const projectFields = {
   year: z.number().int("A whole year").min(2000, "From 2000").max(2100, "Up to 2100").nullable().optional(),
   link: nullableUrl(/^https?$/, "Use a full link, e.g. https://example.org").optional(),
   /** Uploaded to the public file store (POST /admin/uploads/image), or any https link. */
-  coverUrl: nullableUrl(/^https$/, "Use an https:// image link").optional(),
+  coverUrl: photoUrl.optional(),
   gallery: z.array(galleryImage).max(24, "Up to 24 pictures").optional(),
   featured: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(10_000).optional(),
@@ -861,18 +873,6 @@ export function xiaohongshuLinks(
 export function emptyLangs(content: PostContentInput | null, langs: readonly PostLang[]): PostLang[] {
   return langs.filter((lang) => !content || (!content[lang].title.trim() && !content[lang].body.trim()));
 }
-
-/** https, or http on this machine (posts from the repo in local development, served by the API). */
-const isPictureLink = (url: string) => {
-  try {
-    const { protocol, hostname } = new URL(url);
-    return protocol === "https:" || (protocol === "http:" && (hostname === "localhost" || hostname === "127.0.0.1"));
-  } catch {
-    return false;
-  }
-};
-const pictureLink = z.string().trim().max(2000, "Keep the link under 2000 characters").refine(isPictureLink, "Use an https:// image link");
-const photoUrl = pictureLink.or(z.literal("").transform(() => null)).nullable();
 
 /** A post's languages: one or both, each once, in the usual order. */
 export const postLangs = z
@@ -1390,6 +1390,8 @@ export type ResumeUploadInput = z.infer<typeof resumeUploadInput>;
 export interface ResumeUploadTicket {
   token: string;
   pathname: string;
+  /** Local development without Blob: PUT the file here instead. */
+  uploadUrl?: string;
 }
 
 /** POST /admin/documents — record a document after its file is uploaded. */
@@ -2283,6 +2285,8 @@ export type SuggestionScreenshotUploadInput = z.infer<typeof suggestionScreensho
 export interface SuggestionScreenshotTicket {
   token: string;
   pathname: string;
+  /** Local development without Blob: PUT the file here instead. */
+  uploadUrl?: string;
 }
 
 /** POST /contrib/suggestions. No size and no Werk: a member sets them when accepting. */

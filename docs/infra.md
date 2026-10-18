@@ -58,6 +58,7 @@ We have no staging. We test locally, then release to production.
 | Email | logged to the console (no key) | Resend |
 | Intake chat, admin assistant, post writer | your own `ANTHROPIC_API_KEY`, or `LLM_PROVIDER=mock` | production key |
 | Agents | `pnpm agent <id> --dry-run` | GitHub Actions (private repo) |
+| File uploads | `.local-files/` in the repo, with `DEV_LOGIN` and no `BLOB_*` token | Vercel Blob |
 | Admin sign-in | `DEV_LOGIN`, real Google (localhost is an allowed origin), or an email code printed to the API log | Google, or an email code via Resend |
 
 ### Rules
@@ -138,7 +139,7 @@ and production. "—" means unset.
 | `WEB_REVALIDATE_SECRET` | — | same as the web's `REVALIDATE_SECRET` |
 | `ANTHROPIC_API_KEY` | — (the crons on GitHub Actions do the work) | a key from the Novawerk Console workspace |
 | `LLM_PROVIDER` | — (Claude, with `ANTHROPIC_API_KEY`), or `mock` | — (Claude) |
-| `BLOB_PUBLIC_READ_WRITE_TOKEN`, `BLOB_PRIVATE_READ_WRITE_TOKEN` | `vercel env pull` (same stores as production), or unset | set by connecting the stores |
+| `BLOB_PUBLIC_READ_WRITE_TOKEN`, `BLOB_PRIVATE_READ_WRITE_TOKEN` | unset: with `DEV_LOGIN`, uploads go to `.local-files/` (private ones in `_private/`, never served); don't pull production's | set by connecting the stores |
 | `CRON_SECRET` | — | set; Vercel Cron sends it to `/cron/*`. Also a GitHub Actions secret on this repo for `contributor-notices.yml` |
 | `RESEND_WEBHOOK_SECRET`, `RESEND_RECEIVING_API_KEY`, `SLACK_INBOX_WEBHOOK_URL` | — | set; see "info@ in Slack" |
 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` | the GitHub App's, or unset (email codes still work) | the GitHub App `novawerk-task-board` |
