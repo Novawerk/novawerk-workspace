@@ -5,7 +5,7 @@ class Accounts::LogosController < ApplicationController
   before_action :ensure_can_administer, only: :destroy
 
   def show
-    if stale?(etag: [ Current.account, "nova" ])
+    if stale?(etag: [ Current.account, "nova2", params[:size] ])
       expires_in 5.minutes, public: true, stale_while_revalidate: 1.week
 
       if (logo_variant = Current.account&.logo_variant(logo_size))
@@ -29,6 +29,9 @@ class Accounts::LogosController < ApplicationController
     def send_stock_icon
       if small_logo?
         send_png_file logo_path("app-icon-192.png")
+      elsif maskable_logo?
+        # Launchers crop maskable icons to their own shape, so the star sits well inside the safe zone.
+        send_png_file logo_path("app-icon-maskable.png")
       else
         send_png_file logo_path("app-icon.png")
       end
@@ -40,6 +43,10 @@ class Accounts::LogosController < ApplicationController
 
     def small_logo?
       params[:size] == "small"
+    end
+
+    def maskable_logo?
+      params[:size] == "maskable"
     end
 
     def logo_path(filename)
