@@ -81,14 +81,63 @@ You need Node 22+, pnpm 10 and Docker (or OrbStack) for the local Postgres.
 nvm use                 # Node 22, from .nvmrc
 corepack enable         # pnpm 10, from package.json
 pnpm install
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
+cp apps/admin/.env.example apps/admin/.env.local
+```
+
+In `apps/api/.env` set these (everything else can stay empty):
+
+```bash
+DATABASE_URL=postgres://novawerk:novawerk@localhost:5432/novawerk
+GOOGLE_CLIENT_ID=local                    # any placeholder
+SESSION_SECRET=<32+ random characters>    # openssl rand -base64 48
+DEV_LOGIN=true
+LLM_PROVIDER=mock                         # the chats answer from a script, no key
+```
+
+and `VITE_DEV_LOGIN=true` in `apps/admin/.env.local`. Then:
+
+```bash
 pnpm db:up && pnpm db:migrate && pnpm db:seed:dev
 pnpm dev                # web on :3000, admin on :5173, api on :8787
 ```
 
-Each app has a `.env.example`. Copy it to `apps/api/.env`, `apps/web/.env.local` and
-`apps/admin/.env.local`. Set `DEV_LOGIN=true` (API) and `VITE_DEV_LOGIN=true` (admin) to sign
-in to the admin panel locally without Google. With `DEV_LOGIN`, uploads (screenshots, CVs, project
-pictures and files) go to `.local-files/` in the repo. You don't need any real keys for most tasks.
+You don't need any real keys for most tasks.
+
+### Signing in locally
+
+- **On the site** (localhost:3000): sign in with any email. Without a Resend key the code is
+  printed in the API's log (`sign-in code for you@example.com: 123456`).
+- **In the admin** (localhost:5173): use the local dev sign-in with a seeded account:
+  `maintainer@example.com` is a maintainer (accepts suggestions, assigns tasks), `mara@example.com`
+  a member. Set `VITE_DEV_LOGIN_EMAIL` to fill it in. The site and the admin share one session,
+  so sign out of one account before you sign in as another.
+
+### Uploads
+
+With `DEV_LOGIN=true` and no `BLOB_*` token, every upload (suggestion screenshots, CVs, project
+pictures, documents and project files) goes to `.local-files/` in the repo instead of Vercel
+Blob. You don't need a Vercel account. Public files are served by the API at
+`http://localhost:8787/dev/files/…`; private ones sit in `.local-files/_private/`, and the API
+streams them only to whoever may open them, as in production. Delete the folder to start over.
+Never put production's Blob tokens in your `.env`.
+
+### Seeing your changes on the site
+
+The site caches projects and tasks (Next.js Cache Components). For a change in the admin to show
+at once, point the API at the site's revalidation route, in `apps/api/.env`:
+
+```bash
+WEB_REVALIDATE_URL=http://localhost:3000/api/revalidate
+WEB_REVALIDATE_SECRET=change-me           # the REVALIDATE_SECRET in apps/web/.env.local
+```
+
+### Working with an agent
+
+Using Claude Code or another coding agent? It reads [AGENTS.md](AGENTS.md). In Claude Code the
+`nw-contribute` skill walks it through this setup, connecting the task board (MCP) and finding
+or creating your task.
 
 ## Before you open a pull request
 

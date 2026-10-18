@@ -405,7 +405,8 @@ export function ProjectEditor({ project, initialTab = "overview" }: { project?: 
             <CardContent className="grid gap-6 sm:grid-cols-[220px_minmax(0,1fr)]">
               <div className="flex flex-col gap-2">
                 <p className="text-sm font-medium">Cover</p>
-                {form.coverUrl.startsWith("https://") ? (
+                {/* https, or the local API's pictures in development */}
+                {/^(https:\/\/|http:\/\/(localhost|127\.0\.0\.1)[:/])/.test(form.coverUrl) ? (
                   <CoverPreview key={form.coverUrl} url={form.coverUrl} />
                 ) : (
                   <div className="flex aspect-[4/3] items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">

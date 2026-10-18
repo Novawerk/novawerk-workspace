@@ -48,10 +48,12 @@ The answer has the id (`NW-<n>`), the status and a `next` line: follow it. Up to
 day per person; an S task needs GitHub linked. Don't make a task bigger or smaller to get around
 a step; split real work into S tasks instead when it can be split.
 
-No token? The person makes one at novawerk.io/settings/tokens and adds the server once:
+No token? The person makes one at novawerk.io/settings/tokens and adds the server once, in
+their own terminal (never paste the token into the chat; the `nw-contribute` skill has the
+steps):
 
 ```bash
-claude mcp add --transport http novawerk https://api.novawerk.io/mcp --header "Authorization: Bearer nwt_…"
+claude mcp add --scope user --transport http novawerk https://api.novawerk.io/mcp --header "Authorization: Bearer $(pbpaste)"
 ```
 
 ## 4. Open the pull request

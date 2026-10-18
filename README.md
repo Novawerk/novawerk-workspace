@@ -56,8 +56,10 @@ pnpm dev           # web on :3000, admin on :5173, api on :8787
 Each app has a `.env.example` listing the variables it needs; copy it to
 `apps/api/.env`, `apps/web/.env.local` and `apps/admin/.env.local`. Locally, set
 `DEV_LOGIN=true` (API) and `VITE_DEV_LOGIN=true` (admin) to sign in to the admin
-panel without Google. Real values live in Vercel and GitHub Actions secrets;
-`docs/infra.md` lists the environments, accounts and DNS.
+panel without Google; uploads then go to `.local-files/`, no Vercel account needed.
+[CONTRIBUTING.md](CONTRIBUTING.md#local-setup) has the values, the seeded accounts and the
+details. Real values live in Vercel and GitHub Actions secrets; `docs/infra.md` lists the
+environments, accounts and DNS.
 
 Changing a table: edit `packages/db/src/schema.ts`, run `pnpm db:generate`,
 commit the migration.

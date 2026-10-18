@@ -24,6 +24,10 @@ pnpm --filter <package> test                        # one package
 Node 22+, pnpm 10. One lockfile at the root. Tests that need Postgres use `@nw/db/testing`
 (PGlite in memory); they need no Docker.
 
+Running the apps: the `.env` values, signing in, uploads (`.local-files/`, no Vercel account)
+and the site's cache are in [CONTRIBUTING.md](CONTRIBUTING.md#local-setup). In Claude Code, the
+`nw-contribute` skill does the setup and connects the task board.
+
 ## Task and pull request conventions
 
 - Branch in the contributor's fork. The pull request targets `main` in
@@ -65,4 +69,6 @@ Node 22+, pnpm 10. One lockfile at the root. Tests that need Postgres use `@nw/d
 The MCP server is at `https://api.novawerk.io/mcp`; the person makes a token at
 novawerk.io/settings/tokens. Reading needs no token. With one you can read the guide, draft a
 proposal (the person confirms it on novawerk.io), create a task, link a pull request and post
-on a task. Tools and rules: [apps/web/public/llms.txt](apps/web/public/llms.txt).
+on a task. Tools and rules: [apps/web/public/llms.txt](apps/web/public/llms.txt). The person
+adds the server themself (the token is theirs; never ask for it in chat): see the
+`nw-contribute` skill.

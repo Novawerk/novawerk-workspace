@@ -59,6 +59,7 @@ We have no staging. We test locally, then release to production.
 | Intake chat, admin assistant, post writer | your own `ANTHROPIC_API_KEY`, or `LLM_PROVIDER=mock` | production key |
 | Agents | `pnpm agent <id> --dry-run` | GitHub Actions (private repo) |
 | File uploads | `.local-files/` in the repo, with `DEV_LOGIN` and no `BLOB_*` token | Vercel Blob |
+| Site cache | revalidated when `WEB_REVALIDATE_URL` points at `localhost:3000/api/revalidate` | revalidated by the API |
 | Admin sign-in | `DEV_LOGIN`, real Google (localhost is an allowed origin), or an email code printed to the API log | Google, or an email code via Resend |
 
 ### Rules
