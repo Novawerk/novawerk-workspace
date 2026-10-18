@@ -1,6 +1,6 @@
 ---
 name: nw-pull-request
-description: Open a pull request in Novawerk/novawerk-workspace the way the board expects. Every PR that changes code has a task on novawerk.io/tasks first, so find the task, or create one (S is yours at once, M opens for discussion, L and XL wait for review), then put `Task: NW-<n>` in the PR body, sign off every commit and fill in the template. Use before opening or preparing any pull request here, when asked to "open a PR", "ship this" or "send it for review", or when unsure which task a change belongs to.
+description: Open a pull request in Novawerk/novawerk-workspace the way the board expects. Every PR that changes code has a task on novawerk.io/tasks first, so find the task, or create one (S is yours at once, M opens for discussion, L and XL wait for review), then put `Task: NW-<n>` in the PR body, sign off every commit, update the docs (both contributing guides, AGENTS.md, skills) when setup or a contributor flow changed, and fill in the template. Use before opening or preparing any pull request here, when asked to "open a PR", "ship this" or "send it for review", or when unsure which task a change belongs to.
 ---
 
 # Opening a pull request
@@ -64,6 +64,12 @@ claude mcp add --scope user --transport http novawerk https://api.novawerk.io/mc
 - Title like the log: `Area: what changed` (`Web: …`, `API: …`, `Board: …`, `Docs: …`).
 - Body: `.github/pull_request_template.md`, first line `Task: NW-<n>`. UI changes need
   screenshots (light and dark, desktop and phone).
+- Docs move with the code. If the change touches how someone sets up, runs or tests the repo
+  (env vars, scripts, ports, seed data, a dev-only route, a mock, a CI step) or a contributor
+  flow (tasks, proposals, PR linking, limits), update in the same PR: CONTRIBUTING.md **and**
+  CONTRIBUTING.zh-CN.md (keep them saying the same thing), the `.env.example` it touches,
+  AGENTS.md, docs/infra.md and the skills in `.claude/skills/` (`nw-contribute` for setup).
+  Then tick the template's docs line.
 
 Once it's open the board moves the task to `in_review` by itself. If it doesn't (the body
 had no task line), use MCP `link_pr`.

@@ -42,6 +42,9 @@ cache are in [CONTRIBUTING.md](CONTRIBUTING.md#local-setup). In Claude Code, the
   `Docs: …`). We squash merge, so the title becomes the commit.
 - Every commit is signed off: `git commit -s`. The sign-off is the person's, not yours.
 - UI changes need screenshots in the pull request.
+- Changed setup, env vars, scripts, mocks, CI or a contributor flow? Update the docs in the same
+  pull request: CONTRIBUTING.md and CONTRIBUTING.zh-CN.md together, the `.env.example` files,
+  this file and the skills in `.claude/skills/`.
 
 ## Rules you will hit most
 

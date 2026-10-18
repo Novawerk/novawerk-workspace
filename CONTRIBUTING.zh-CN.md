@@ -151,6 +151,8 @@ pnpm typecheck && pnpm test && pnpm lint
 
 如果修改了用户界面，请在 Pull Request 中附上截图，包括浅色和深色模式，以及桌面端和手机端的显示效果。
 
+如果修改了仓库的配置、运行或测试方式（环境变量、脚本、示例数据、Mock、CI），或改动了贡献流程，请在同一个 Pull Request 中同步更新文档：本指南和英文版（[CONTRIBUTING.md](CONTRIBUTING.md)）要一起改，还有相关的 `.env.example` 文件、AGENTS.md，以及 `.claude/skills/` 中的 Skill。
+
 ## 开发规范
 
 - **阅读 [CLAUDE.md](CLAUDE.md)。** 其中包含完整的项目规则。大部分规则只适用于特定类型的任务。

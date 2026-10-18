@@ -176,6 +176,11 @@ pnpm typecheck && pnpm test && pnpm lint
 All three must pass. CI runs the same checks. For UI changes, add screenshots (light and dark,
 desktop and phone) to the pull request.
 
+Changed how the repo is set up, run or tested (env vars, scripts, seed data, mocks, CI), or a
+contributor flow? Update the docs in the same pull request: this guide and its Chinese version
+([CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md)) together, the `.env.example` files, AGENTS.md
+and the skills in `.claude/skills/`.
+
 ## Conventions
 
 - **Read [CLAUDE.md](CLAUDE.md).** It has the full rules. Most matter only for certain tasks.
