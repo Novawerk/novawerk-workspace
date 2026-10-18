@@ -48,8 +48,8 @@ To run everything locally you need Docker (or OrbStack) for Postgres:
 
 ```bash
 pnpm db:up         # local Postgres from compose.yaml
-pnpm db:migrate    # DATABASE_URL=postgres://novawerk:novawerk@localhost:5432/novawerk
-pnpm db:seed:dev   # a sample admin and the two current projects
+pnpm db:migrate    # DATABASE_URL from apps/api/.env (postgres://novawerk:novawerk@localhost:5432/novawerk)
+pnpm db:seed:dev   # demo projects, posts, tasks and accounts
 pnpm dev           # web on :3000, admin on :5173, api on :8787
 ```
 
