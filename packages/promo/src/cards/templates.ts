@@ -189,8 +189,7 @@ function star(c: Ctx, size: number): CardNode {
   return h(
     "svg",
     { width: size, height: size, viewBox: "0 0 100 100", style: { flexShrink: 0 } },
-    h("path", { d: STAR_OUTER, fill: c.p.ink }),
-    h("path", { d: STAR_CORE, fill: c.p.ground }),
+    h("path", { d: `${STAR_OUTER} ${STAR_CORE}`, fill: c.p.ink, "fill-rule": "evenodd" }),
   );
 }
 

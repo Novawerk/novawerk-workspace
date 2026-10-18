@@ -40,15 +40,15 @@ with the Novawerk wordmark.
 
 ### Mark construction
 
-The mark is two concentric four-pointed stars on a `100 × 100` viewBox:
+The mark is a four-pointed star with a concentric four-pointed hole, on a `100 × 100` viewBox:
 
 - **Outer star** — `--color-accent` (`#1f7a4a`). Outer points at the
   cardinal compass positions, inner pinch ±5 from centre.
-- **Inner core** — deeper green (`#0a3920`), ~28% the size of the outer
-  star, same rotation. Reads as depth — *is it pulling in or radiating
-  out?*
-- **B&W variant** — outer `#0f0f0f`, inner `#ffffff`. The white core
-  reads as a cutout / event horizon and works against any background.
+- **Inner core** — a **cutout**, ~28% the size of the outer star, same
+  rotation. It has no colour of its own: the ground shows through (one
+  `<path>`, `fill-rule="evenodd"`). Reads as depth — *is it pulling in or
+  radiating out?* — and works against any background.
+- **B&W variant** — star `#0f0f0f`, same cut-out core.
 
 The mark always sits alone on its surface — **no rounded square, no
 tile, no enclosing shape.**
@@ -92,7 +92,7 @@ the rest.
 |-----------------------------|-----------|-------------------------------------------------------|
 | `--color-accent`            | `#1f7a4a` | **Primary green.** Mark outer, accent words, key CTAs.|
 | `--color-accent-deep`       | `#155a36` | Hover / pressed state of primary green.               |
-| `--color-accent-core`       | `#0a3920` | Mark inner core — the "depth" colour. Not for type.   |
+| `--color-accent-core`       | `#0a3920` | Deepest green for UI accents. **Not used in the mark** — the core is a cutout. Not for type. |
 | `--color-background`        | `#efe9d8` | **Cream.** Default page background.                   |
 | `--color-foreground`        | `#0f0f0f` | Body text, dark CTA blocks, deep contrast.            |
 | `--color-blue` *(accent)*   | `#2a5dc8` | Expressive secondary — links, charts, occasional mark recolour. |
@@ -231,8 +231,8 @@ spacing — to make hierarchy felt before it's read.
 
 | File                                                                                            | Purpose                                                            |
 |-------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|
-| [`assets/nova-star.svg`](./assets/nova-star.svg)                                   | Mark — colour (green outer, deep-green core), transparent ground.  |
-| [`assets/nova-star-bw.svg`](./assets/nova-star-bw.svg)                             | Mark — single-ink (ink outer, cream cutout core).                  |
+| [`assets/nova-star.svg`](./assets/nova-star.svg)                                   | Mark — colour (green star, cut-out core), transparent ground.      |
+| [`assets/nova-star-bw.svg`](./assets/nova-star-bw.svg)                             | Mark — single-ink (ink star, cut-out core).                        |
 | [`assets/nova-star-dark.svg`](./assets/nova-star-dark.svg)                         | Mark — dark variant (cream star on ink ground, core punches through to ground). |
 | [`assets/nova-star-horizontal.svg`](./assets/nova-star-horizontal.svg)             | Horizontal lockup — colour default.                                |
 | [`assets/nova-star-horizontal-mixed.svg`](./assets/nova-star-horizontal-mixed.svg) | Horizontal lockup — green mark + ink wordmark.                     |

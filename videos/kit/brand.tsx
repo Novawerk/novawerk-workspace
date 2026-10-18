@@ -5,7 +5,13 @@ import { color, ease, sec } from "./theme";
 import { progress } from "./motion";
 
 // The Nova Star (knowledge/brand/mark.md): two concentric four-pointed stars, never enclosed.
-const CORE = "M50 36 L51.4 48.6 L64 50 L51.4 51.4 L50 64 L48.6 51.4 L36 50 L48.6 48.6 Z";
+const CORE: [number, number][] = [[50, 36], [51.4, 48.6], [64, 50], [51.4, 51.4], [50, 64], [48.6, 51.4], [36, 50], [48.6, 48.6]];
+
+/** The core at `scale` around the centre, as a sub-path. With even-odd fill it is cut out of the star. */
+function core(scale: number) {
+  const pts = CORE.map(([x, y]) => `${50 + (x - 50) * scale} ${50 + (y - 50) * scale}`);
+  return `M${pts.join(" L")} Z`;
+}
 
 /** The outer star with its four points reaching `reach` (0 = folded to the pinch, 1 = the mark). */
 function outer(reach: number) {
@@ -13,11 +19,11 @@ function outer(reach: number) {
   return `M50 ${50 - d} L55 45 L${50 + d} 50 L55 55 L50 ${50 + d} L45 55 L${50 - d} 50 L45 45 Z`;
 }
 
+// The core is always a cutout: it shows whatever ground the star sits on.
 const TONES = {
-  brand: { outer: color.accent, core: color.accentDeep },
-  // nova-star-dark.svg: a cream star whose core punches through to the ink ground.
-  dark: { outer: color.paper, core: color.ink },
-  neutral: { outer: color.lineStrong, core: color.subtle },
+  brand: color.accent,
+  dark: color.paper,
+  neutral: color.lineStrong,
 } as const;
 
 export function NovaStar({
@@ -33,12 +39,10 @@ export function NovaStar({
   reach?: number;
   style?: CSSProperties;
 }) {
-  const t = TONES[tone];
-  const core = Math.min(1, Math.max(0, reach));
+  const coreScale = Math.min(1, Math.max(0, reach));
   return (
     <svg viewBox="0 0 100 100" width={size} height={size} style={{ display: "block", overflow: "visible", transform: `rotate(${rotate}deg)`, ...style }}>
-      <path d={outer(reach)} fill={t.outer} />
-      <path d={CORE} fill={t.core} transform={`translate(50 50) scale(${core}) translate(-50 -50)`} />
+      <path d={coreScale > 0 ? `${outer(reach)} ${core(coreScale)}` : outer(reach)} fill={TONES[tone]} fillRule="evenodd" />
     </svg>
   );
 }

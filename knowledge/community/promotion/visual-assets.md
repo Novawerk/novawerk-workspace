@@ -23,8 +23,8 @@ updated: 2026-10-03
 每张图必须暗示或包含这些元素：
 
 - **配色** —— cream 背景 `#efe9d8`（"the room"）、accent green `#1f7a4a`、
-  深绿核心 `#0a3920`、可选 expressive blue `#2a5dc8`
-- **Nova Star** —— 四角尖星，外绿内深绿；**不要**圆角 / 描边 / 渐变 / 阴影。
+  可选 expressive blue `#2a5dc8`
+- **Nova Star** —— 四角尖星，绿色，中间的小星是镂空（透出背景色，不填深绿）；**不要**圆角 / 描边 / 渐变 / 阴影。
   AI 生图经常画错，**默认做法是留空白让后期 Figma 合成 SVG** ——
   详见 [brand-mark · In AI-generated images](../../brand/mark.md#in-ai-generated-images)
 - **M3-Expressive 气质** —— springy 但不浮夸，soft-edged cards（16px radius），
