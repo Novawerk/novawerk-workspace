@@ -21,6 +21,14 @@ export function apiBase(): string | null {
 
 const UNREACHABLE = "We couldn't reach the task board. Check your connection and try again.";
 
+/** Locally the usual cause is an API that didn't start (apps/api/.env), so say where to look. */
+function unreachable(base: string | null): string {
+  if (!base) return process.env.NODE_ENV === "development" ? "NEXT_PUBLIC_API_URL isn't set in apps/web/.env.local." : UNREACHABLE;
+  return /^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(base)
+    ? `We couldn't reach the API at ${base}. Is it running? Check the pnpm dev output for "@nw/api env:".`
+    : UNREACHABLE;
+}
+
 /** Fired on window when a /contrib call (or /auth/me) answers 401: the session provider resets to signed out. */
 export const SIGNED_OUT_EVENT = "nw:contributor-signed-out";
 
@@ -29,7 +37,7 @@ export async function api<T>(
   { method = "GET", body }: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } = {},
 ): Promise<ApiResult<T>> {
   const base = apiBase();
-  if (!base) return { ok: false, status: 0, error: UNREACHABLE, issues: {} };
+  if (!base) return { ok: false, status: 0, error: unreachable(base), issues: {} };
   let res: Response;
   try {
     res = await fetch(`${base}${path}`, {
@@ -40,7 +48,7 @@ export async function api<T>(
       signal: AbortSignal.timeout(15_000),
     });
   } catch {
-    return { ok: false, status: 0, error: UNREACHABLE, issues: {} };
+    return { ok: false, status: 0, error: unreachable(base), issues: {} };
   }
   const json = (await res.json().catch(() => null)) as unknown;
   if (res.ok) return { ok: true, data: json as T };

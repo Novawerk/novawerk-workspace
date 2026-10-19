@@ -45,6 +45,11 @@ import type {
 
 export type EnvSource = Record<string, string | undefined>;
 
+/** The local server's port. An empty `PORT=` (as in .env.example) means the default, not 0 (any free port). */
+export function listenPort(env: EnvSource): number {
+  return Number(env.PORT?.trim() || 8787);
+}
+
 export const ENV_DEFAULTS = {
   NOTIFY_FROM: "Novawerk <info@novawerk.io>",
   NOTIFY_TO: "info@novawerk.io",
@@ -207,7 +212,7 @@ export function readEnv(env: EnvSource): ResolvedEnv {
     problems.push("SLACK_INBOX_WEBHOOK_URL must be a Slack incoming webhook (https://hooks.slack.com/…)");
   }
   // With DEV_LOGIN the links (sign-in returns, emails) point at this machine unless set.
-  const localDefaults = { PUBLIC_API_URL: `http://localhost:${get("PORT") ?? 8787}`, PUBLIC_WEB_URL: "http://localhost:3000" };
+  const localDefaults = { PUBLIC_API_URL: `http://localhost:${listenPort(env)}`, PUBLIC_WEB_URL: "http://localhost:3000" };
   const origin = (key: "PUBLIC_API_URL" | "PUBLIC_WEB_URL") => {
     const value = get(key) ?? (devLogin ? localDefaults[key] : ENV_DEFAULTS[key]);
     try {
@@ -292,7 +297,7 @@ export function readEnv(env: EnvSource): ResolvedEnv {
       ...(get("BLOB_PRIVATE_READ_WRITE_TOKEN") ? { privateToken: get("BLOB_PRIVATE_READ_WRITE_TOKEN") } : {}),
     },
     ...(devLogin && !get("BLOB_PUBLIC_READ_WRITE_TOKEN") && !get("BLOB_PRIVATE_READ_WRITE_TOKEN")
-      ? { localFiles: { apiUrl: `http://localhost:${get("PORT") ?? 8787}` } }
+      ? { localFiles: { apiUrl: `http://localhost:${listenPort(env)}` } }
       : {}),
     // Approved outbox emails go out from the same address; replies land in our inbox.
     outbox: {

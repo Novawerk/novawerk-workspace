@@ -87,11 +87,16 @@ cp apps/admin/.env.example apps/admin/.env.local
 ```bash
 DATABASE_URL=postgres://novawerk:novawerk@localhost:5432/novawerk
 GOOGLE_CLIENT_ID=local                    # 任意占位值
-SESSION_SECRET=<32 个以上的随机字符>        # openssl rand -base64 48
 DEV_LOGIN=true
 LLM_PROVIDER=mock                         # 聊天和帖子写手使用脚本回复，无需密钥
 WEB_REVALIDATE_URL=http://localhost:3000/api/revalidate
 WEB_REVALIDATE_SECRET=change-me           # 与 apps/web/.env.local 中的 REVALIDATE_SECRET 相同
+```
+
+然后添加会话密钥（32 个以上的随机字符；没有它 API 无法启动）：
+
+```bash
+echo "SESSION_SECRET=$(openssl rand -base64 48)" >> apps/api/.env
 ```
 
 并在 `apps/admin/.env.local` 中设置 `VITE_DEV_LOGIN=true`。然后运行：
@@ -105,7 +110,8 @@ pnpm dev                # Web 运行在 :3000，管理后台在 :5173，API 在 
 
 ### 本地登录
 
-- **网站**（localhost:3000）：使用任意邮箱登录。没有 Resend 密钥时，验证码会打印在 API 日志中（`sign-in code for you@example.com: 123456`）。
+- **网站**（localhost:3000）：使用任意邮箱登录。没有 Resend 密钥时，验证码会打印在 API 日志中（`sign-in code for you@example.com: 123456`）。请用 `localhost:3000` 打开网站，不要用 `127.0.0.1` 或局域网地址：那样开发服务器不会加载页面脚本，点 “Send code” 只会刷新页面，而且 API 只接受 `localhost`。
+- **看到 "We couldn't reach the API at http://localhost:8787"** 说明 API 没有启动。在 `pnpm dev` 的输出中查找 `@nw/api env:`，它会列出 `apps/api/.env` 缺少什么。改好后重启 `pnpm dev`。
 - **使用 GitHub 登录**："Continue with GitHub"（以及 Settings → Link GitHub）会打开一个本地页面，而不是 github.com。输入任意 GitHub 用户名即可，同一个用户名始终对应同一个账户。提交实施方案和认领 S 级任务都需要关联 GitHub，你可以用这种方式在本地测试。`lena-k` 是示例数据中持有任务的贡献者。
 - **管理后台**（localhost:5173）：使用本地开发登录，并填写示例数据中的账户：`maintainer@example.com` 是维护者（可以接受建议、分配任务），`mara@example.com` 是普通成员。设置 `VITE_DEV_LOGIN_EMAIL` 可以自动填入邮箱。网站和管理后台共用同一个会话，切换账户前请先退出登录。
 

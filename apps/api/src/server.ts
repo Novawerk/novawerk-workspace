@@ -9,7 +9,7 @@ import { serve } from "@hono/node-server";
 import { LOCAL_PRIVATE_DIR, LocalFiles } from "@nw/object-store/local";
 
 import { createApp } from "./app.js";
-import { LOCAL_FILES_ROOT, depsFromEnv } from "./deps.js";
+import { LOCAL_FILES_ROOT, depsFromEnv, listenPort } from "./deps.js";
 
 try {
   process.loadEnvFile(".env");
@@ -17,7 +17,7 @@ try {
   // No .env file — rely on the shell environment.
 }
 
-const port = Number(process.env.PORT ?? 8787);
+const port = listenPort(process.env);
 const deps = depsFromEnv(process.env);
 const app = createApp(deps);
 

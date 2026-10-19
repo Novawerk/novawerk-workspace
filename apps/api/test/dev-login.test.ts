@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { members, type Database } from "@nw/db";
 
-import { readEnv } from "../src/deps.js";
+import { listenPort, readEnv } from "../src/deps.js";
 import { createTestDb, joinATeam, makeApp, postJson, resetDb } from "./helpers.js";
 
 let db: Database;
@@ -65,6 +65,17 @@ describe("DEV_LOGIN in readEnv", () => {
   it("keeps files in .local-files/ only with DEV_LOGIN and no Blob token", () => {
     expect(readEnv({ ...required, DEV_LOGIN: "true", PORT: "9000" }).localFiles).toEqual({ apiUrl: "http://localhost:9000" });
     expect(readEnv(required).localFiles).toBeUndefined();
+    // .env.example has an empty PORT=: still 8787, the port the site and the docs expect.
+    expect(readEnv({ ...required, DEV_LOGIN: "true", PORT: "" }).localFiles).toEqual({ apiUrl: "http://localhost:8787" });
     expect(readEnv({ ...required, DEV_LOGIN: "true", BLOB_PRIVATE_READ_WRITE_TOKEN: "t" }).localFiles).toBeUndefined();
+  });
+});
+
+describe("listenPort", () => {
+  it("is 8787 when PORT is unset or empty, as in .env.example", () => {
+    expect(listenPort({})).toBe(8787);
+    expect(listenPort({ PORT: "" })).toBe(8787);
+    expect(listenPort({ PORT: "  " })).toBe(8787);
+    expect(listenPort({ PORT: "9000" })).toBe(9000);
   });
 });
