@@ -91,11 +91,16 @@ In `apps/api/.env` set these (everything else can stay empty):
 ```bash
 DATABASE_URL=postgres://novawerk:novawerk@localhost:5432/novawerk
 GOOGLE_CLIENT_ID=local                    # any placeholder
-SESSION_SECRET=<32+ random characters>    # openssl rand -base64 48
 DEV_LOGIN=true
 LLM_PROVIDER=mock                         # the chats and the post writer answer from a script, no key
 WEB_REVALIDATE_URL=http://localhost:3000/api/revalidate
 WEB_REVALIDATE_SECRET=change-me           # the REVALIDATE_SECRET in apps/web/.env.local
+```
+
+Then add a session secret (32+ random characters; the API won't start without one):
+
+```bash
+echo "SESSION_SECRET=$(openssl rand -base64 48)" >> apps/api/.env
 ```
 
 and `VITE_DEV_LOGIN=true` in `apps/admin/.env.local`. Then:
@@ -110,7 +115,12 @@ You don't need any real keys for most tasks.
 ### Signing in locally
 
 - **On the site** (localhost:3000): sign in with any email. Without a Resend key the code is
-  printed in the API's log (`sign-in code for you@example.com: 123456`).
+  printed in the API's log (`sign-in code for you@example.com: 123456`). Open the site at
+  `localhost:3000`, not `127.0.0.1` or a network address: there the dev server holds back the
+  page's scripts, so "Send code" only reloads the page, and the API only answers `localhost`.
+- **"We couldn't reach the API at http://localhost:8787"** means the API isn't running. Look
+  for `@nw/api env:` in the `pnpm dev` output: it names what's missing in `apps/api/.env`. After
+  a fix, restart `pnpm dev`.
 - **With GitHub**: "Continue with GitHub" (or Settings → Link GitHub) opens a local page instead
   of github.com. Type any GitHub login: the same login is always the same account. Proposing on a
   task and taking an S task need GitHub linked, so this is how you test them. `lena-k` is the

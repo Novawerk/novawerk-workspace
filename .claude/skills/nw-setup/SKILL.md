@@ -25,12 +25,14 @@ Fill in `apps/api/.env`. These are local values, not secrets; write them yoursel
 ```bash
 DATABASE_URL=postgres://novawerk:novawerk@localhost:5432/novawerk
 GOOGLE_CLIENT_ID=local
-SESSION_SECRET=<openssl rand -base64 48>
 DEV_LOGIN=true
 LLM_PROVIDER=mock
 WEB_REVALIDATE_URL=http://localhost:3000/api/revalidate
 WEB_REVALIDATE_SECRET=change-me
 ```
+
+Then the session secret, generated (a literal placeholder is too short and the API won't boot):
+`echo "SESSION_SECRET=$(openssl rand -base64 48)" >> apps/api/.env`.
 
 `apps/admin/.env.local`: `VITE_DEV_LOGIN=true`, `VITE_DEV_LOGIN_EMAIL=maintainer@example.com`.
 The web's `.env.example` works as it is.
