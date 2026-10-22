@@ -192,7 +192,7 @@ function Triage({ id }: { id: string }) {
           {task.wantsIt && <Badge variant="outline">Wants to do it</Badge>}
         </div>
         <p className="text-sm whitespace-pre-wrap">{task.body}</p>
-        <SuggestionScreenshot key={task.id} id={task.id} attached={task.screenshot.attached} />
+        <SuggestionScreenshot key={task.id} id={task.id} attached={task.screenshot.attached} publicUrl={task.screenshot.url}/>
         {task.voters.length > 0 && (
           <p className="text-xs text-muted-foreground">+1 from {task.voters.map((v) => `@${v.handle}`).join(", ")}</p>
         )}
@@ -266,7 +266,7 @@ function Triage({ id }: { id: string }) {
   )
 }
 
-function SuggestionScreenshot({ id, attached }: { id: string; attached: boolean }) {
+function SuggestionScreenshot({ id, attached, publicUrl }: { id: string; attached: boolean; publicUrl: string | null }) {
   const { data: blob, isPending, isError, error, refetch } = useQuery({
     ...suggestionScreenshotQueryOptions(id),
     enabled: attached,
@@ -283,7 +283,24 @@ function SuggestionScreenshot({ id, attached }: { id: string; attached: boolean 
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-sm font-medium">Screenshot</h3>
-      {!attached ? (
+      {publicUrl ? (
+        <a
+          href={publicUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label={`Open ${id} screenshot at full size`}
+          className="block overflow-hidden rounded-md border bg-muted"
+        >
+          <img
+            src={publicUrl}
+            alt={`Screenshot attached to ${id}`}
+            className="max-h-[60vh] w-full object-contain"
+          />
+          <span className="block px-3 py-2 text-xs text-muted-foreground">
+            Open full size
+          </span>
+        </a>
+      ) : !attached ? (
         <p className="text-sm text-muted-foreground">No screenshot attached.</p>
       ) : isError ? (
         <div className="flex flex-wrap items-center gap-2 text-sm" role="alert">
