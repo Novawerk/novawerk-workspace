@@ -33,6 +33,7 @@ export const suggestionScreenshotQueryOptions = (id: string) =>
     queryKey: boardKeys.suggestionScreenshot(id),
     queryFn: () => boardSource.getSuggestionScreenshot(id),
     gcTime: 0,
+    retry: false,
   })
 
 export const discussionsQueryOptions = (filter: DiscussionFilter) =>
