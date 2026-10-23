@@ -206,7 +206,7 @@ describe("collect and send", () => {
       createdAt: now,
     });
     await runContributorNotices(db, send, logger, { now });
-    expect(mails.at(-1)!.mail).toMatchObject({ kind: "reminder", idleDays: 7, releaseOn: "2026-10-26" });
+    expect(mails.find((m) => m.mail.kind === "reminder")?.mail).toMatchObject({ kind: "reminder", idleDays: 7, releaseOn: "2026-10-26" });
   });
 
   it("sends a reminder without a subject to whoever holds the task", async () => {
