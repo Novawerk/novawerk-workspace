@@ -630,6 +630,7 @@ const sampleSource: BoardDataSource = {
     }))
   },
   getSuggestionScreenshot: async () => {
+    // No sample suggestion has screenshot.attached: true, so this method should never be called.
     throw new Error("Sample suggestions do not include screenshots")
   },
   acceptSuggestion: async (id, input) => {

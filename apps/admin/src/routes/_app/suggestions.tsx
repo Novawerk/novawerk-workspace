@@ -192,7 +192,7 @@ function Triage({ id }: { id: string }) {
           {task.wantsIt && <Badge variant="outline">Wants to do it</Badge>}
         </div>
         <p className="text-sm whitespace-pre-wrap">{task.body}</p>
-        <SuggestionScreenshot key={task.id} id={task.id} attached={task.screenshot.attached} publicUrl={task.screenshot.url}/>
+        <SuggestionScreenshot key={task.id} id={task.id} attached={task.screenshot.attached} publicUrl={task.screenshot.url} />
         {task.voters.length > 0 && (
           <p className="text-xs text-muted-foreground">+1 from {task.voters.map((v) => `@${v.handle}`).join(", ")}</p>
         )}
