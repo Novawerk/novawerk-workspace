@@ -23,6 +23,7 @@ afterEach(() => {
 });
 
 const today = () => new Date().toISOString().slice(0, 10);
+const inDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
 const KIEZ = { slug: "kiez-pantry", title: "Kiez Pantry", description: "Surplus food from small shops." };
 
 function promoApp() {
@@ -193,7 +194,7 @@ describe("adding a post by hand", () => {
     const again = await adminJson(app, "POST", `/admin/projects/${project.id}/posts`, { kind: "progress" }, 201);
     expect(again.post.seq).toBe(2);
 
-    await adminJson(app, "POST", `/admin/projects/${project.id}/posts`, { kind: "launch", dueOn: "2026-12-01" }, 201);
+    await adminJson(app, "POST", `/admin/projects/${project.id}/posts`, { kind: "launch", dueOn: inDays(30) }, 201);
     const second = await adminFetch(app, "POST", `/admin/projects/${project.id}/posts`, { kind: "launch" });
     expect(second.status).toBe(409);
     expect(await second.json()).toMatchObject({ error: "This project already has a launch post" });
