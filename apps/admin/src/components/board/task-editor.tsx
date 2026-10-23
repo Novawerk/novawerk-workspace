@@ -15,7 +15,7 @@ import { Textarea } from "@nw/ui/core/components/ui/textarea"
 import { AreaSelect, CriteriaEditor, ScreenshotLink, SizeControl, cleanLines } from "@/components/board/parts"
 import { FormField } from "@/components/form-field"
 import { MemberSelect } from "@/components/inbox/review-fields"
-import { useCreateTask, useUpdateTask } from "@/lib/board-queries"
+import { suggestionScreenshotQueryOptions, useCreateTask, useUpdateTask } from "@/lib/board-queries"
 import { errorMessage, issueFor } from "@/lib/errors"
 import { membersQueryOptions } from "@/lib/queries"
 import type { AdminTaskDetail } from "@/lib/types"
@@ -213,7 +213,7 @@ export function TaskEditor({
         </Card>
       </fieldset>
 
-      {task?.screenshot.url && (
+      {task?.screenshot.url ? (
         <Card>
           <CardHeader>
             <CardTitle>Screenshot</CardTitle>
@@ -222,7 +222,9 @@ export function TaskEditor({
             <ScreenshotLink id={task.id} src={task.screenshot.url} />
           </CardContent>
         </Card>
-      )}
+      ) : task?.screenshot.attached ? (
+        <TaskScreenshot key={task.id} id={task.id} />
+      ) : null}
 
       {!readOnly && (
         <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
@@ -243,6 +245,57 @@ export function TaskEditor({
         </div>
       )}
     </form>
+  )
+}
+
+function TaskScreenshot({ id }: { id: string }) {
+  const { data: blob, isPending, isError, error, refetch } = useQuery(
+    suggestionScreenshotQueryOptions(id),
+  )
+
+  const [url, setUrl] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!blob) return
+
+    const objectUrl = URL.createObjectURL(blob)
+    setUrl(objectUrl)
+
+    return () => {
+      URL.revokeObjectURL(objectUrl)
+    }
+  }, [blob])
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Screenshot</CardTitle>
+      </CardHeader>
+
+      <CardContent>
+        {isError ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm" role="alert">
+            <span className="text-destructive">
+              We couldn’t load the screenshot: {errorMessage(error)}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void refetch()}
+            >
+              Try again
+            </Button>
+          </div>
+        ) : url ? (
+          <ScreenshotLink id={id} src={url} />
+        ) : isPending ? (
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            Loading screenshot…
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
   )
 }
 
