@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { Link } from "@tanstack/react-router"
-import { TriangleAlertIcon } from "lucide-react"
+import { ExternalLinkIcon, TriangleAlertIcon } from "lucide-react"
 
 import {
   TASK_AREAS,
@@ -212,6 +212,31 @@ export function TaskLink({ id, children }: { id: string; children?: React.ReactN
     <Link to="/tasks/$taskId" params={{ taskId: id }} className="font-mono text-xs text-muted-foreground hover:text-foreground hover:underline">
       {children ?? id}
     </Link>
+  )
+}
+
+/** A task's screenshot, framed; a click opens it full size in a new tab. */
+export function ScreenshotLink({ id, src }: { id: string; src: string }) {
+  return (
+    <a
+      href={src}
+      target="_blank"
+      rel="noreferrer noopener"
+      aria-label={`Open ${id} screenshot at full size`}
+      className="block overflow-hidden rounded-md border bg-muted/30"
+    >
+      <div className="flex h-64 items-center justify-center p-3">
+        <img
+          src={src}
+          alt={`Screenshot attached to ${id}`}
+          className="max-h-full max-w-full object-contain"
+        />
+      </div>
+      <span className="flex items-center gap-1 border-t px-3 py-2 text-xs text-muted-foreground">
+        <ExternalLinkIcon className="size-3" />
+        Open full size
+      </span>
+    </a>
   )
 }
 

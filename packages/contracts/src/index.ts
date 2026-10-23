@@ -2305,7 +2305,10 @@ export const suggestionInput = z.object({
       pathname: z
         .string()
         .max(300)
-        .regex(/^_suggestions\/[0-9a-f-]{36}\/[0-9a-f-]{36}-[a-z0-9.-]{1,80}$/, "That upload didn't work. Attach the screenshot again."),
+        .regex(
+          /^_suggestions\/[a-z0-9-]{1,64}\/[0-9a-f-]{36}-[a-z0-9.-]{1,80}$/,
+          "That upload didn't work. Attach the screenshot again.",
+        )
     })
     .optional(),
 });
