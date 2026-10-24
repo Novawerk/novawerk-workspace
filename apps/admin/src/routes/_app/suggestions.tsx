@@ -23,7 +23,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Switch } from "@nw/ui/core/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger } from "@nw/ui/core/components/ui/tabs"
 
-import { AreaSelect, CriteriaEditor, PersonChip, ReasonDialog, SizeControl, WHERE_LABELS, cleanLines } from "@/components/board/parts"
+import { AreaSelect, CriteriaEditor, PersonChip, ReasonDialog, Screenshot, SizeControl, WHERE_LABELS, cleanLines } from "@/components/board/parts"
 import { Thread } from "@/components/board/task-panels"
 import { FormField, SwitchRow } from "@/components/form-field"
 import { Page } from "@/components/page"
@@ -191,6 +191,17 @@ function Triage({ id }: { id: string }) {
           {task.wantsIt && <Badge variant="outline">Wants to do it</Badge>}
         </div>
         <p className="text-sm whitespace-pre-wrap">{task.body}</p>
+        {(task.screenshot.attached || task.screenshot.url) && (
+          <section className="flex flex-col gap-2">
+            <h3 className="text-sm font-medium">Screenshot</h3>
+            <Screenshot
+              key={task.id}
+              id={task.id}
+              attached={task.screenshot.attached}
+              publicUrl={task.screenshot.url}
+            />
+          </section>
+        )}
         {task.voters.length > 0 && (
           <p className="text-xs text-muted-foreground">+1 from {task.voters.map((v) => `@${v.handle}`).join(", ")}</p>
         )}

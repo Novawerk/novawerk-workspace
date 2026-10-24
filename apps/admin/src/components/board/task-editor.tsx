@@ -12,7 +12,7 @@ import { Input } from "@nw/ui/core/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@nw/ui/core/components/ui/tabs"
 import { Textarea } from "@nw/ui/core/components/ui/textarea"
 
-import { AreaSelect, CriteriaEditor, SizeControl, cleanLines } from "@/components/board/parts"
+import { AreaSelect, CriteriaEditor, Screenshot, SizeControl, cleanLines } from "@/components/board/parts"
 import { FormField } from "@/components/form-field"
 import { MemberSelect } from "@/components/inbox/review-fields"
 import { useCreateTask, useUpdateTask } from "@/lib/board-queries"
@@ -212,6 +212,22 @@ export function TaskEditor({
           </CardContent>
         </Card>
       </fieldset>
+
+      {task && (task.screenshot.attached || task.screenshot.url) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Screenshot</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Screenshot
+              key={task.id}
+              id={task.id}
+              attached={task.screenshot.attached}
+              publicUrl={task.screenshot.url}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {!readOnly && (
         <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">

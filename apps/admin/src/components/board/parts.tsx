@@ -2,8 +2,9 @@
 // dialog that asks for a reason before it acts.
 
 import * as React from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { TriangleAlertIcon } from "lucide-react"
+import { ExternalLinkIcon, TriangleAlertIcon } from "lucide-react"
 
 import {
   TASK_AREAS,
@@ -36,6 +37,7 @@ import { Textarea } from "@nw/ui/core/components/ui/textarea"
 import { cn } from "@nw/ui/lib/utils"
 
 import { FormField } from "@/components/form-field"
+import { suggestionScreenshotQueryOptions } from "@/lib/board-queries"
 import { errorMessage, issueFor } from "@/lib/errors"
 import { initials } from "@/lib/format"
 import type { AdminPerson } from "@/lib/types"
@@ -213,6 +215,97 @@ export function TaskLink({ id, children }: { id: string; children?: React.ReactN
       {children ?? id}
     </Link>
   )
+}
+
+/** A task's screenshot, framed; a click opens it full size in a new tab. */
+export function ScreenshotLink({ id, src }: { id: string; src: string }) {
+  return (
+    <a
+      href={src}
+      target="_blank"
+      rel="noreferrer noopener"
+      aria-label={`Open ${id} screenshot at full size`}
+      className="block overflow-hidden rounded-md border bg-muted/30"
+    >
+      <div className="flex h-64 items-center justify-center p-3">
+        <img
+          src={src}
+          alt={`Screenshot attached to ${id}`}
+          className="max-h-full max-w-full object-contain"
+        />
+      </div>
+      <span className="flex items-center gap-1 border-t px-3 py-2 text-xs text-muted-foreground">
+        <ExternalLinkIcon className="size-3" />
+        Open full size
+      </span>
+    </a>
+  )
+}
+
+/** Loads a private screenshot when no public URL is available. */
+export function Screenshot({
+  id,
+  attached,
+  publicUrl,
+}: {
+  id: string
+  attached: boolean
+  publicUrl: string | null
+}) {
+  const { data: blob, isPending, isError, error, refetch } = useQuery({
+    ...suggestionScreenshotQueryOptions(id),
+    enabled: attached && !publicUrl,
+  })
+
+  const [url, setUrl] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!blob) {
+      setUrl(null)
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(blob)
+    setUrl(objectUrl)
+
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [blob])
+
+  if (publicUrl) {
+    return <ScreenshotLink id={id} src={publicUrl} />
+  }
+
+  if (!attached) {
+    return null
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 text-sm" role="alert">
+        <span className="text-destructive">
+          We couldn’t load the screenshot: {errorMessage(error)}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void refetch()}
+        >
+          Try again
+        </Button>
+      </div>
+    )
+  }
+
+  if (isPending || !url) {
+    return (
+      <p className="text-sm text-muted-foreground" aria-live="polite">
+        Loading screenshot…
+      </p>
+    )
+  }
+
+  return <ScreenshotLink id={id} src={url} />
 }
 
 /**

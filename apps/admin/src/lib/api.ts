@@ -54,3 +54,18 @@ export async function callText(request: Promise<Response>): Promise<string> {
   }
   return response.text()
 }
+
+/** Like `call`, for routes that answer with a file. */
+export async function callBlob(request: Promise<Response>): Promise<Blob> {
+  const response = await request
+  if (!response.ok) {
+    let body: Partial<ApiErrorBody> | null = null
+    try {
+      body = (await response.json()) as Partial<ApiErrorBody>
+    } catch {
+      // Not JSON. Keep the status code.
+    }
+    throw new ApiError(response.status, body)
+  }
+  return response.blob()
+}

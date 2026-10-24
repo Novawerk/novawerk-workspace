@@ -66,6 +66,25 @@ async function upload(app: TestApp, files: FakeFiles, body: Buffer = pngWithMeta
 }
 
 describe("suggestion screenshots", () => {
+  it.each(["haodong", "legacy-user", "old--id-"])(
+    "accepts screenshots from a member whose legacy id is %s",
+    async (id) => {
+      const [legacy] = await db.insert(members).values({
+        id,
+        handle: id,
+        displayName: "Legacy User",
+      }).returning();
+
+      cookie = await contributorCookie(legacy!.id);
+
+      const files = new FakeFiles();
+      const { app } = makeApp(db, { files });
+      const pathname = await upload(app, files);
+
+      expect((await call(app, "POST", "/contrib/suggestions", suggestion(pathname))).status).toBe(201);
+    },
+  );
+
   it("hands out private tickets under the caller's folder, up to 10 an hour", async () => {
     const files = new FakeFiles();
     const { app } = makeApp(db, { files });

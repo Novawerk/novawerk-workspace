@@ -19,7 +19,7 @@ import {
   type WerkAdjustInput,
 } from "@nw/contracts"
 
-import { ApiError, call } from "./api"
+import { ApiError, call, callBlob } from "./api"
 import { client } from "./api-client"
 import { USE_SAMPLE_DATA } from "./env"
 import { SAMPLE_ME } from "./sample-data"
@@ -51,6 +51,7 @@ export interface BoardDataSource {
   declineProposal(id: string, note: string): Promise<AdminTaskDetail>
 
   listSuggestions(sort: SuggestionSort): Promise<AdminSuggestion[]>
+  getSuggestionScreenshot(id: string): Promise<Blob>
   acceptSuggestion(id: string, input: AcceptSuggestionInput): Promise<AdminTaskDetail>
   markDuplicate(id: string, of: string): Promise<AdminTaskDetail>
   askForInfo(id: string, question: string): Promise<AdminTaskDetail>
@@ -86,6 +87,7 @@ const liveSource: BoardDataSource = {
   declineProposal: (id, note) => call(admin.proposals[":id"].decline.$post({ param: { id }, json: { note } })),
 
   listSuggestions: (sort) => call(admin.suggestions.$get({ query: { sort } })),
+  getSuggestionScreenshot: (id) => callBlob(admin.suggestions[":id"].screenshot.$get({ param: { id } })),
   acceptSuggestion: (id, input) => call(admin.suggestions[":id"].accept.$post({ param: { id }, json: input })),
   markDuplicate: (id, of) => call(admin.suggestions[":id"].duplicate.$post({ param: { id }, json: { of } })),
   askForInfo: (id, question) => call(admin.suggestions[":id"].ask.$post({ param: { id }, json: { question } })),
@@ -626,6 +628,10 @@ const sampleSource: BoardDataSource = {
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     }))
+  },
+  getSuggestionScreenshot: async () => {
+    // No sample suggestion has screenshot.attached: true, so this method should never be called.
+    throw new Error("Sample suggestions do not include screenshots")
   },
   acceptSuggestion: async (id, input) => {
     await delay()
