@@ -2,6 +2,7 @@
 // dialog that asks for a reason before it acts.
 
 import * as React from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { ExternalLinkIcon, TriangleAlertIcon } from "lucide-react"
 
@@ -36,6 +37,7 @@ import { Textarea } from "@nw/ui/core/components/ui/textarea"
 import { cn } from "@nw/ui/lib/utils"
 
 import { FormField } from "@/components/form-field"
+import { suggestionScreenshotQueryOptions } from "@/lib/board-queries"
 import { errorMessage, issueFor } from "@/lib/errors"
 import { initials } from "@/lib/format"
 import type { AdminPerson } from "@/lib/types"
@@ -238,6 +240,72 @@ export function ScreenshotLink({ id, src }: { id: string; src: string }) {
       </span>
     </a>
   )
+}
+
+/** Loads a private screenshot when no public URL is available. */
+export function Screenshot({
+  id,
+  attached,
+  publicUrl,
+}: {
+  id: string
+  attached: boolean
+  publicUrl: string | null
+}) {
+  const { data: blob, isPending, isError, error, refetch } = useQuery({
+    ...suggestionScreenshotQueryOptions(id),
+    enabled: attached && !publicUrl,
+  })
+
+  const [url, setUrl] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!blob) {
+      setUrl(null)
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(blob)
+    setUrl(objectUrl)
+
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [blob])
+
+  if (publicUrl) {
+    return <ScreenshotLink id={id} src={publicUrl} />
+  }
+
+  if (!attached) {
+    return null
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 text-sm" role="alert">
+        <span className="text-destructive">
+          We couldn’t load the screenshot: {errorMessage(error)}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void refetch()}
+        >
+          Try again
+        </Button>
+      </div>
+    )
+  }
+
+  if (isPending || !url) {
+    return (
+      <p className="text-sm text-muted-foreground" aria-live="polite">
+        Loading screenshot…
+      </p>
+    )
+  }
+
+  return <ScreenshotLink id={id} src={url} />
 }
 
 /**
