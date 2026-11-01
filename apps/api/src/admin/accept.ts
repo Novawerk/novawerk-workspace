@@ -19,7 +19,13 @@
 
 import { and, eq, like, or, sql } from "drizzle-orm";
 
-import { INITIATOR_ROLE, toHandle, type ApplicationAcceptInput, type SubmissionAcceptInput } from "@nw/contracts";
+import {
+  INITIATOR_ROLE,
+  MAX_HANDLE_LENGTH,
+  toHandle,
+  type ApplicationAcceptInput,
+  type SubmissionAcceptInput,
+} from "@nw/contracts";
 import {
   memberApplications,
   members,
@@ -49,18 +55,17 @@ export class AcceptError extends Error {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-/** `base`, or `base-2`, `base-3`… whichever is free in `column` (member ids, project slugs). */
+/** `base`, or `base-2`, `base-3`… whichever is free in the project slugs. */
 async function freeHandle(
   db: Database,
-  column: typeof members.id | typeof projects.slug,
+  column: typeof projects.slug,
   base: string,
   maxLength: number,
 ): Promise<string> {
   const stem = base.slice(0, maxLength - 4).replace(/-+$/, "");
-  const table = column === members.id ? members : projects;
   const rows = await db
     .select({ value: column })
-    .from(table)
+    .from(projects)
     .where(or(eq(column, base), like(column, `${stem}-%`)));
   const taken = new Set(rows.map((r) => r.value));
   if (!taken.has(base)) return base;
@@ -152,7 +157,7 @@ export async function acceptApplication(
           throw err;
         }
       } else {
-        id = await claimMemberId(tx, await freeHandle(tx, members.id, toHandle(application.name) || "member", 40), {
+        id = await claimMemberId(tx, toHandle(application.name) || "member", {
           exact: false,
           field: "memberId",
         });
@@ -187,9 +192,9 @@ export type PitcherPreview =
 
 /** A Member id for someone with this name and email: from the name, else the email's local part. */
 function wantedId(name: string, email: string): string {
-  const fromName = toHandle(name, 39);
+  const fromName = toHandle(name, MAX_HANDLE_LENGTH);
   if (fromName.length >= 2) return fromName;
-  const fromEmail = toHandle(email.split("@")[0] ?? "", 39);
+  const fromEmail = toHandle(email.split("@")[0] ?? "", MAX_HANDLE_LENGTH);
   return fromEmail.length >= 2 ? fromEmail : "member";
 }
 

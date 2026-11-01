@@ -37,7 +37,6 @@ jobs:
       - name: Check the inputs
         env:
           FILE: ${{ inputs.file }}
-          MEMBER: ${{ inputs.member }}
         run: |
           case "$FILE" in
             tasks/*.json) ;;
@@ -45,7 +44,6 @@ jobs:
           esac
           case "$FILE" in *..*) echo "::error::no .. in the path"; exit 1 ;; esac
           [ -f "$FILE" ] || { echo "::error::$FILE not found"; exit 1; }
-          echo "$MEMBER" | grep -Eq '^[a-z0-9][a-z0-9-]{0,39}$' || { echo "::error::bad member id"; exit 1; }
 
       - uses: pnpm/action-setup@v4
 
@@ -55,6 +53,19 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Check the member id
+        env:
+          MEMBER: ${{ inputs.member }}
+        run: |
+          pnpm exec tsx -e '
+          import { MAX_HANDLE_LENGTH } from "./packages/contracts/src/index.ts";
+          const member = process.env.MEMBER ?? "";
+          if (!new RegExp(`^[a-z0-9][a-z0-9-]{0,${MAX_HANDLE_LENGTH - 1}}$`).test(member)) {
+            console.error("::error::bad member id");
+            process.exit(1);
+          }
+          '
 
       - name: Import
         env:

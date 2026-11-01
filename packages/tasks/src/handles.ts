@@ -6,10 +6,13 @@
 
 import { and, eq, ne, or, sql } from "drizzle-orm";
 
-import { isReservedHandle } from "@nw/contracts";
+import { isReservedHandle, MAX_HANDLE_LENGTH } from "@nw/contracts";
 import { members, type Database } from "@nw/db";
 
 import { TaskRuleError } from "./errors.js";
+
+const MAX_MEMBER_ID_TRIES = 1000;
+const MAX_MEMBER_ID_SUFFIX_LENGTH = String(MAX_MEMBER_ID_TRIES).length + 1;
 
 /** Hold the handle until the transaction ends. */
 export async function lockHandle(tx: Database, handle: string): Promise<void> {
@@ -57,10 +60,11 @@ export async function claimMemberId(tx: Database, wanted: string, opts: { exact:
   // leave a reserved prefix.
   if (isReservedHandle(wanted)) {
     if (opts.exact) throw new TaskRuleError("invalid", "That handle is reserved. Pick another one.", opts.field);
-    wanted = `member-${wanted}`.slice(0, 39).replace(/-+$/, "");
+    wanted = `member-${wanted}`.slice(0, MAX_HANDLE_LENGTH).replace(/-+$/, "");
   }
-  const stem = wanted.slice(0, 35).replace(/-+$/, "");
-  for (let n = 1; n <= 1000; n++) {
+  if (!opts.exact) wanted = wanted.slice(0, MAX_HANDLE_LENGTH).replace(/-+$/, "");
+  const stem = wanted.slice(0, MAX_HANDLE_LENGTH - MAX_MEMBER_ID_SUFFIX_LENGTH).replace(/-+$/, "");
+  for (let n = 1; n <= MAX_MEMBER_ID_TRIES; n++) {
     const id = n === 1 ? wanted : `${stem}-${n}`;
     if (isReservedHandle(id)) continue;
     await lockHandle(tx, id);

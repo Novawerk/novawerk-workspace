@@ -16,7 +16,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 
-import { HANDLE_PATTERN, contributorListQuery, taskIdParam, taskListQuery } from "@nw/contracts";
+import { HANDLE_PATTERN, MAX_HANDLE_LENGTH, contributorListQuery, taskIdParam, taskListQuery } from "@nw/contracts";
 import {
   getPublicContributor,
   getPublicTask,
@@ -30,7 +30,7 @@ import { notFound, notFoundIfInvalid, rejectInvalid } from "../http.js";
 import type { TokenGate } from "../token-gate.js";
 import type { ApiEnv, AppDeps } from "../types.js";
 
-const handleParam = z.object({ handle: z.string().toLowerCase().max(40).regex(HANDLE_PATTERN) });
+const handleParam = z.object({ handle: z.string().toLowerCase().max(MAX_HANDLE_LENGTH).regex(HANDLE_PATTERN) });
 
 export function boardRoutes({ db, env }: AppDeps, gate: TokenGate) {
   // Keys the anonymous handles on /public/blocks: stable, and not reversible without the secret.

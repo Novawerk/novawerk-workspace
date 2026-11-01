@@ -6,6 +6,7 @@ import {
   SUBMISSION_STATUSES,
   placeholdersIn,
   xiaohongshuLinks,
+  MAX_HANDLE_LENGTH,
   toHandle,
   isReservedHandle,
   type DocumentUploadInput,
@@ -346,9 +347,16 @@ function definedOnly<T extends object>(patch: T): Partial<T> {
   return Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as Partial<T>
 }
 
-function freeHandle(base: string, taken: (value: string) => boolean): string {
-  if (!taken(base)) return base
-  for (let n = 2; ; n++) if (!taken(`${base}-${n}`)) return `${base}-${n}`
+function freeHandle(base: string, taken: (value: string) => boolean, maxLength: number): string {
+  const initial = base.slice(0, maxLength).replace(/-+$/, "")
+  if (!taken(initial)) return initial
+  for (let n = 2; ; n++) {
+    const suffix = `-${n}`
+    if (suffix.length > maxLength) refuse("Couldn't find a free handle", undefined, 409)
+    const stem = base.slice(0, maxLength - suffix.length).replace(/-+$/, "")
+    const candidate = `${stem}${suffix}`
+    if (!taken(candidate)) return candidate
+  }
 }
 
 const SAMPLE_WEBSITE: WebsiteRefresh = "not-configured"
@@ -395,11 +403,14 @@ function samplePitcher(pitch: { name: string; email: string }): PitcherPreview {
   if (member) {
     return { kind: "link", member: { id: member.id, displayName: member.displayName, active: member.active, role: member.role } }
   }
-  const fromName = toHandle(pitch.name, 39)
-  const fromEmail = toHandle(pitch.email.split("@")[0] ?? "", 39)
+  const fromName = toHandle(pitch.name, MAX_HANDLE_LENGTH)
+  const fromEmail = toHandle(pitch.email.split("@")[0] ?? "", MAX_HANDLE_LENGTH)
   const base = fromName.length >= 2 ? fromName : fromEmail.length >= 2 ? fromEmail : "member"
   const wanted = isReservedHandle(base) ? `member-${base}` : base
-  return { kind: "create", handle: freeHandle(wanted, (h) => store.members.has(h) || isReservedHandle(h)) }
+  return {
+    kind: "create",
+    handle: freeHandle(wanted, (h) => store.members.has(h) || isReservedHandle(h), MAX_HANDLE_LENGTH),
+  }
 }
 
 const sampleSource: AdminDataSource = {
@@ -475,7 +486,7 @@ const sampleSource: AdminDataSource = {
     if (!project) {
       const slugs = new Set([...store.projects.values()].map((p) => p.slug))
       if (input.slug && slugs.has(input.slug)) refuse("Another project already uses this slug", "slug")
-      const slug = input.slug ?? freeHandle(toHandle(current.projectName, 80) || "project", (s) => slugs.has(s))
+      const slug = input.slug ?? freeHandle(toHandle(current.projectName, 80) || "project", (s) => slugs.has(s), 80)
       project = {
         ...SAMPLE_PROJECTS[2]!,
         id: crypto.randomUUID(),
@@ -588,8 +599,10 @@ const sampleSource: AdminDataSource = {
       if (input.memberId && store.members.has(input.memberId)) {
         refuse("Another member already has this handle", "memberId")
       }
+      const base = toHandle(current.name, MAX_HANDLE_LENGTH) || "member"
       const memberId =
-        input.memberId ?? freeHandle(toHandle(current.name) || "member", (h) => store.members.has(h))
+        input.memberId ??
+        freeHandle(isReservedHandle(base) ? `member-${base}` : base, (h) => store.members.has(h), MAX_HANDLE_LENGTH)
       member = {
         id: memberId,
         displayName: input.displayName ?? current.name,

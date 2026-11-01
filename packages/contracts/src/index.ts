@@ -399,8 +399,9 @@ export function intakeDraftIssues(draft: IntakeDraft): Record<string, string> {
 
 /** kebab-case: lowercase letters and digits, single hyphens. Member ids, partner ids, project slugs. */
 export const HANDLE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const MAX_HANDLE_LENGTH = 40;
 
-const handle = (example: string, max = 40) =>
+const handle = (example: string, max = MAX_HANDLE_LENGTH) =>
   z
     .string()
     .trim()
@@ -424,7 +425,7 @@ export const isReservedHandle = (handle: string) =>
   (RESERVED_HANDLE_WORDS as readonly string[]).includes(handle) || RESERVED_HANDLE_PREFIXES.some((p) => handle.startsWith(p));
 
 /** "Zoë Müller-Lüdenscheidt" → "zoe-muller-ludenscheidt". May return "" for text with no letters or digits. */
-export function toHandle(text: string, maxLength = 40): string {
+export function toHandle(text: string, maxLength = MAX_HANDLE_LENGTH): string {
   return text
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
@@ -506,7 +507,7 @@ export type MemberUpdateInput = z.infer<typeof memberUpdateInput>;
 export const memberSelfUpdateInput = z
   .object({
     publicProfile: z.boolean().optional(),
-    profileHandle: handle("ada-lovelace", 39).optional(),
+    profileHandle: handle("ada-lovelace", MAX_HANDLE_LENGTH).optional(),
     profileBio: nullableText(160).optional(),
   })
   .refine(hasChanges, { message: "Nothing to update" });
@@ -2317,7 +2318,7 @@ export type SuggestionInput = z.input<typeof suggestionInput>;
 /** PATCH /contrib/me/profile */
 export const profileUpdateInput = z
   .object({
-    handle: handle("lena-k", 39).optional(),
+    handle: handle("lena-k", MAX_HANDLE_LENGTH).optional(),
     displayName: z.string().trim().min(1, "Enter a name").max(100, "Keep it under 100 characters").optional(),
     bio: nullableText(160).optional(),
     about: nullableText(1500).optional(),
@@ -2338,7 +2339,9 @@ export const profileUpdateInput = z
 export type ProfileUpdateInput = z.infer<typeof profileUpdateInput>;
 
 /** DELETE /contrib/me: type your handle to confirm. */
-export const accountDeleteInput = z.object({ confirmHandle: z.string().trim().toLowerCase().min(1).max(40) });
+export const accountDeleteInput = z.object({
+  confirmHandle: z.string().trim().toLowerCase().min(1).max(MAX_HANDLE_LENGTH),
+});
 export type AccountDeleteInput = z.infer<typeof accountDeleteInput>;
 
 // ─── Task board: assignee actions, my tasks, blocks ──────────────────────────

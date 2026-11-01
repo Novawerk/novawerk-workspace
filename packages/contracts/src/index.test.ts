@@ -18,12 +18,14 @@ import {
   xiaohongshuLinks,
 } from "./index.js";
 import {
+  MAX_HANDLE_LENGTH,
   MAX_RESUME_BYTES,
   RESUME_PREFIX,
   applicationUpdateInput,
   financeEntryInput,
   memberApplicationInput,
   memberCreateInput,
+  memberSelfUpdateInput,
   memberUpdateInput,
   newsletterConfirmQuery,
   newsletterSignupInput,
@@ -33,6 +35,7 @@ import {
   parseAmountToCents,
   partnerInput,
   partnerUpdateInput,
+  profileUpdateInput,
   projectInput,
   projectSubmissionInput,
   projectTeamInput,
@@ -271,6 +274,21 @@ describe("toHandle", () => {
 
   it("never ends on a hyphen after cutting to length", () => {
     expect(toHandle("a".repeat(5) + " " + "b".repeat(10), 6)).toBe("aaaaa");
+  });
+
+  it("uses the shared maximum for generated and profile handles", () => {
+    const handle = "a".repeat(MAX_HANDLE_LENGTH);
+    expect(toHandle("a".repeat(MAX_HANDLE_LENGTH + 1))).toBe(handle);
+    expect(
+      memberCreateInput.safeParse({ id: handle, displayName: "Ada", email: "ada@example.com" }).success,
+    ).toBe(true);
+    expect(
+      memberCreateInput.safeParse({ id: `${handle}a`, displayName: "Ada", email: "ada@example.com" }).success,
+    ).toBe(false);
+    expect(profileUpdateInput.safeParse({ handle }).success).toBe(true);
+    expect(profileUpdateInput.safeParse({ handle: `${handle}a` }).success).toBe(false);
+    expect(memberSelfUpdateInput.safeParse({ profileHandle: handle }).success).toBe(true);
+    expect(memberSelfUpdateInput.safeParse({ profileHandle: `${handle}a` }).success).toBe(false);
   });
 });
 
