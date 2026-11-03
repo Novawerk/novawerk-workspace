@@ -164,24 +164,18 @@ describe("review fixes", () => {
     expect((await signInWithGitHub(db, { id: 4, login: "mara", name: null, avatarUrl: null })).handle).toBe("mara-2");
   });
 
-  it("keeps generated handles within the shared limit for a 39-character login", async () => {
+  it("keeps a free 39-character login as the handle", async () => {
     const login = "l".repeat(39);
-    const existingHandle = login.slice(0, MAX_HANDLE_LENGTH - 5);
+    expect((await signInWithGitHub(db, { id: 8, login, name: null, avatarUrl: null })).handle).toBe(login);
+  });
 
-    await db.insert(members).values({
-      id: existingHandle,
-      handle: existingHandle,
-      displayName: "Taken",
-    });
+  it("keeps generated handles within the shared limit when a 39-character login is taken", async () => {
+    const login = "l".repeat(39);
+    await db.insert(members).values({ id: login, handle: login, displayName: "Taken" });
 
-    const contributor = await signInWithGitHub(db, {
-      id: 8,
-      login,
-      name: null,
-      avatarUrl: null,
-    });
+    const contributor = await signInWithGitHub(db, { id: 8, login, name: null, avatarUrl: null });
 
-    expect(contributor.handle).toBe(`${existingHandle}-2`);
+    expect(contributor.handle).toBe(`${login.slice(0, MAX_HANDLE_LENGTH - 5)}-2`);
     expect(contributor.handle.length).toBeLessThanOrEqual(MAX_HANDLE_LENGTH);
   });
 
