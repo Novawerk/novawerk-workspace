@@ -4,7 +4,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { contributorListQuery } from "@nw/contracts";
+import { MAX_HANDLE_LENGTH, contributorListQuery } from "@nw/contracts";
 import { members, projectMembers, projects, tasks, type Database } from "@nw/db";
 import { createTestDb, resetDb } from "@nw/db/testing";
 
@@ -164,6 +164,34 @@ describe("review fixes", () => {
     expect((await signInWithGitHub(db, { id: 4, login: "mara", name: null, avatarUrl: null })).handle).toBe("mara-2");
   });
 
+  it("keeps a free 39-character login as the handle", async () => {
+    const login = "l".repeat(39);
+    expect((await signInWithGitHub(db, { id: 8, login, name: null, avatarUrl: null })).handle).toBe(login);
+  });
+
+  it("keeps generated handles within the shared limit when a 39-character login is taken", async () => {
+    const login = "l".repeat(39);
+    await db.insert(members).values({ id: login, handle: login, displayName: "Taken" });
+
+    const contributor = await signInWithGitHub(db, { id: 8, login, name: null, avatarUrl: null });
+
+    expect(contributor.handle).toBe(`${login.slice(0, MAX_HANDLE_LENGTH - 5)}-2`);
+    expect(contributor.handle.length).toBeLessThanOrEqual(MAX_HANDLE_LENGTH);
+  });
+
+  it("keeps existing 40-character profile handles readable", async () => {
+    const handle = "j".repeat(MAX_HANDLE_LENGTH);
+
+    await db.update(members)
+      .set({ handle, public: true })
+      .where(eq(members.id, "jonas"));
+
+    expect(await getPublicContributor(db, handle)).toMatchObject({
+      kind: "initiator",
+      name: "Jonas Weber",
+    });
+  });
+
   it("gives a handle asked for twice at once to one person", async () => {
     const a = await signInWithGitHub(db, { id: 1, login: "a-person", name: null, avatarUrl: null });
     const results = await Promise.all([
@@ -186,6 +214,23 @@ describe("new member ids", () => {
     expect(await claim("anon", false)).toBe("member-anon");
     expect(await claim("lena-k", false)).toBe("lena-k-2");
     expect(await code(() => claim("lena-k", true))).toBe("conflict");
+  });
+
+  it("keeps generated member ids within the shared limit for a 39-character login", async () => {
+    const login = "m".repeat(39);
+
+    await db.insert(members).values({
+      id: login,
+      handle: login,
+      displayName: "Taken",
+    });
+
+    const memberId = await db.transaction((tx) =>
+      claimMemberId(tx, login, { exact: false, field: "id" }),
+    );
+
+    expect(memberId).toMatch(/-2$/);
+    expect(memberId.length).toBeLessThanOrEqual(MAX_HANDLE_LENGTH);
   });
 });
 

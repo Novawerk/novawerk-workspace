@@ -7,6 +7,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 
 import {
   isReservedHandle,
+  MAX_HANDLE_LENGTH,
   toHandle,
   type ContributorMe,
   type ProfileAccent,
@@ -33,7 +34,9 @@ export interface GitHubUser {
   email?: string | null;
 }
 
-const MAX_HANDLE = 39;
+const MAX_HANDLE_TRIES = 1000;
+const MAX_HANDLE_SUFFIX_LENGTH = String(MAX_HANDLE_TRIES).length + 1;
+const MAX_HANDLE_STEM_LENGTH = MAX_HANDLE_LENGTH - MAX_HANDLE_SUFFIX_LENGTH;
 
 /**
  * `base` as a free handle: "lena-k", else "lena-k-2", "lena-k-3"… Never a reserved word, nor
@@ -41,24 +44,23 @@ const MAX_HANDLE = 39;
  * a reserved prefix gets "gh-" in front; `neutral` allows the board's own `contributor-` prefix.
  */
 export async function freeHandle(db: Database, base: string, opts: { neutral?: boolean } = {}): Promise<string> {
-  let stem = toHandle(base, MAX_HANDLE - 4);
-  if (stem.length < 2) stem = "gh-user";
+  let wanted = toHandle(base, MAX_HANDLE_LENGTH);
+  if (wanted.length < 2) wanted = "gh-user";
   // A GitHub login that is reserved ("admin", "anon", "contributor") or starts with a reserved
   // prefix ("anon-bob") gets "gh-" in front: numbering alone would never leave the reserved set.
-  if (!opts.neutral && isReservedHandle(stem)) stem = `gh-${stem}`.slice(0, MAX_HANDLE - 4);
+  if (!opts.neutral && isReservedHandle(wanted)) wanted = `gh-${wanted}`.slice(0, MAX_HANDLE_LENGTH).replace(/-+$/, "");
+  // The login as it is when free; shortened only to make room for "-2" … "-1000".
+  const stem = wanted.slice(0, MAX_HANDLE_STEM_LENGTH).replace(/-+$/, "");
   const like = `${stem}-%`;
   const taken = new Set([
-    ...(await db.select({ h: members.handle }).from(members).where(sql`${members.handle} = ${stem} or ${members.handle} like ${like}`)).map((r) => r.h),
-    ...(await db.select({ h: members.id }).from(members).where(sql`${members.id} = ${stem} or ${members.id} like ${like}`)).map((r) => r.h),
+    ...(await db.select({ h: members.handle }).from(members).where(sql`${members.handle} = ${wanted} or ${members.handle} like ${like}`)).map((r) => r.h),
+    ...(await db.select({ h: members.id }).from(members).where(sql`${members.id} = ${wanted} or ${members.id} like ${like}`)).map((r) => r.h),
   ]);
   const free = (h: string) => !taken.has(h) && (opts.neutral || !isReservedHandle(h));
-  if (free(stem)) return stem;
+  if (free(wanted)) return wanted;
   for (let n = 2; n <= MAX_HANDLE_TRIES; n++) if (free(`${stem}-${n}`)) return `${stem}-${n}`;
   throw new TaskRuleError("conflict", "Couldn't find a free handle. Pick one in your profile.");
 }
-
-/** How far freeHandle counts ("lena-k-2" … "lena-k-1000") before it gives up. */
-const MAX_HANDLE_TRIES = 1000;
 
 export async function getContributor(db: Database, id: string): Promise<Member | undefined> {
   const [row] = await db.select().from(members).where(eq(members.id, id)).limit(1);
