@@ -4,3 +4,5 @@ projects/*/public/*.wav
 projects/*/out/stills/
 projects/*/out/shots/
 projects/*/out/sketches/
+# Source footage of real people stays out of the public repo; BRIEF.md says where it comes from.
+projects/*/public/*.mp4
