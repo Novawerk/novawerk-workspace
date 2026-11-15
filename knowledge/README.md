@@ -62,6 +62,7 @@ Who's there, when, and where to talk.
 - [Channels](./community/channels.md) — email, Discord, GitHub, newsletter
 - [Rhythm](./community/rhythm.md) — open days, workshops, AMAs
 - [Promotion playbook](./community/promotion/) — six post types, launch checklist, platform distribution
+  - [Product demo video](./community/promotion/product-demo-video.md) — 90-second app demo, zh and en versions, with scripts
 
 ### Projects
 

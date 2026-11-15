@@ -2,7 +2,7 @@
 title: Promotion playbook
 category: community
 status: evolving
-updated: 2026-10-11
+updated: 2026-11-15
 ---
 
 # Promotion playbook
@@ -20,6 +20,7 @@ mandate —— 每个项目的*宣发位*（promotion lead）可以按情况调�
 - [Visual assets](./visual-assets.md) —— 配图模型选择、可复用 prompt 模版、尺寸速查
 - [Project visual supplement](./project-supplement.md) —— 每个项目自己的视觉手册模版（在项目 repo 里维护）
 - [Launch checklist](./launch-checklist.md) —— T-day 时间线和角色分工
+- [Product demo video](./product-demo-video.md) —— 90 秒产品演示视频：自动录屏、配音、中英两版，附聆镜范例和脚本
 
 ## In the admin panel
 

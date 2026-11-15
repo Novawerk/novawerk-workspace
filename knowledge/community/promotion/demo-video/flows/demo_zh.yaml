@@ -1,0 +1,47 @@
+appId: io.novawerk.psygym
+---
+- runFlow: { file: pause.yaml, env: { MS: 2500 } }
+- tapOn: "小陈.*"
+- runFlow: { file: pause.yaml, env: { MS: 2500 } }
+- scrollUntilVisible:
+    element: "会谈设置"
+    direction: DOWN
+    speed: 20
+    optional: true
+- runFlow: { file: pause.yaml, env: { MS: 1500 } }
+- tapOn: "开始会谈"
+- runFlow: { file: pause.yaml, env: { MS: 2000 } }
+- runFlow: { file: turn_zh.yaml, env: { LINE: "你好，欢迎你来。今天想从哪里聊起？" } }
+- runFlow: { file: turn_zh.yaml, env: { LINE: "听起来家里的事和学业的事压在一起，你挺累的。这种累，一般在什么时候最明显？" } }
+- runFlow: { file: turn_zh.yaml, env: { LINE: "你作为哥哥已经做得够多了，其实家里的事不用你管那么多，让她们自己解决就好。" } }
+- runFlow: { file: turn_zh.yaml, env: { LINE: "你刚才说到那个时候，能讲讲最近一次具体是什么情况吗？" } }
+- runFlow: { file: turn_zh.yaml, env: { LINE: "那一刻，你脑子里闪过的第一个念头是什么？" } }
+- tapOn: ".*督导怎么看.*"
+- extendedWaitUntil:
+    visible: "回到对话"
+    timeout: 60000
+- runFlow: { file: pause.yaml, env: { MS: 9000 } }
+- takeScreenshot: live
+- tapOn: "回到对话"
+- runFlow: { file: pause.yaml, env: { MS: 1500 } }
+- runFlow: { file: turn_zh.yaml, env: { LINE: "你说这段时间很累，睡得也不好。人累到这个程度，有时候会冒出不想活了、想消失的念头。你有没有过这样的想法？" } }
+- runFlow: { file: turn_zh.yaml, env: { LINE: "我们今天时间差不多了。下次我们接着聊家里和学业这两件事。今天聊下来，你感觉怎么样？" } }
+- takeScreenshot: chat-end
+- tapOn: "结束"
+- runFlow: { file: pause.yaml, env: { MS: 1500 } }
+- tapOn: "结束并查看督导"
+- runFlow: { file: pause.yaml, env: { MS: 3000 } }
+- extendedWaitUntil:
+    notVisible: "督导正在读你们的对话.*"
+    timeout: 120000
+- extendedWaitUntil:
+    notVisible: "督导还在写.*"
+    timeout: 120000
+- runFlow: { file: pause.yaml, env: { MS: 3000 } }
+- takeScreenshot: report-top
+- repeat:
+    times: 8
+    commands:
+      - swipe: { start: "50%, 75%", end: "50%, 45%", duration: 1200 }
+      - runFlow: { file: pause.yaml, env: { MS: 2500 } }
+- takeScreenshot: report-bottom

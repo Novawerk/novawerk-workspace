@@ -1,0 +1,44 @@
+appId: io.novawerk.psygym
+---
+- runFlow: { file: pause.yaml, env: { MS: 2500 } }
+- tapOn: "Xiao Chen.*"
+- runFlow: { file: pause.yaml, env: { MS: 2500 } }
+- scrollUntilVisible:
+    element: "Spotting automatic thoughts"
+    direction: DOWN
+    speed: 20
+    optional: true
+- runFlow: { file: pause.yaml, env: { MS: 1500 } }
+- tapOn: "Start session"
+- runFlow: { file: pause.yaml, env: { MS: 2000 } }
+- runFlow: { file: turn_en.yaml, env: { LINE: "Hi, welcome. Where would you like to start today?" } }
+- runFlow: { file: turn_en.yaml, env: { LINE: "It sounds like family stuff and school are piling up at once, and you're worn out. When does that tiredness hit hardest?" } }
+- runFlow: { file: turn_en.yaml, env: { LINE: "As the big brother you've already done more than enough. Honestly, the family stuff isn't yours to handle. Let them sort it out themselves." } }
+- runFlow: { file: turn_en.yaml, env: { LINE: "You mentioned that moment just now. Can you tell me about the most recent time? What exactly happened?" } }
+- runFlow: { file: turn_en.yaml, env: { LINE: "In that moment, what was the first thought that went through your mind?" } }
+- tapOn: "Supervisor.s take.*"
+- extendedWaitUntil:
+    visible: "Back to the session"
+    timeout: 60000
+- runFlow: { file: pause.yaml, env: { MS: 9000 } }
+- tapOn: "Back to the session"
+- runFlow: { file: pause.yaml, env: { MS: 1500 } }
+- runFlow: { file: turn_en.yaml, env: { LINE: "You said you've been really tired and not sleeping well. When people get this worn down, sometimes thoughts come up like not wanting to live, or wanting to disappear. Have you had thoughts like that?" } }
+- runFlow: { file: turn_en.yaml, env: { LINE: "We're almost out of time. Next time we can keep talking about home and school. How are you feeling after today?" } }
+- tapOn: "End|End session"
+- runFlow: { file: pause.yaml, env: { MS: 1500 } }
+- tapOn: "End and see supervision"
+- runFlow: { file: pause.yaml, env: { MS: 3000 } }
+- extendedWaitUntil:
+    notVisible: "Your supervisor is reading.*"
+    timeout: 120000
+- extendedWaitUntil:
+    notVisible: "Your supervisor is still writing.*"
+    timeout: 120000
+- runFlow: { file: pause.yaml, env: { MS: 3000 } }
+- repeat:
+    times: 9
+    commands:
+      - swipe: { start: "50%, 75%", end: "50%, 45%", duration: 1200 }
+      - runFlow: { file: pause.yaml, env: { MS: 2500 } }
+- takeScreenshot: report-bottom-en
