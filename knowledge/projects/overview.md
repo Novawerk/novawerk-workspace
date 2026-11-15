@@ -5,12 +5,12 @@ status: evolving
 source:
   - nw-web-portal/scripts/migrate-portfolio.ts
   - nw-web-portal/lib/portfolio-fallback.ts
-updated: 2026-10-10
+updated: 2026-11-15
 ---
 
 # Projects overview
 
-Two projects are currently part of the Novawerk portfolio. Statuses move
+Three projects are currently part of the Novawerk portfolio. Statuses move
 through `Planning → Building → Launching → Launched` (and may end up
 `Archived`, which we filter out of public surfaces).
 
@@ -23,6 +23,7 @@ Authoritative seed list: `nw-web-portal/scripts/migrate-portfolio.ts` (run via
 |--------------------------|------------|------|-----------|----------|---------------------------------------------------------------------------|
 | Berlin Chinese Food Map  | App        | 2026 | Launched  | ✓        | Community-curated, non-profit guide to Chinese restaurants in Berlin.     |
 | YIMA                     | App        | 2026 | Launched  | ✓        | Privacy-first period calendar, designed without profit as a constraint.   |
+| PSYGYM (聆镜)            | App        | 2026 | Launched  |          | Open-source AI practice partners for new counselors.                      |
 
 ## Incubation
 
