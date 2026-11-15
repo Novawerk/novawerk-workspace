@@ -1,0 +1,6 @@
+appId: io.novawerk.psygym
+---
+- extendedWaitUntil:
+    visible: "__never_here__"
+    timeout: ${MS}
+    optional: true

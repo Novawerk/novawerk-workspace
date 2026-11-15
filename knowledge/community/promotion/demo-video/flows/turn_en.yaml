@@ -1,0 +1,14 @@
+appId: io.novawerk.psygym
+---
+- tapOn: "Say something as the counselor.*"
+- inputText: ${LINE}
+- runFlow: { file: pause.yaml, env: { MS: 1200 } }
+- tapOn: "Send"
+- hideKeyboard
+- runFlow: { file: pause.yaml, env: { MS: 2000 } }
+- extendedWaitUntil:
+    visible:
+      text: "Say something as the counselor.*"
+      enabled: true
+    timeout: 90000
+- runFlow: { file: pause.yaml, env: { MS: 2500 } }

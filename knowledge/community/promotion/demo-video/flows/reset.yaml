@@ -1,0 +1,18 @@
+appId: io.novawerk.psygym
+---
+- tapOn:
+    text: "Back to home"
+    optional: true
+- tapOn:
+    text: "Leave"
+    optional: true
+- tapOn: "Me"
+- scrollUntilVisible:
+    element: "Delete all practice history"
+    direction: DOWN
+- tapOn: "Delete all practice history"
+- tapOn: "Delete"
+- tapOn: "Practise"
+- tapOn: "Xiao Chen.*"
+- takeScreenshot: brief-after-reset
+- tapOn: "Back"

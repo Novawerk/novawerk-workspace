@@ -1,0 +1,14 @@
+appId: io.novawerk.psygym
+---
+- tapOn: "以咨询师身份说点什么.*"
+- inputText: ${LINE}
+- runFlow: { file: pause.yaml, env: { MS: 1200 } }
+- tapOn: "发送"
+- hideKeyboard
+- runFlow: { file: pause.yaml, env: { MS: 2000 } }
+- extendedWaitUntil:
+    visible:
+      text: "以咨询师身份说点什么.*"
+      enabled: true
+    timeout: 90000
+- runFlow: { file: pause.yaml, env: { MS: 2500 } }
