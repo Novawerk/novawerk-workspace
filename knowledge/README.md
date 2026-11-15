@@ -27,7 +27,7 @@ Who we are, what we believe, who's on the team.
 
 - [Name and tagline](./culture/name-and-tagline.md)
 - [Vision and mission](./culture/vision-and-mission.md)
-- [Founding story](./culture/founding-story.md) — *placeholder*
+- [Founding story](./culture/founding-story.md)
 - [Team](./culture/team/) — *placeholder*
 - **Principles:**
   - [01 — Purposeful Innovation](./culture/principles/01-purposeful-innovation.md)
