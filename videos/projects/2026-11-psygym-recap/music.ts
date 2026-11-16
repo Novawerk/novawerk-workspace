@@ -3,11 +3,11 @@
 //   pnpm video 2026-11-psygym-recap music   → public/music.wav
 //
 // Night-time and glassy, to match the look: B minor (Bm7 Gmaj7 D A), 120 BPM played half-time.
-// A shimmer of arpeggios opens; a soft half-time groove carries the product; under the founder only
-// a slow, quiet pad so his voice carries; the close resolves to D major.
+// A shimmer of arpeggios opens; a soft half-time groove carries the product; under the voice session
+// and the founder only a slow, quiet pad so the voices carry; the close resolves to D major.
 
 import { Mix, bass, beep, clap, each, hat, impact, kick, pad, pluck, shing, sweep, thud } from "../../kit/audio/synth.ts";
-import { BAR as BAR_FRAMES, BEAT_SECONDS as B, CUES, CUTS, DURATION, FPS, PINGS, ROAD, STAR_LANDINGS } from "./timeline.ts";
+import { BAR as BAR_FRAMES, BEAT_SECONDS as B, CUES, CUTS, DURATION, FPS, PINGS, ROAD, STAR_LANDINGS, VOICE } from "./timeline.ts";
 
 const BAR = BAR_FRAMES / FPS; // 2 s
 const mix = new Mix(DURATION);
@@ -22,19 +22,23 @@ const CHORDS = [
   [57, 61, 64, 69],
 ];
 const chordAt = (t: number) => Math.floor(t / BAR) % 4;
+/** The voice session: two people are talking, so only a quiet pad stays, as under the founder. */
+const inVoice = (t: number) => t >= CUES.voice && t < CUES.supervisor;
 
-// --- the arpeggio: chord tones an octave up, in eighths, from the hook to the founder ---------
+// --- the arpeggio: chord tones an octave up, in eighths, from the hook to the founder; none under the voice session
 const arpTo = CUES.founder;
 each(0, arpTo, B / 2, (t, i) => {
+  if (inVoice(t)) return;
   const ch = CHORDS[chordAt(t)]!;
   const note = ch[[0, 2, 1, 3, 2, 1, 3, 2][i % 8]!]! + 12;
   const intro = t < CUES.problem;
   put(t, pluck(note, 0.5, intro ? 0.45 : 0.35), intro ? 0.22 : 0.15, i % 2 ? 0.45 : -0.45, 0.5);
 });
 
-// --- the pad: wide and slow, the whole film; quieter under the founder ---------------------
+// --- the pad: wide and slow, the whole film; quieter under the founder and the voice session
+// (a bar that starts before the voice session rings into it, so that bar is quiet too)
 each(0, CUES.end, BAR, (t) => {
-  const under = t >= CUES.founder;
+  const under = t >= CUES.founder || (t + BAR > CUES.voice && t < CUES.supervisor);
   put(t, pad(CHORDS[chordAt(t)]!, BAR + 0.3, under ? 900 : 1600, under ? 0.8 : 0.4), under ? 0.07 : 0.2, 0, 0.5, "pad");
 });
 
@@ -42,12 +46,13 @@ each(0, CUES.end, BAR, (t) => {
 const grooveFrom = CUES.problem;
 const grooveTo = CUES.founder;
 each(grooveFrom, grooveTo, BAR, (t) => {
+  if (inVoice(t)) return;
   put(t, kick(), 0.7);
   put(t + 1.5 * B, kick(), 0.45);
   put(t + 2 * B, clap(), 0.35, 0, 0.35);
   put(t, bass(ROOTS[chordAt(t)]!, BAR - 0.1), 0.45);
 });
-each(grooveFrom + B / 2, grooveTo, B, (t) => put(t, hat(), 0.1, 0.35));
+each(grooveFrom + B / 2, grooveTo, B, (t) => inVoice(t) || put(t, hat(), 0.1, 0.35));
 
 // --- risers into the big moments ----------------------------------------------------------
 put(CUES.problem - 1, sweep(1, 300, 5000, (x) => x ** 2), 0.3, 0, 0.3);
@@ -62,8 +67,12 @@ PINGS.forEach((t, k) => {
   put(t + 0.02, shing(), 0.08, 0, 0.6);
 });
 
+// --- the call connects: two soft rising tones before anyone speaks ----------------------------
+put(VOICE.connect, beep(74), 0.09, 0, 0.5);
+put(VOICE.connect + 0.16, beep(81), 0.09, 0, 0.5);
+
 // --- cuts: a soft whoosh, not a snap -------------------------------------------------------
-for (const t of CUTS) put(t - 0.25, sweep(0.35, 2000, 300, (x) => x), t === CUES.founder ? 0.12 : 0.22, 0, 0.3);
+for (const t of CUTS) put(t - 0.25, sweep(0.35, 2000, 300, (x) => x), t === CUES.founder || t === CUES.voice ? 0.12 : 0.22, 0, 0.3);
 
 // --- the close: D major, the star lands --------------------------------------------------
 put(CUES.end, pad([38, 50, 57, 62, 66, 69, 74], DURATION - CUES.end, 1800, 0.1), 0.35, 0, 0.6, "pad");
@@ -78,6 +87,6 @@ for (const t of STAR_LANDINGS) {
 const variant = process.argv[2];
 const { peak } = mix.write(new URL(`./public/${variant ? `music-${variant}` : "music"}.wav`, import.meta.url), {
   // the pad breathes with the half-time kick
-  duck: (t) => (t >= grooveFrom && t < grooveTo ? 1 - 0.4 * Math.exp(-((t - grooveFrom) % BAR) / 0.2) : 1),
+  duck: (t) => (t >= grooveFrom && t < grooveTo && !inVoice(t) ? 1 - 0.4 * Math.exp(-((t - grooveFrom) % BAR) / 0.2) : 1),
 });
 console.log(`${variant ? `music-${variant}` : "music"}.wav · ${DURATION}s · peak before normalising ${peak.toFixed(2)}`);

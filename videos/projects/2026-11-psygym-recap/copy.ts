@@ -29,6 +29,18 @@ const en = {
     caption: ["Hold a session", "with an **AI client**."],
     chips: ["By voice or by text", "Every client is fictional"],
   },
+  voice: {
+    label: "01 · AI CLIENT · BY VOICE",
+    caption: ["Practise **out loud**."],
+    sound: "Sound on",
+    you: "YOU · COUNSELOR",
+    // The app's own two call states (strings.xml: voice_listening_you, voice_client_speaking).
+    states: ["Listening to you", "The client is speaking"],
+    // What is said in public/voice-call.mp3, word for word (timeline.ts VOICE).
+    counselor: "Yes, I can hear you fine. So, what brings you here today?",
+    lines: ["Honestly, I've just been really tired lately,", "like tired in my head, you know?"],
+    note: "The AI client's answer is a real recording from PSYGYM's voice agent. The counselor's line is scripted, in a synthetic voice.",
+  },
   supervisor: {
     label: "02 · AI SUPERVISOR",
     caption: ["Then a **supervisor**", "quotes you back."],
@@ -92,6 +104,17 @@ const zh: Copy = {
     label: "01 · AI 来访者",
     caption: ["和 **AI 来访者**", "做一次会谈。"],
     chips: ["语音、文字都可以", "所有来访者都是虚构的"],
+  },
+  voice: {
+    label: "01 · AI 来访者 · 语音",
+    caption: ["直接**开口**练。"],
+    sound: "打开声音",
+    you: "你 · 咨询师",
+    states: ["在听你说", "来访者在说话"],
+    // The recording is in English; these are its subtitles.
+    counselor: "听得很清楚。那今天为什么想来聊聊？",
+    lines: ["说实话，我最近真的很累，", "是脑子里的那种累，你懂吗？"],
+    note: "来访者的回答是聆镜语音 Agent 的真实录音（英文）。咨询师这句是写好的台词，由合成声音朗读。",
   },
   supervisor: {
     label: "02 · AI 督导",
