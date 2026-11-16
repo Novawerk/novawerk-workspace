@@ -4,13 +4,16 @@ Video: `out/psygym-recap_3x4.mp4` · Cover / thumbnail: `out/cover_3x4.png` ·
 App Store screenshot: `assets/appstore.png` (whole listing), `assets/appstore-header.png` (icon and name)
 
 Written from Haodong's own post (Chinese, 2026-11-15), for English readers, in his voice. Facts as
-in BRIEF.md; no user numbers. The founder agreed to appear in the video.
+in BRIEF.md; no user numbers. The stack paragraph (2026-11-16, Haodong asked for it) follows
+`project-psygym-workspace`: README and ADR 0013. The founder agreed to appear in the video.
 
 ## Text
 
 Novawerk's third project, PSYGYM, is delivered. 🎉
 
 It's our first voice agent. PSYGYM helps counselors who don't have much real experience yet get some, safely, before they leave university. You hold a practice session with an AI client by voice, and a separate supervisor model tells you what you could do better.
+
+For the curious, the stack: the voice runs on ElevenLabs. It does the listening, the speaking and the turn-taking. The words don't come from ElevenLabs, though. They come from our own backend, where Claude plays the client from a case file written by the team's psychologists. The app is Kotlin Multiplatform, one codebase for iOS and Android, and the API is a Hono service. Our code is open source, MIT.
 
 The idea came to us as a pitch. Over six weeks we helped its founder, a psychology PhD with deep knowledge of the field and no engineering or product background, turn it into a real app. It's now on the App Store.
 
@@ -38,7 +41,7 @@ Our next slot opens in January. If you organise events in Berlin and need any te
 
 novawerk.ai
 
-#OpenSource #AI #VoiceAI #Psychology #NonProfit #BuildInPublic #Berlin
+#OpenSource #AI #VoiceAI #ElevenLabs #KotlinMultiplatform #Psychology #NonProfit #BuildInPublic #Berlin
 
 ---
 
