@@ -62,7 +62,7 @@ export function makeTimeline(song: Song, lang: string) {
       review: zh ? when("agent", 3, 0) + 0.45 : when("agent", 3, 0) + 0.6,
       merge: zh ? when("agent", 3, 1) + 0.35 : when("agent", 3, 1) + 0.2,
     },
-    HABITS: { notes: [when("habits", 0, 0), when("habits", 1, 0)], subs: [when("habits", 0, 1), when("habits", 1, 1)] },
+    HABITS: { notes: [when("habits", 0, 0), when("habits", 1, 0)] },
     CLOSE: { land: when("close", 0, 0) + 0.25, number: when("close", 0, 1), line: when("close", 1, 0) },
   };
 }

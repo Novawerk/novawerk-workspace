@@ -10,8 +10,9 @@
 //
 // A segment is the stretch of the song under one shot. Its lines are the subtitle lines; each line
 // is split into phrases, and every phrase gets a start time (voice.ts, from scripts/align.py), so a
-// picture event can wait for the exact word. The two languages have the same segments, lines and
-// phrases, one for one: timeline.ts points at a phrase by its position. `say` is what is sung when
+// picture event can wait for the exact word. The two languages have the same segments and lines, one
+// for one, and mostly the same phrases: timeline.ts points at a phrase by its position, and every
+// phrase it points at is there in both. `say` is what is sung when
 // it differs from what the subtitle shows.
 
 export type Phrase = string | { show: string; say: string };

@@ -15,7 +15,7 @@ film's zh.mp3 is the first song up to 48.26 s joined to the new one from 48.20 s
 
 WARNING: every run makes a different song. public/song/zh.mp3 and en.mp3 are the ones the film is
 cut to (the founder heard and approved both on 2026-11-17; the Chinese one's ending was then made
-again at his request, see below); the model cannot make them again. So this writes next to them
+again at his request, see above); the model cannot make them again. So this writes next to them
 (public/song/<lang>.new.mp3) unless told where: listen first, then replace the file, run
 scripts/align.py, then `pnpm video 2026-11-github-101 all`. Change a word in the plan and lyrics.ts must change with it
 (align.py checks that they agree).

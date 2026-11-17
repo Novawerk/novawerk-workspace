@@ -105,10 +105,10 @@ function Lyric({ shot, dark, only }: { shot: string; dark: boolean; only?: reado
   if (!line || (only && !only.includes(line.i))) return null;
   const zh = lang === "zh";
   return (
-    <div style={{ position: "absolute", left: 64, right: 56, top: 108, fontSize: zh ? 80 : 56, fontWeight: 900, lineHeight: zh ? 1.2 : 1.18, letterSpacing: zh ? -2 : -1.5, textWrap: zh ? undefined : "balance", ...settle(fade(f, at(line.from - 0.1), 4), 14) }}>
+    <div style={{ position: "absolute", left: 64, right: 56, top: 108, fontSize: zh ? 80 : 56, fontWeight: 900, lineHeight: zh ? 1.2 : 1.18, letterSpacing: zh ? -2 : -1.5, ...settle(fade(f, at(line.from - 0.1), 4), 14) }}>
       {line.phrases.map((ph, j) => (
-        // Chinese breaks between phrases, never inside one
-        <span key={j} style={{ display: zh ? "inline-block" : undefined, whiteSpace: zh ? "nowrap" : undefined, color: now < ph.from - 0.04 ? (dark ? color.muted : color.lineStrong) : now < ph.to ? (dark ? color.signal : color.accent) : dark ? color.paper : color.ink }}>
+        // a line breaks between phrases, never inside one ("pre" keeps an English phrase's trailing space)
+        <span key={j} style={{ display: "inline-block", whiteSpace: zh ? "nowrap" : "pre", color: now < ph.from - 0.04 ? (dark ? color.muted : color.lineStrong) : now < ph.to ? (dark ? color.signal : color.accent) : dark ? color.paper : color.ink }}>
           {ph.text}
         </span>
       ))}

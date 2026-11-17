@@ -85,7 +85,9 @@ const rad = (d: number) => (d * Math.PI) / 180;
 // colour, head and body in one, short limbs, very little face, two teeth and a flat tail to
 // remember it by. Its fur is brown, which is not in BRAND.md's palette: the founder's exception for
 // this character (all in the brand's green it "looked poisoned"). The green is in its scarf. Never
-// give it a green hat: 绿帽子 is an insult in Chinese.
+// give it a green hat: 绿帽子 is an insult in Chinese. It is the character of one film
+// (2026-11-github-101), not a Novawerk mascot yet: ask the founder before another film uses it
+// (videos/BRAND.md, "角色").
 const FUR = { light: "#a5744a", dark: "#b98658" } as const;
 const FUR_DEEP = { light: "#5f3d25", dark: "#7a5233" } as const;
 const UNITS = 318;
@@ -105,7 +107,7 @@ const LIMB = 40;
  * pixels. The tail is always on the right and `mirror` does not flip it: leave about 0.6 × height
  * free to the right of `x`, and 0.4 × height to the left.
  */
-export function Dancer({ pose: p, x, floor, height = 460, tone = "light", wear = "scarf", style }: { pose: Pose; x: number; floor: number; height?: number; tone?: "light" | "dark"; /** in the brand's green */ wear?: "none" | "scarf"; style?: CSSProperties }) {
+export function Dancer({ pose: p, x, floor, height = 460, tone = "light", style }: { pose: Pose; x: number; floor: number; height?: number; tone?: "light" | "dark"; style?: CSSProperties }) {
   const s = height / UNITS;
   const fur = FUR[tone];
   const deep = FUR_DEEP[tone];
@@ -185,13 +187,10 @@ export function Dancer({ pose: p, x, floor, height = 460, tone = "light", wear =
           <rect x={-19} y={24} width={38} height={happy ? 36 : 27} rx={6} fill={color.paper} />
           <path d={`M0 25 V${happy ? 59 : 50}`} stroke={fur} strokeWidth={3.5} />
         </g>
-        {wear === "scarf" ? (
-          <>
-            <path d="M-118 -102 Q0 -70 118 -102 V-76 Q0 -44 -118 -76 Z" fill={green} />
-            <path d="M62 -64 L96 -22 L70 -18 L58 -40 L40 -16 L22 -34 Z" fill={green} />
-            <path d="M62 -64 L58 -40" stroke={tone === "dark" ? color.accent : color.accentDeep} strokeWidth={4} strokeLinecap="round" opacity={0.6} />
-          </>
-        ) : null}
+        {/* the scarf */}
+        <path d="M-118 -102 Q0 -70 118 -102 V-76 Q0 -44 -118 -76 Z" fill={green} />
+        <path d="M62 -64 L96 -22 L70 -18 L58 -40 L40 -16 L22 -34 Z" fill={green} />
+        <path d="M62 -64 L58 -40" stroke={tone === "dark" ? color.accent : color.accentDeep} strokeWidth={4} strokeLinecap="round" opacity={0.6} />
       </g>
       {/* arms in front; a darker edge so they still read when they cross the body */}
       {[arm(-1, p.armL), arm(1, p.armR)].map((d, i) => (

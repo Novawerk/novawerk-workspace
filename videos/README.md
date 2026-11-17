@@ -65,10 +65,13 @@ storyboard, style options, stills, sound, platforms. In short:
 2. Put the words in `copy.ts` (`**word**` is highlighted) and the times in `timeline.ts`.
 3. Build shots from `kit/`: `Stage`, `Note`, `Rich`, `Lockup`, `NovaStar` + `starFall`,
    `SwapCaption`, `Robots`, `Burst`, and for a film cut to music `Dancer` and `Buddy`
-   (`kit/dancer.tsx`: a beaver and a robot that dance on the beat). Add each shot to `Root.tsx`.
+   (`kit/dancer.tsx`: a beaver and a robot that dance on the beat; the beaver belongs to one film so
+   far, so ask the founder before using it in another: `BRAND.md`, "角色"). Add each shot to `Root.tsx`.
 4. Score it in `music.ts` with `kit/audio/synth.ts`: put a sound on every event from `timeline.ts`.
    (One film is cut to a finished song instead, 2026-11-github-101: its clock comes from the song,
-   and the song files stay out of the repository. See its `BRIEF.md` and `public/song/NOTICE.md`.)
+   and the song files stay out of the repository, so without them that project's `studio`, `shot`
+   and `render` don't run; `still` and the type check do. See its `BRIEF.md` and
+   `public/song/NOTICE.md`.)
 5. Review with `still` and `shot`; when it's right, `all`. Write `POST.md`.
 
 ## Gotchas
@@ -78,8 +81,8 @@ storyboard, style options, stills, sound, platforms. In short:
 - `timeline.ts` and `music.ts` run under plain Node (type stripping): no extensionless imports, no
   TypeScript-only syntax such as parameter properties or enums.
 - Chinese fonts are subset to the characters in `copy.ts` at render time, so text has to live there.
-- A film can have frames a still never shows: in 2026-11-github-101 a dialog laid over dimmed content
-  came out with a strip missing on many frames of the film, while every `still` of those frames was
+- A film can have frames a still never shows: in the first cut of 2026-11-github-101 (a cut that is
+  no longer in the repository) a dialog laid over dimmed content came out with a strip missing on many frames of the film, while every `still` of those frames was
   whole. It went away once boxes no longer kept `opacity: 1` and a zero `transform` after their
   entrance, and nothing behind them was dimmed with `opacity` (`settle`, `drop` and `pop` in that
   project's `shots/parts.tsx` end with no style at all). To check a film, render it twice and compare:

@@ -44,6 +44,9 @@ const SPOTS = [
   { x: 64, y: 950, r: -2 }, { x: 110, y: 1046, r: 1.5 }, { x: 156, y: 1142, r: -1 }, // files
 ];
 
+/** English lines are longer: the second chat starts further left, and the file names stack tighter, clear of the beaver's paw. */
+const EN_X: Record<number, number> = { 1: 300, 5: 40, 6: 60, 7: 80 };
+
 export function Shot2Hook() {
   const { f, at, t, c, lang } = useShot("hook");
   const pile = [
@@ -59,13 +62,13 @@ export function Shot2Hook() {
         const d = land(f, a);
         const spot = SPOTS[i]!;
         return (
-          <div key={n.text} style={{ position: "absolute", left: i === 1 && lang === "en" ? 300 : spot.x, top: spot.y, display: "flex", alignItems: "center", gap: 16, padding: "22px 30px", background: color.paper, border, fontSize: n.size, fontWeight: 800, fontFamily: n.mono ? monoFamily : undefined, whiteSpace: "nowrap", opacity: fade(f, a, 3), transform: `translateY(${(1 - d) * -50}px) rotate(${spot.r + (1 - d) * 8}deg)` }}>
+          <div key={n.text} style={{ position: "absolute", left: lang === "en" ? (EN_X[i] ?? spot.x) : spot.x, top: spot.y, display: "flex", alignItems: "center", gap: 16, padding: "22px 30px", background: color.paper, border, fontSize: n.size, fontWeight: 800, fontFamily: n.mono ? monoFamily : undefined, whiteSpace: "nowrap", opacity: fade(f, a, 3), transform: `translateY(${(1 - d) * -50}px) rotate(${spot.r + (1 - d) * 8}deg)` }}>
             <Icon name={n.icon} size={n.size + 4} />
             {n.text}
           </div>
         );
       })}
-      <Beaver shot="hook" x={810} height={420} steps={[{ from: 0, move: SEARCH }, { from: t.HOOK.files[0]! - 0.15, move: FLINCH }, { from: t.HOOK.ask - 0.1, move: SHRUG }]} />
+      <Beaver shot="hook" x={lang === "en" ? 834 : 810} height={420} steps={[{ from: 0, move: SEARCH }, { from: t.HOOK.files[0]! - 0.15, move: FLINCH }, { from: t.HOOK.ask - 0.1, move: SHRUG }]} />
       <div style={{ position: "absolute", left: 950, top: 690, fontSize: 170, fontWeight: 900, lineHeight: 1, color: color.accent, opacity: fade(f, ask, 3), transform: `rotate(${10 + (1 - land(f, ask, 9)) * 20}deg) scale(${0.6 + 0.4 * land(f, ask, 9)})` }}>?</div>
     </Shell>
   );

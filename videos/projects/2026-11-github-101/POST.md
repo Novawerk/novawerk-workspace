@@ -2,6 +2,9 @@
 
 ## 发给项目方（微信）
 
+发之前：用对方实际在用的那个 agent，把片里那两句话（开一条 Issue、提一个 PR）自己走一遍。片子只在
+一种 agent 上试过提 PR（见 `BRIEF.md`）。
+
 > 一分钟的小视频，一首说唱：GitHub 是什么，怎么让你的 coding agent 帮你给我们提需求、改东西。
 > 片子里唱得快，实际开始前有三步：注册一个 GitHub 账号（免费），把用户名发给我，再去邮箱里接受
 > 邀请。agent 也要先配好：装在你的电脑上，登录过 GitHub，有这个仓库的权限，这一步我可以陪你做。
@@ -60,6 +63,6 @@ the voice and the music are both synthetic.
 > saved" cuts both ways: what you put in stays in the history, so keep secrets out from the start. Without an agent, "New issue" on
 > github.com works just as well.
 >
-> Novawerk is an open, non-profit workshop for early ideas. Our code is open source: novawerk.io
+> Novawerk is an open, non-profit workshop for early ideas, and our code is open source. novawerk.io
 >
 > #GitHub #OpenSource #CodingAgents #Novawerk
