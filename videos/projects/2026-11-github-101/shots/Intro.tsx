@@ -1,11 +1,13 @@
 import type { CSSProperties, ReactNode } from "react";
 
-import { Lockup, Rich } from "../../../kit/brand";
+import { Lockup, Note, Rich } from "../../../kit/brand";
 import { monoFamily } from "../../../kit/fonts";
+import { LYRICS, shown } from "../lyrics";
 import { color } from "../theme";
-import { Avatar, Btn, Caret, Cursor, Icon, Shell, Window, drop, fade, land, pop, settle, typed, useShot } from "./parts";
+import { CHEER, FLINCH, GROOVE, HANDS_UP, POINT, ROOF, SEARCH, SHRUG, STEP, ALL_GOOD } from "./moves";
+import { Avatar, Icon, Shell, Beaver, Window, fade, land, pop, settle, useShot } from "./parts";
 
-// The first five shots: the mess, the welcome, what GitHub is, three words, getting in.
+// The first four shots: the series title, the mess, what GitHub is, three words.
 
 const border = `3px solid ${color.ink}`;
 
@@ -13,20 +15,41 @@ function Tag({ children, style }: { children: ReactNode; style?: CSSProperties }
   return <div style={{ display: "inline-block", padding: "4px 14px", fontSize: 26, fontWeight: 800, whiteSpace: "nowrap", color: color.accent, border: `3px solid ${color.accent}`, background: color.paper, ...style }}>{children}</div>;
 }
 
-// --- 1 · the hook: asks in chat, files in mail, three "final" versions ----------------------------
+// --- 1 · the title: the series, and today's subject (the song opens on its name) -------------------
+
+export function Shot1Title() {
+  const { f, at, t, c } = useShot("title");
+  const today = at(t.TITLE.today);
+  return (
+    <Shell shot="title" lyric={false}>
+      <div style={{ position: "absolute", left: 0, right: 0, top: 170, display: "flex", justifyContent: "center", ...settle(fade(f, 3, 7), 20) }}>
+        <Lockup height={84} />
+      </div>
+      <div style={{ position: "absolute", left: 0, right: 0, top: 250, textAlign: "center", fontSize: 300, fontWeight: 800, letterSpacing: -12, lineHeight: 1.1, color: color.accent, ...pop(f, at(t.TITLE.number)) }}>{c.number}</div>
+      <div style={{ position: "absolute", left: 0, right: 0, top: 620, display: "flex", justifyContent: "center" }}>
+        <div style={{ padding: "22px 44px", background: color.ink, color: color.paper, fontSize: 84, fontWeight: 900, letterSpacing: -2, whiteSpace: "nowrap", opacity: fade(f, today, 3), transform: `rotate(-1.5deg) scale(${0.9 + 0.1 * land(f, today, 9)})` }}>
+          <Rich text={c.today} accent={color.signal} />
+        </div>
+      </div>
+      <Beaver shot="title" x={540} height={480} steps={[{ from: 0, move: GROOVE }, { from: t.TITLE.number - 0.2, move: CHEER }, { from: t.TITLE.today, move: STEP }]} />
+    </Shell>
+  );
+}
+
+// --- 2 · the mess: asks in chat, files in mail, three "final" versions; where is the latest? --------
 
 const SPOTS = [
-  { x: 60, y: 112, r: -4 }, { x: 330, y: 256, r: 3 }, { x: 90, y: 400, r: -2 }, // chats
-  { x: 420, y: 545, r: 4 }, { x: 110, y: 668, r: -3 }, // mails
-  { x: 150, y: 795, r: -2 }, { x: 235, y: 878, r: 1.5 }, { x: 320, y: 961, r: -1 }, // files
+  { x: 60, y: 350, r: -4 }, { x: 380, y: 468, r: 3 }, { x: 110, y: 586, r: -2 }, // chats
+  { x: 400, y: 704, r: 4 }, { x: 64, y: 812, r: -3 }, // mails
+  { x: 64, y: 950, r: -2 }, { x: 110, y: 1046, r: 1.5 }, { x: 156, y: 1142, r: -1 }, // files
 ];
 
-export function Shot1Hook() {
+export function Shot2Hook() {
   const { f, at, t, c, lang } = useShot("hook");
   const pile = [
     ...c.hook.chats.map((text, i) => ({ text, icon: "chat" as const, at: t.HOOK.chats[i]!, size: lang === "en" ? 40 : 44, mono: false })),
-    ...c.hook.mails.map((text, i) => ({ text, icon: "mail" as const, at: t.HOOK.mails[i]!, size: 40, mono: false })),
-    ...c.hook.files.map((text, i) => ({ text, icon: "file" as const, at: t.HOOK.files[i]!, size: 34, mono: true })),
+    ...c.hook.mails.map((text, i) => ({ text, icon: "mail" as const, at: t.HOOK.mails[i]!, size: 38, mono: false })),
+    ...c.hook.files.map((text, i) => ({ text, icon: "file" as const, at: t.HOOK.files[i]!, size: 30, mono: true })),
   ];
   const ask = at(t.HOOK.ask);
   return (
@@ -36,38 +59,14 @@ export function Shot1Hook() {
         const d = land(f, a);
         const spot = SPOTS[i]!;
         return (
-          <div key={n.text} style={{ position: "absolute", left: spot.x, top: spot.y, display: "flex", alignItems: "center", gap: 16, padding: "22px 30px", background: color.paper, border, fontSize: n.size, fontWeight: 800, fontFamily: n.mono ? monoFamily : undefined, whiteSpace: "nowrap", opacity: fade(f, a, 3), transform: `translateY(${(1 - d) * -50}px) rotate(${spot.r + (1 - d) * 8}deg)` }}>
+          <div key={n.text} style={{ position: "absolute", left: i === 1 && lang === "en" ? 300 : spot.x, top: spot.y, display: "flex", alignItems: "center", gap: 16, padding: "22px 30px", background: color.paper, border, fontSize: n.size, fontWeight: 800, fontFamily: n.mono ? monoFamily : undefined, whiteSpace: "nowrap", opacity: fade(f, a, 3), transform: `translateY(${(1 - d) * -50}px) rotate(${spot.r + (1 - d) * 8}deg)` }}>
             <Icon name={n.icon} size={n.size + 4} />
             {n.text}
           </div>
         );
       })}
-      <div style={{ position: "absolute", left: 64, top: 1082, padding: "22px 36px", background: color.ink, color: color.paper, fontSize: lang === "en" ? 64 : 80, fontWeight: 900, letterSpacing: -2, whiteSpace: "nowrap", opacity: fade(f, ask, 3), transform: `rotate(-1.5deg) scale(${0.9 + 0.1 * land(f, ask, 9)})`, transformOrigin: "0 50%" }}>
-        <Rich text={c.hook.caption} accent={color.signal} />
-      </div>
-    </Shell>
-  );
-}
-
-// --- 2 · the welcome: the series, and today's subject -----------------------------------------------
-
-export function Shot2Welcome() {
-  const { f, at, t, c } = useShot("welcome");
-  const number = at(t.WELCOME.number);
-  const line = fade(f, at(t.when("welcome", 1, 0)), 8);
-  const today = at(t.WELCOME.today);
-  return (
-    <Shell shot="welcome">
-      <div style={{ position: "absolute", left: 0, right: 0, top: 330, display: "flex", justifyContent: "center", ...settle(fade(f, 4, 8), 20) }}>
-        <Lockup height={96} />
-      </div>
-      <div style={{ position: "absolute", left: 0, right: 0, top: 440, textAlign: "center", fontSize: 300, fontWeight: 800, letterSpacing: -12, lineHeight: 1.1, color: color.accent, ...pop(f, number) }}>{c.number}</div>
-      <div style={{ position: "absolute", left: 0, right: 0, top: 810, textAlign: "center", fontSize: 46, fontWeight: 700, color: color.muted, ...settle(line, 14) }}>{c.welcome.line}</div>
-      <div style={{ position: "absolute", left: 0, right: 0, top: 930, display: "flex", justifyContent: "center" }}>
-        <div style={{ padding: "22px 44px", background: color.ink, color: color.paper, fontSize: 84, fontWeight: 900, letterSpacing: -2, whiteSpace: "nowrap", opacity: fade(f, today, 3), transform: `rotate(-1.5deg) scale(${0.9 + 0.1 * land(f, today, 9)})` }}>
-          <Rich text={c.welcome.today} accent={color.signal} />
-        </div>
-      </div>
+      <Beaver shot="hook" x={810} height={420} steps={[{ from: 0, move: SEARCH }, { from: t.HOOK.files[0]! - 0.15, move: FLINCH }, { from: t.HOOK.ask - 0.1, move: SHRUG }]} />
+      <div style={{ position: "absolute", left: 950, top: 690, fontSize: 170, fontWeight: 900, lineHeight: 1, color: color.accent, opacity: fade(f, ask, 3), transform: `rotate(${10 + (1 - land(f, ask, 9)) * 20}deg) scale(${0.6 + 0.4 * land(f, ask, 9)})` }}>?</div>
     </Shell>
   );
 }
@@ -75,7 +74,7 @@ export function Shot2Welcome() {
 // --- 3 · what it is: a website; a shared folder, a board, a history --------------------------------
 
 export function Shot3What() {
-  const { f, at, t, c } = useShot("what");
+  const { f, at, t, c, lang } = useShot("what");
   const landAt = at(t.WHAT.land);
   const win = at(t.WHAT.window);
   const filesAt = at(t.WHAT.files);
@@ -87,7 +86,7 @@ export function Shot3What() {
   const mix = (a: number, b: number) => a + (b - a) * chip;
 
   return (
-    <Shell shot="what" title={c.what.title} titleAt={4}>
+    <Shell shot="what">
       {f >= landAt ? (
         <div style={{ position: "absolute", left: mix(240, 64), top: mix(600, 338) + (1 - drop) * -140, width: mix(600, 232), height: mix(230, 66), background: color.ink, color: color.paper, display: "flex", alignItems: "center", justifyContent: "center", fontSize: mix(130, 40), fontWeight: 800, letterSpacing: mix(-4, -1), opacity: fade(f, landAt, 3) }}>
           {c.github}
@@ -96,14 +95,14 @@ export function Shot3What() {
       {f >= win + 12 ? <Tag style={{ position: "absolute", left: 316, top: 349, fontSize: 30, ...settle(fade(f, win + 12, 6), 10) }}>{c.what.noInstall}</Tag> : null}
 
       {f >= win + 2 ? (
-        <Window style={{ top: 420, height: 790, ...settle(fade(f, win + 2, 7), 24) }}>
-          <div style={{ position: "absolute", left: 0, top: 0, width: 946, height: 724 }}>
+        <Window style={{ top: 420, height: 740, ...settle(fade(f, win + 2, 7), 24) }}>
+          <div style={{ position: "absolute", left: 0, top: 0, width: 946, height: 674 }}>
             {/* the shared folder */}
             {f >= filesAt - 2 ? (
-              <div style={{ position: "absolute", left: 0, top: 0, width: 380, height: 478, borderRight: border }}>
+              <div style={{ position: "absolute", left: 0, top: 0, width: 380, height: 440, borderRight: border }}>
                 <Tag style={{ position: "absolute", left: 28, top: 24 }}>{c.what.tags[0]}</Tag>
                 {c.what.files.map((name, i) => (
-                  <div key={name} style={{ position: "absolute", left: 28, top: 98 + i * 88, display: "flex", alignItems: "center", gap: 16, fontSize: 34, fontWeight: 700, opacity: fade(f, filesAt + 3 + i * 4, 4) }}>
+                  <div key={name} style={{ position: "absolute", left: 28, top: 98 + i * 82, display: "flex", alignItems: "center", gap: 16, fontSize: 34, fontWeight: 700, opacity: fade(f, filesAt + 3 + i * 4, 4) }}>
                     <Icon name={i < 2 ? "folder" : "file"} size={46} />
                     {name}
                   </div>
@@ -113,7 +112,7 @@ export function Shot3What() {
 
             {/* the board */}
             {f >= boardAt - 2 ? (
-              <div style={{ position: "absolute", left: 383, top: 0, width: 563, height: 478 }}>
+              <div style={{ position: "absolute", left: 383, top: 0, width: 563, height: 440 }}>
                 <Tag style={{ position: "absolute", left: 28, top: 24 }}>{c.what.tags[1]}</Tag>
                 {c.what.board.map((m, i) => (
                   <div key={m.text} style={{ position: "absolute", left: 28, right: 28, top: 104 + i * 128, display: "flex", flexDirection: i === 0 ? "row" : "row-reverse", alignItems: "center", gap: 14, opacity: fade(f, boardAt + 3 + i * 12, 4) }}>
@@ -124,13 +123,13 @@ export function Shot3What() {
               </div>
             ) : null}
 
-            {/* the history */}
+            {/* the history: its right end stays clear, the beaver stands in front of it */}
             {f >= historyAt - 2 ? (
-              <div style={{ position: "absolute", left: 0, top: 478, width: 946, height: 246, borderTop: border }}>
-                <Tag style={{ position: "absolute", left: 28, top: 22 }}>{c.what.tags[2]}</Tag>
-                <div style={{ position: "absolute", left: 49, top: 110, width: 3, height: 78, background: color.ink }} />
+              <div style={{ position: "absolute", left: 0, top: 440, width: 946, height: 234, borderTop: border }}>
+                <Tag style={{ position: "absolute", left: 28, top: 20 }}>{c.what.tags[2]}</Tag>
+                <div style={{ position: "absolute", left: 49, top: 106, width: 3, height: 76, background: color.ink }} />
                 {c.what.history.map((h, i) => (
-                  <div key={h.text} style={{ position: "absolute", left: 40, right: 32, top: 90 + i * 72, display: "flex", alignItems: "center", gap: 18, fontSize: 31, fontWeight: 700, opacity: fade(f, historyAt + 3 + i * 9, 4) }}>
+                  <div key={h.text} style={{ position: "absolute", left: 40, width: lang === "en" ? 452 : 430, top: 86 + i * 70, display: "flex", alignItems: "center", gap: 18, fontSize: 31, fontWeight: 700, whiteSpace: "nowrap", opacity: fade(f, historyAt + 3 + i * 9, 4) }}>
                     <div style={{ width: 21, height: 21, borderRadius: 11, background: color.accent, border }} />
                     <Avatar who={h.who} size={46} />
                     {h.text}
@@ -142,104 +141,51 @@ export function Shot3What() {
           </div>
         </Window>
       ) : null}
+      <Beaver shot="what" x={840} height={380} steps={[{ from: 0, move: GROOVE }, { from: t.WHAT.window, move: POINT }, { from: t.when("what", 3, 0) - 0.1, move: ALL_GOOD }]} />
     </Shell>
   );
 }
 
-// --- 4 · three words -----------------------------------------------------------------------------
+// --- 4 · the chorus: three words, one at a time -----------------------------------------------------
 
 const WORD_ICONS = ["folder", "issue", "pr"] as const;
 
 export function Shot4Words() {
-  const { f, at, t, c, lang } = useShot("words");
+  const { f, at, t, c, lang, now } = useShot("words");
+  const zh = lang === "zh";
+  const cards = t.WORDS.cards.map(at);
+  const i = cards.filter((a) => f >= a).length - 1; // the word being sung, −1 before the first
+  const three = at(t.when("words", 0, 0));
+  const sung = LYRICS[lang].find((s) => s.id === "words")!.lines;
   return (
-    <Shell shot="words" title={c.words.title}>
-      {c.words.cards.map((card, i) => {
-        const a = at(t.WORDS.cards[i]!);
-        const next = i < 2 ? at(t.WORDS.cards[i + 1]!) : 1e9;
-        const on = f >= a;
-        const active = on && f < next;
-        const g = fade(f, at(t.WORDS.gloss[i]!), 7);
-        const top = 296 + i * 292;
-        return (
-          <div key={card.term}>
-            {on ? null : (
-              <div style={{ position: "absolute", left: 64, top, width: 952, height: 262, border: `3px dashed ${color.lineStrong}` }}>
-                <span style={{ position: "absolute", left: 36, top: 30, fontFamily: monoFamily, fontSize: 40, fontWeight: 600, color: color.lineStrong }}>{i + 1}</span>
-              </div>
-            )}
-            {on ? (
-              <div style={{ position: "absolute", left: 64, top, width: 952, height: 262, background: color.paper, border: `3px solid ${active ? color.accent : color.ink}`, boxShadow: active ? `0 0 0 3px ${color.accent}` : undefined, ...drop(f, a, 40, i % 2 ? 2 : -2) }}>
-                <div style={{ position: "absolute", left: 34, top: 52, width: 152, height: 152, background: active ? color.accent : color.ink, color: color.paper, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Icon name={WORD_ICONS[i]!} size={96} stroke={2} />
-                </div>
-                <div style={{ position: "absolute", left: 220, top: 40, display: "flex", alignItems: "baseline", gap: 22, whiteSpace: "nowrap" }}>
-                  <span style={{ fontSize: 76, fontWeight: 800, letterSpacing: -2 }}>{card.term}</span>
-                  {card.aka ? <span style={{ fontSize: 44, fontWeight: 800, color: color.muted, opacity: fade(f, a + 14, 6) }}>{card.aka}</span> : null}
-                </div>
-                <div style={{ position: "absolute", left: 222, top: 148, fontSize: lang === "en" ? 44 : 46, fontWeight: 800, whiteSpace: "nowrap", ...settle(g, 12) }}>
-                  <Rich text={card.gloss} accent={color.accent} />
-                </div>
-              </div>
-            ) : null}
+    <Shell shot="words" dark lyric={[0]}>
+      {i < 0 ? (
+        <div style={{ position: "absolute", left: 80, top: 360, fontSize: 560, fontWeight: 900, lineHeight: 1, letterSpacing: -20, color: color.signal, ...pop(f, three) }}>3</div>
+      ) : (
+        <div key={i}>
+          {/* the word, and what the song says about it */}
+          <div style={{ position: "absolute", left: 64, top: 112, display: "flex", alignItems: "center", gap: 28, ...pop(f, cards[i]!) }}>
+            <div style={{ width: 132, height: 132, flexShrink: 0, background: color.signal, color: color.ink, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Icon name={WORD_ICONS[i]!} size={88} stroke={2.2} />
+            </div>
+            <span style={{ fontSize: i === 2 ? 112 : 128, fontWeight: 900, letterSpacing: -4, whiteSpace: "nowrap", color: color.signal }}>{c.words.cards[i]!.term}</span>
           </div>
-        );
-      })}
-    </Shell>
-  );
-}
-
-// --- 5 · getting in: an account, your username, the invitation -------------------------------------
-
-export function Shot5Start() {
-  const { f, at, t, c, lang } = useShot("start");
-  const steps = t.START.steps.map(at);
-  const accept = at(t.START.accept);
-  const typing = steps[0]! + 12;
-  const name = typed(c.handle, f, typing, 16);
-  const pictures = [
-    <div key={0} style={{ display: "flex", alignItems: "center", gap: 16 }}>
-      <div style={{ width: 330, height: 66, border, display: "flex", alignItems: "center", padding: "0 18px", fontFamily: monoFamily, fontSize: 30, fontWeight: 600, color: name ? color.ink : color.lineStrong }}>
-        {name || c.username}
-        <Caret f={f} on={f >= typing && name.length < c.handle.length} />
-      </div>
-      <Btn primary>{c.signUp}</Btn>
-      <Tag>{c.start.free}</Tag>
-    </div>,
-    <div key={1} style={{ display: "flex", alignItems: "center", gap: 14, opacity: fade(f, steps[1]! + 6, 5) }}>
-      <Avatar who={c.me} />
-      <div style={{ padding: "14px 22px", border, fontSize: 32, fontWeight: 700, whiteSpace: "nowrap" }}>{c.start.tell}</div>
-    </div>,
-    <div key={2} style={{ display: "flex", alignItems: "center", gap: 20 }}>
-      <Icon name="mail" size={84} stroke={1.8} />
-      <div>
-        <div style={{ fontSize: 30, fontWeight: 700, marginBottom: 10, whiteSpace: "nowrap" }}>{c.start.invite}</div>
-        {f < accept + 4 ? (
-          <Btn primary hot={f >= accept - 12} style={{ padding: "9px 20px" }}>
-            {c.accept}
-          </Btn>
-        ) : (
-          <Btn style={{ padding: "9px 20px", background: color.ink, color: color.paper }}>
-            <Icon name="check" size={30} stroke={3} />
-            {c.start.joined}
-          </Btn>
-        )}
-      </div>
-    </div>,
-  ];
-  return (
-    <Shell shot="start" title={c.start.title}>
-      {c.start.steps.map((label, i) => {
-        const top = 296 + i * 292;
-        return (
-          <div key={label} style={{ position: "absolute", left: 64, top, width: 952, height: 262, background: color.paper, border, ...drop(f, steps[i]!) }}>
-            <span style={{ position: "absolute", left: 38, top: 62, fontFamily: monoFamily, fontSize: 124, fontWeight: 600, lineHeight: 1, color: color.accent }}>{i + 1}</span>
-            <div style={{ position: "absolute", left: 160, top: 30, fontSize: lang === "en" ? 42 : 46, fontWeight: 800, whiteSpace: "nowrap" }}>{label}</div>
-            <div style={{ position: "absolute", left: 160, top: 116, height: 116, display: "flex", alignItems: "center" }}>{pictures[i]}</div>
+          <div style={{ position: "absolute", left: 64, top: 280, ...pop(f, cards[i]!) }}>
+            <span style={{ fontSize: zh ? 68 : 50, fontWeight: 900, letterSpacing: -1, whiteSpace: "nowrap", color: now >= t.WORDS.gloss[i]! - 0.04 ? color.paper : color.muted }}>{shown(sung[i + 1]![1]!)}</span>
           </div>
-        );
-      })}
-      <Cursor f={f} path={[[accept - 24, 760, 1230], [accept - 5, 598, 1102]]} clicks={[accept]} />
+          {/* in plain words, on a note the dancer points at */}
+          <Note style={{ position: "absolute", left: 64, top: 500, width: 500, padding: "36px 40px", fontSize: zh ? 58 : 48, lineHeight: 1.3, whiteSpace: "normal", color: color.ink, opacity: fade(f, cards[i]! + 4, 3), transform: `translateY(${(1 - land(f, cards[i]! + 4, 9)) * -40}px) rotate(${[-3, 2, -2][i]}deg)` }}>
+            {c.words.cards[i]!.aka ? <div style={{ fontFamily: monoFamily, fontSize: 34, fontWeight: 600, color: color.muted, marginBottom: 12 }}>= {c.words.cards[i]!.aka}</div> : null}
+            {/* one clause a line */}
+            {c.words.cards[i]!.gloss.split(/(?<=[，,]) ?/).map((part) => (
+              <div key={part}>
+                <Rich text={part} accent={color.accent} />
+              </div>
+            ))}
+          </Note>
+        </div>
+      )}
+      <Beaver shot="words" dark x={730} height={500} bounce={16} steps={[{ from: 0, move: STEP }, { from: t.WORDS.cards[0]! - 0.1, move: POINT }, { from: t.WORDS.gloss[0]!, move: HANDS_UP }, { from: t.WORDS.cards[1]! - 0.1, move: POINT }, { from: t.WORDS.gloss[1]!, move: ROOF }, { from: t.WORDS.cards[2]! - 0.1, move: POINT }, { from: t.WORDS.gloss[2]!, move: HANDS_UP }]} />
     </Shell>
   );
 }

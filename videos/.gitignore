@@ -6,3 +6,6 @@ projects/*/out/shots/
 projects/*/out/sketches/
 # Source footage of real people stays out of the public repo; BRIEF.md says where it comes from.
 projects/*/public/*.mp4
+# A song made by a music model is not ours to hand out as a file: the film carries it, the repo does not
+# (see projects/2026-11-github-101/public/song/NOTICE.md).
+projects/*/public/song/*.mp3

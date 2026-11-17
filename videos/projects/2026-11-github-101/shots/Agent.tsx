@@ -1,230 +1,74 @@
-import type { ReactNode } from "react";
-
-import { Note } from "../../../kit/brand";
-import { monoFamily } from "../../../kit/fonts";
 import { color } from "../theme";
-import { AgentPanel, Answer, Btn, Caret, Comment, Cursor, Icon, Pill, SOFT, Said, Shell, Ticket, Window, Working, fade, land, settle, typedOver, useShot } from "./parts";
+import { CHEER, DISMISS, GROOVE, TALK } from "./moves";
+import { Bot, Comment, Icon, Pill, Shell, Beaver, Ticket, drop, land, pop, typedOver, useShot } from "./parts";
 
-// The middle of the film: you don't click around GitHub, you tell your coding agent. What you say is
-// typed as the voice says it; what the agent hands back is the issue or the pull request on GitHub.
+// The verse about the agent: you don't click around GitHub, you tell your coding agent, here a
+// robot. One line and it holds up an issue, one more and it holds up a pull request; someone looks
+// at it, then it is merged. The robot holds the card up from behind: the card is drawn over its
+// hands and antenna.
 
-const border = `3px solid ${color.ink}`;
-const thin = `2px solid ${color.line}`;
-const muted = { color: color.lineStrong } as const;
-
-// --- 6 · a coding agent: talk to it; the first time, connect it to your account ---------------------
-
-export function Shot6Agent() {
-  const { f, at, t, c, lang } = useShot("agent");
-  const a = c.agent;
-  const panel = at(t.AGENT.panel);
-  const names = t.AGENT.names.map(at);
-  const swap = at(t.AGENT.swap);
-  const talk = at(t.AGENT.talk);
-  const connect = at(t.AGENT.connect);
-  const click = at(t.AGENT.connectClick);
-  const choice = (on: boolean, from: number, icon: ReactNode, label: string, left: number) =>
-    f < from ? null : (
-      <div style={{ position: "absolute", left, top: 930, width: 460, height: 236, background: on ? SOFT : color.paper, border: `3px ${on ? "solid" : "dashed"} ${on ? color.accent : color.lineStrong}`, color: on ? color.ink : color.muted, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, fontSize: lang === "en" ? 38 : 42, fontWeight: 800, ...settle(fade(f, from, 6), 20) }}>
-        {icon}
-        <span style={{ textDecoration: on ? undefined : "line-through" }}>{label}</span>
-      </div>
-    );
-  return (
-    <Shell shot="agent" title={a.title}>
-      {f >= panel ? (
-        <AgentPanel repo={f >= click + 4} style={{ top: 330, height: 560, ...settle(fade(f, panel, 7), 24) }} input={<span style={muted}>{a.placeholder}</span>}>
-          {f < connect
-            ? c.agents.map((name, i) => (
-                <Note key={name} style={{ position: "absolute", left: [48, 430][i], top: [56, 150][i], fontSize: 52, padding: "18px 32px", opacity: fade(f, names[i]!, 3), transform: `translateY(${(1 - land(f, names[i]!)) * -40}px) rotate(${[-3, 2][i]}deg)` }}>
-                  {name}
-                </Note>
-              ))
-            : null}
-          <Answer f={f} at={connect} top={36}>
-            <div style={{ height: 108 }}>{a.connectAsk}</div>
-            {f < click + 4 ? (
-              <Btn primary hot={f >= click - 14}>
-                {a.connect}
-              </Btn>
-            ) : (
-              <Btn style={{ background: color.ink, color: color.paper }}>
-                <Icon name="check" size={30} stroke={3} />
-                {a.connected}
-              </Btn>
-            )}
-          </Answer>
-        </AgentPanel>
-      ) : null}
-      {choice(false, swap, <Icon name="pointer" size={84} stroke={1.8} />, a.old, 64)}
-      {choice(true, talk, <Icon name="chat" size={84} stroke={1.8} style={{ color: color.accent }} />, a.now, 556)}
-      {/* the tip lands in the button's lower right corner, clear of its label */}
-      <Cursor f={f} path={[[click - 26, 640, 800], [click - 5, lang === "en" ? 410 : 352, 590]]} clicks={[click]} />
-    </Shell>
-  );
-}
-
-// --- 7 · an issue: say what you want and why; the agent opens it; the talk stays under it ------------
-
-export function Shot7Issue() {
-  const { f, at, t, c, lang, now } = useShot("issue");
-  const i = c.issue;
-  const windows = t.ISSUE.typing;
-  const send = at(t.ISSUE.send);
-  const reply = at(t.ISSUE.reply);
-  const tags = at(t.ISSUE.tags);
-  const page = at(t.ISSUE.page);
-  const closeAt = at(t.ISSUE.close);
-  const closed = f >= closeAt;
-  const typing = i.message.map((part, k) => typedOver(part, now, windows[k]!)).join("");
-  const tagTop = lang === "en" ? 216 : 172;
-  return (
-    <Shell shot="issue" title={i.title} silent={[1]}>
-      {f < page ? (
-        <AgentPanel
-          style={{ top: 330, height: 870 }}
-          input={
-            f < send ? (
-              <>
-                {typing || <span style={muted}>{c.agent.placeholder}</span>}
-                <Caret f={f} on={now >= windows[0]![0] - 0.3} />
-              </>
-            ) : (
-              <span style={muted}>{c.agent.placeholder}</span>
-            )
-          }
-        >
-          <Said f={f} at={send} top={30}>
-            {i.message.map((part, k) => (
-              <span key={part} style={{ borderBottom: f >= tags + k * 6 ? `5px solid ${color.signal}` : undefined }}>
-                {part}
-              </span>
-            ))}
-          </Said>
-          {i.tags.map((tag, k) =>
-            f < tags + k * 6 ? null : (
-              <div key={tag} style={{ position: "absolute", right: [250, 24][k], top: tagTop, padding: "4px 14px", fontSize: 26, fontWeight: 800, whiteSpace: "nowrap", color: color.accent, border: `3px solid ${color.accent}`, ...settle(fade(f, tags + k * 6, 5), 10) }}>
-                {k + 1} · {tag}
-              </div>
-            ),
-          )}
-          <Working f={f} from={send + 8} to={reply} top={tagTop + 76} />
-          <Answer f={f} at={reply} top={tagTop + 76}>
-            {i.reply}
-            <Ticket icon="issue" number={c.issueNo} name={i.name} state={<Pill icon="issue" small>{c.open}</Pill>} />
-          </Answer>
-        </AgentPanel>
-      ) : (
-        <Window tab={1} style={{ top: 330, height: 720, ...settle(fade(f, page, 7), 24) }}>
-          <div style={{ position: "absolute", left: 28, top: 26, fontSize: 40, fontWeight: 800, whiteSpace: "nowrap" }}>
-            {i.name}
-            <span style={{ fontFamily: monoFamily, fontWeight: 500, color: color.muted }}> {c.issueNo}</span>
-          </div>
-          <div style={{ position: "absolute", left: 28, top: 100, transform: closed ? `scale(${0.85 + 0.15 * land(f, closeAt, 9)})` : undefined, transformOrigin: "0 50%" }}>
-            {closed ? (
-              <Pill icon="done" solid>
-                {c.closed}
-              </Pill>
-            ) : (
-              <Pill icon="issue">{c.open}</Pill>
-            )}
-          </div>
-          <div style={{ position: "absolute", left: 28, top: 186, width: 890, borderTop: thin }} />
-          {i.comments.map((m, k) => (
-            <Comment key={m.text} f={f} at={at(t.ISSUE.comments[k]!)} who={m.who} text={m.text} top={218 + k * 112} />
-          ))}
-        </Window>
-      )}
-    </Shell>
-  );
-}
-
-// --- 8 · a change: the same one line, two files attached; a pull request someone looks at ------------
-
-export function Shot8Pr() {
-  const { f, at, t, c, now, lang } = useShot("pr");
-  const answerTop = lang === "en" ? 304 : 270; // under what you said: three lines in English, two in Chinese
-  const p = c.pr;
-  const windows = t.PR.typing;
-  const files = t.PR.files.map(at);
-  const send = at(t.PR.send);
-  const reply = at(t.PR.reply);
-  const page = at(t.PR.page);
-  const review = at(t.PR.review);
-  const merge = at(t.PR.merge);
+export function Shot5Agent() {
+  const { f, at, t, c, now, lang } = useShot("agent");
+  const A = t.AGENT;
+  const old = at(A.old);
+  const issue = at(A.issue);
+  const pr = at(A.pr);
+  const page = at(A.page);
+  const merge = at(A.merge);
   const merged = f >= merge;
-  const typing = p.message.map((part, k) => typedOver(part, now, windows[k]!)).join("");
-  const chips = (dark: boolean) => (
-    <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-      {p.files.map((name, k) =>
-        f < files[k]! ? null : (
-          <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px 8px 12px", border: `3px solid ${dark ? color.paper : color.ink}`, fontFamily: monoFamily, fontSize: 25, fontWeight: 600, whiteSpace: "nowrap", ...settle(fade(f, files[k]!, 5), -18) }}>
-            <Icon name="file" size={30} />
-            {name}
-          </div>
-        ),
-      )}
-    </div>
-  );
+  const second = now >= A.type2[0] - 0.05;
+  const said = second ? typedOver(c.pr.message, now, A.type2) : typedOver(c.issue.message, now, A.type1);
+  const typing = second ? now < A.send2 : now < A.send1;
   return (
-    <Shell shot="pr" title={p.title} silent={[1]}>
-      {f < page ? (
-        <AgentPanel
-          style={{ top: 330, height: 870 }}
-          input={
-            f < send ? (
-              <>
-                {f >= files[0]! ? chips(false) : null}
-                {typing || <span style={muted}>{c.agent.placeholder}</span>}
-                <Caret f={f} on={now >= windows[0]![0] - 0.3} />
-              </>
-            ) : (
-              <span style={muted}>{c.agent.placeholder}</span>
-            )
-          }
-        >
-          <Said f={f} at={send} top={30}>
-            {chips(true)}
-            {p.message.join("")}
-          </Said>
-          <Working f={f} from={send + 8} to={reply} top={answerTop} />
-          <Answer f={f} at={reply} top={answerTop}>
-            {p.reply}
-            <Ticket icon="pr" number={c.prNo} name={p.name} state={<Pill icon="pr" small>{c.open}</Pill>} extra={p.count} />
-          </Answer>
-        </AgentPanel>
-      ) : (
-        <Window tab={2} style={{ top: 330, height: 810, ...settle(fade(f, page, 7), 24) }}>
-          <div style={{ position: "absolute", left: 28, top: 26, fontSize: 40, fontWeight: 800, whiteSpace: "nowrap" }}>
-            {p.name}
-            <span style={{ fontFamily: monoFamily, fontWeight: 500, color: color.muted }}> {c.prNo}</span>
+    <Shell shot="agent">
+      {/* the old way, crossed out, until you start talking */}
+      {f >= old && now < A.type1[0] ? (
+        <div style={{ position: "absolute", left: 64, top: 560, display: "flex", alignItems: "center", gap: 20, padding: "24px 36px", border: `3px dashed ${color.lineStrong}`, color: color.muted, fontSize: 54, fontWeight: 800, whiteSpace: "nowrap", ...drop(f, old, 40, -2) }}>
+          <Icon name="pointer" size={58} stroke={1.8} />
+          <span style={{ textDecoration: "line-through" }}>{c.agent.old}</span>
+        </div>
+      ) : null}
+      {/* what you say: typed while the line about it is sung */}
+      {now >= A.type1[0] && f < page ? (
+        <div style={{ position: "absolute", left: 64, top: 560 }}>
+          <div style={{ padding: "26px 30px", background: color.ink, color: color.paper, fontSize: lang === "en" ? 38 : 44, fontWeight: 700, whiteSpace: "nowrap", minWidth: 300, minHeight: 52 }}>
+            {said}
+            {typing && f % 16 < 10 ? <span style={{ display: "inline-block", width: 4, height: "1em", background: color.signal, verticalAlign: "-0.12em", marginLeft: 3 }} /> : null}
           </div>
-          <div style={{ position: "absolute", left: 28, top: 100, transform: merged ? `scale(${0.85 + 0.15 * land(f, merge, 9)})` : undefined, transformOrigin: "0 50%" }}>
-            {merged ? (
-              <Pill icon="merge" solid>
-                {c.merged}
-              </Pill>
-            ) : (
-              <Pill icon="pr">{c.open}</Pill>
-            )}
-          </div>
-          <div style={{ position: "absolute", left: 28, top: 190, width: 890, border, fontFamily: monoFamily, fontSize: 28, fontWeight: 500 }}>
-            <div style={{ height: 62, borderBottom: border, display: "flex", alignItems: "center", padding: "0 22px", fontWeight: 600 }}>{c.filesChanged}</div>
-            {p.changed.map((path, k) => (
-              <div key={path} style={{ height: 62, display: "flex", alignItems: "center", padding: "0 22px", background: k ? SOFT : undefined }}>
-                {k ? "+" : "~"} {path}
-              </div>
-            ))}
-          </div>
-          <Comment f={f} at={review} who={p.review.who} text={p.review.text} top={470} tick />
-          {merged ? (
-            <div style={{ position: "absolute", left: 28, top: 590, display: "flex", alignItems: "center", gap: 16, fontSize: 36, fontWeight: 800, ...settle(fade(f, merge + 4, 6), 14) }}>
-              <Icon name="merge" size={50} style={{ color: color.accent }} />
-              {p.into}
+          <div style={{ marginLeft: 220, width: 0, height: 0, borderLeft: "18px solid transparent", borderRight: "18px solid transparent", borderTop: `24px solid ${color.ink}` }} />
+        </div>
+      ) : null}
+      {/* someone looks at the pull request */}
+      <div style={{ position: "absolute", left: 36, top: 0 }}>
+        <Comment f={f} at={at(A.review)} who={c.pr.review.who} text={c.pr.review.text} top={580} tick />
+      </div>
+      <Bot shot="agent" x={756} height={380} up={A.issue - 0.1} />
+      {/* what the agent hands back, held over its head */}
+      {f >= issue && f < pr ? (
+        <Ticket icon="issue" number={c.issueNo} name={c.issue.name} state={<Pill icon="issue">{c.open}</Pill>} style={{ position: "absolute", left: 500, top: 800, width: 512, ...drop(f, issue, 50, 3) }} />
+      ) : null}
+      {f >= pr ? (
+        <Ticket
+          icon={merged ? "merge" : "pr"}
+          number={c.prNo}
+          name={c.pr.name}
+          state={
+            <div style={merged ? pop(f, merge) : undefined}>
+              {merged ? (
+                <Pill icon="merge" solid>
+                  {c.merged}
+                </Pill>
+              ) : (
+                <Pill icon="pr">
+                  {c.open}
+                </Pill>
+              )}
             </div>
-          ) : null}
-        </Window>
-      )}
+          }
+          style={{ position: "absolute", left: 500, top: 800, width: 512, boxShadow: merged ? `0 0 0 ${4 * land(f, merge, 9)}px ${color.accent}` : undefined, ...drop(f, pr, 50, -3) }}
+        />
+      ) : null}
+      <Beaver shot="agent" x={310} height={420} steps={[{ from: 0, move: GROOVE }, { from: A.old - 0.1, move: DISMISS }, { from: A.type1[0] - 0.1, move: TALK }, { from: A.page, move: GROOVE }, { from: A.merge, move: CHEER }]} />
     </Shell>
   );
 }

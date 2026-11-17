@@ -64,8 +64,11 @@ storyboard, style options, stills, sound, platforms. In short:
    against `BRAND.md`.
 2. Put the words in `copy.ts` (`**word**` is highlighted) and the times in `timeline.ts`.
 3. Build shots from `kit/`: `Stage`, `Note`, `Rich`, `Lockup`, `NovaStar` + `starFall`,
-   `SwapCaption`, `Robots`, `Burst`. Add each shot to `Root.tsx`.
+   `SwapCaption`, `Robots`, `Burst`, and for a film cut to music `Dancer` and `Buddy`
+   (`kit/dancer.tsx`: a beaver and a robot that dance on the beat). Add each shot to `Root.tsx`.
 4. Score it in `music.ts` with `kit/audio/synth.ts`: put a sound on every event from `timeline.ts`.
+   (One film is cut to a finished song instead, 2026-11-github-101: its clock comes from the song,
+   and the song files stay out of the repository. See its `BRIEF.md` and `public/song/NOTICE.md`.)
 5. Review with `still` and `shot`; when it's right, `all`. Write `POST.md`.
 
 ## Gotchas

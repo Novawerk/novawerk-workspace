@@ -1,0 +1,15 @@
+{"chunks": [
+ {"text": "[Intro]\nNovawerk 一零一\n(yeah)", "duration_ms": 5300,
+  "positive_styles": ["Mandarin Chinese rap", "laid-back boom bap hip hop", "90 BPM", "warm friendly male rapper", "clear articulation, every word easy to understand", "conversational flow", "jazzy Rhodes piano chords", "mellow round bassline", "dusty drums with vinyl crackle", "playful and light-hearted", "vocals upfront in a clean mix"],
+  "negative_styles": ["aggressive", "trap hi-hats", "autotune", "screaming", "dark", "female vocals", "heavy distortion", "sung melody"], "context_adherence": "high"},
+ {"text": "[Verse 1]\n需求埋在聊天记录里\n文件躺在谁的邮箱里\n最终版，最终版二，真的最终版\n最新那一份，到底在哪里", "duration_ms": 10700,
+  "positive_styles": ["Mandarin Chinese rap verse", "relaxed storytelling flow", "one line per bar"], "negative_styles": ["aggressive", "autotune"], "context_adherence": "high"},
+ {"text": "[Verse 2]\nGitHub 说白了，就是个网站\n项目的文件夹，加一块留言板\n谁在哪一天，改了哪一段\n它全都记着，一条都不乱", "duration_ms": 10700,
+  "positive_styles": ["Mandarin Chinese rap verse", "relaxed storytelling flow", "one line per bar"], "negative_styles": ["aggressive", "autotune"], "context_adherence": "high"},
+ {"text": "[Chorus]\n三个词，记住就上路\nRepository，项目的仓库\nIssue，一件事，一条记录\nPull request，改完先让大家过目", "duration_ms": 10700,
+  "positive_styles": ["catchy rap hook", "a little more energy", "doubled vocals on the English words"], "negative_styles": ["aggressive", "autotune", "sung melody"], "context_adherence": "high"},
+ {"text": "[Verse 3]\n现在有了 agent，不用自己点\n跟它说一句，Issue 就出现\n要改东西，让它提个 PR\n合并之前，大家先看一遍", "duration_ms": 10700,
+  "positive_styles": ["Mandarin Chinese rap verse", "relaxed storytelling flow", "one line per bar"], "negative_styles": ["aggressive", "autotune"], "context_adherence": "high"},
+ {"text": "[Outro]\n公开的仓库，隐私密码别乱放\n改错也别慌，每一版都存档\nNovawerk 一零一，今天就到这\n一起把想法，做成真的东西", "duration_ms": 12000,
+  "positive_styles": ["Mandarin Chinese rap", "winding down", "last line spoken warmly", "beat ends cleanly on the last word"], "negative_styles": ["aggressive", "autotune", "long fade"], "context_adherence": "high"}
+]}
