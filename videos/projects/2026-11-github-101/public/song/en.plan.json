@@ -1,0 +1,15 @@
+{"chunks": [
+ {"text": "[Intro]\nNovawerk one-oh-one\n(yeah)", "duration_ms": 5300,
+  "positive_styles": ["English rap", "laid-back boom bap hip hop", "90 BPM", "warm friendly male rapper", "clear articulation, every word easy to understand", "conversational flow", "jazzy Rhodes piano chords", "mellow round bassline", "dusty drums with vinyl crackle", "playful and light-hearted", "vocals upfront in a clean mix"],
+  "negative_styles": ["aggressive", "trap hi-hats", "autotune", "screaming", "dark", "female vocals", "heavy distortion", "sung melody"], "context_adherence": "high"},
+ {"text": "[Verse 1]\nThe request is in a chat from a week ago\nThe file is in an email, which one, I don't know\nFinal, final two, really final, send\nWhere's the latest version? On the laptop of a friend", "duration_ms": 10700,
+  "positive_styles": ["relaxed storytelling rap verse", "one line per bar"], "negative_styles": ["aggressive", "autotune"], "context_adherence": "high"},
+ {"text": "[Verse 2]\nGitHub is a website, nothing more to it\nA shared project folder with a message board in it\nWho changed what and when, it's all on record\nEvery single version, you can always check it", "duration_ms": 10700,
+  "positive_styles": ["relaxed storytelling rap verse", "one line per bar"], "negative_styles": ["aggressive", "autotune"], "context_adherence": "high"},
+ {"text": "[Chorus]\nThree words and you're good to go\nRepository, that's the folder, so you know\nIssue, one thing to do, one thread\nPull request, look first, then go ahead", "duration_ms": 10700,
+  "positive_styles": ["catchy rap hook", "a little more energy", "doubled vocals on the key words"], "negative_styles": ["aggressive", "autotune", "sung melody"], "context_adherence": "high"},
+ {"text": "[Verse 3]\nGot a coding agent? Then you don't have to click\nTell it what you want and it opens issues quick\nNeed a change? Ask it for a PR\nWe take a look, then merge it, and there you are", "duration_ms": 10700,
+  "positive_styles": ["relaxed storytelling rap verse", "one line per bar"], "negative_styles": ["aggressive", "autotune"], "context_adherence": "high"},
+ {"text": "[Outro]\nPublic repo? Keep your secrets out\nMade a mistake? Every version's there, no doubt\nNovawerk one-oh-one, that's all for today\nLet's turn ideas into something real", "duration_ms": 12000,
+  "positive_styles": ["winding down", "last line spoken warmly", "beat ends cleanly on the last word"], "negative_styles": ["aggressive", "autotune", "long fade"], "context_adherence": "high"}
+]}

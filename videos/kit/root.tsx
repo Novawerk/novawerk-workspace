@@ -30,6 +30,7 @@ export function VideoRoot({
   variant,
   wrap: Wrap = ({ children }) => <>{children}</>,
   poster,
+  musicVolume = 1,
 }: {
   shots: readonly Shot[];
   cover?: ComponentType;
@@ -40,6 +41,8 @@ export function VideoRoot({
   wrap?: ComponentType<{ children: ReactNode }>;
   /** Show this shot, frozen at `frame` (its own frame count), on the film's first frame. */
   poster?: { shot: string; frame: number };
+  /** Turn the soundtrack down, e.g. under a voice that the shots play themselves. */
+  musicVolume?: number;
 }) {
   // The soundtrack (music.ts → public/music.wav) runs on the same clock as the picture.
   const music = staticFile(variant ? `music-${variant}.wav` : "music.wav");
@@ -52,7 +55,7 @@ export function VideoRoot({
   function Main() {
     return (
       <>
-        <Audio src={music} />
+        <Audio src={music} volume={musicVolume} />
         <Wrap>
           <Series>
             {shots.map((s) => (
@@ -77,7 +80,7 @@ export function VideoRoot({
     function ShotWithMusic() {
       return (
         <>
-          <Audio src={music} trimBefore={starts[i]} />
+          <Audio src={music} trimBefore={starts[i]} volume={musicVolume} />
           <Wrap>
             <s.component />
           </Wrap>
