@@ -239,7 +239,7 @@ export function Shot5Start() {
           </div>
         );
       })}
-      <Cursor f={f} path={[[accept - 24, 760, 1230], [accept - 5, 588, 1094]]} clicks={[accept]} />
+      <Cursor f={f} path={[[accept - 24, 760, 1230], [accept - 5, 598, 1102]]} clicks={[accept]} />
     </Shell>
   );
 }

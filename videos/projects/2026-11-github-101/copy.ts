@@ -6,14 +6,18 @@
 import { NARRATION, shown } from "./narration.ts";
 import type { Lang } from "./narration.ts";
 
-/** GitHub's labels and the made-up repository: the same in both films. */
+/**
+ * GitHub's labels and the made-up repository: the same in both films. The repository and the username
+ * are written as placeholders on purpose: a plain name could be a real account, and a repository
+ * under our own name next to "invited" reads as an invitation to join Novawerk.
+ */
 const ui = {
   series: "NOVAWERK 101",
-  repo: "novawerk / demo",
+  repo: "your-team / your-project",
   tabs: ["Code", "Issues", "Pull requests"],
   github: "GitHub",
   username: "Username",
-  handle: "your-name",
+  handle: "<your-name>",
   signUp: "Sign up",
   accept: "Accept invitation",
   open: "Open",
@@ -41,13 +45,13 @@ const zh = {
     title: ["一个项目，", "**一个地方**"],
     noInstall: "不用装软件",
     tags: ["共享文件夹", "留言板", "改动记录"],
-    files: ["需求", "设计稿", "文案.md", "常见问题.md"],
+    files: ["需求", "设计稿", "文案", "常见问题"],
     board: [
       { who: "你", text: "首页想加一个入口" },
       { who: "宁", text: "收到，这周做" },
     ],
     history: [
-      { who: "宁", text: "改了 文案.md", day: "周二" },
+      { who: "宁", text: "改了 文案", day: "周二" },
       { who: "周", text: "传了 设计稿", day: "周三" },
     ],
   },
@@ -63,9 +67,9 @@ const zh = {
     title: ["三步，**开始**"],
     steps: ["注册账号", "把用户名发给伙伴", "在邮件里接受邀请"],
     free: "免费",
-    tell: "我的用户名：your-name",
-    invite: "邀请你加入 novawerk / demo",
-    joined: "已加入",
+    tell: "我的用户名：<your-name>",
+    invite: "邀请你协作：your-team / your-project",
+    joined: "已接受",
   },
   agent: {
     title: ["有了 agent，", "**说人话就行**"],
@@ -96,7 +100,7 @@ const zh = {
     reply: "改好了，提了一个 PR：",
     name: "收费改成不收费，加两份材料",
     count: "3 个文件",
-    changed: ["docs/常见问题.md", "docs/活动流程.pdf", "docs/封面图.png"],
+    changed: ["docs/常见问题", "docs/活动流程.pdf", "docs/封面图.png"],
     review: { who: "宁", text: "看过了，没问题" },
     into: "已合并进 main",
   },
@@ -146,9 +150,9 @@ const en: typeof zh = {
     title: ["Three steps **in**"],
     steps: ["Make an account", "Tell your partner your username", "Accept the invite in your email"],
     free: "free",
-    tell: "My username: your-name",
-    invite: "You're invited to novawerk / demo",
-    joined: "Joined",
+    tell: "My username: <your-name>",
+    invite: "Invited to your-team / your-project",
+    joined: "Accepted",
   },
   agent: {
     title: ["With an agent,", "**just say it**"],

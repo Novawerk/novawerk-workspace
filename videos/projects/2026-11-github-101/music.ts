@@ -61,7 +61,7 @@ put(AGENT.connectClick + 0.12, pluck(84, 0.8, 0.5), 0.2, 0, 0.6);
 
 // --- typing: keys for as long as a message is being typed (the shots type it over the same windows)
 const type = (from: number, to: number) => each(from, to, 1 / 13, (s, i) => put(s, key(), 0.26 + (i % 3) * 0.05, ((i % 5) - 2) * 0.1));
-type(START.steps[0]! + 0.4, START.steps[0]! + 0.4 + 9 / 16);
+type(START.steps[0]! + 0.4, START.steps[0]! + 0.4 + 11 / 16); // the username: 11 characters at 16 a second (Shot5Start)
 for (const [from, to] of [...ISSUE.typing, ...PR.typing]) type(from, to);
 
 // --- the agent answers; replies arrive; closed and merged get a chime

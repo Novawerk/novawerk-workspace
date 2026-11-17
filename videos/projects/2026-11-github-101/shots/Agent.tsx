@@ -42,7 +42,7 @@ export function Shot6Agent() {
               ))
             : null}
           <Answer f={f} at={connect} top={36}>
-            <div style={{ height: 92 }}>{a.connectAsk}</div>
+            <div style={{ height: 108 }}>{a.connectAsk}</div>
             {f < click + 4 ? (
               <Btn primary hot={f >= click - 14}>
                 {a.connect}
@@ -58,7 +58,8 @@ export function Shot6Agent() {
       ) : null}
       {choice(false, swap, <Icon name="pointer" size={84} stroke={1.8} />, a.old, 64)}
       {choice(true, talk, <Icon name="chat" size={84} stroke={1.8} style={{ color: color.accent }} />, a.now, 556)}
-      <Cursor f={f} path={[[click - 26, 640, 800], [click - 5, 330, 558]]} clicks={[click]} />
+      {/* the tip lands in the button's lower right corner, clear of its label */}
+      <Cursor f={f} path={[[click - 26, 640, 800], [click - 5, lang === "en" ? 410 : 352, 590]]} clicks={[click]} />
     </Shell>
   );
 }
@@ -78,7 +79,7 @@ export function Shot7Issue() {
   const typing = i.message.map((part, k) => typedOver(part, now, windows[k]!)).join("");
   const tagTop = lang === "en" ? 216 : 172;
   return (
-    <Shell shot="issue" title={i.title}>
+    <Shell shot="issue" title={i.title} silent={[1]}>
       {f < page ? (
         <AgentPanel
           style={{ top: 330, height: 870 }}
@@ -166,7 +167,7 @@ export function Shot8Pr() {
     </div>
   );
   return (
-    <Shell shot="pr" title={p.title}>
+    <Shell shot="pr" title={p.title} silent={[1]}>
       {f < page ? (
         <AgentPanel
           style={{ top: 330, height: 870 }}

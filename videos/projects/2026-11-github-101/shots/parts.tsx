@@ -62,7 +62,25 @@ export function settle(p: number, rise: number): CSSProperties {
 
 // --- the frame ---------------------------------------------------------------------------------
 
-export function Shell({ shot, dark = false, title, titleAt = 6, subtitles = true, children }: { shot: string; dark?: boolean; title?: readonly string[]; titleAt?: number; /** Off when the picture already shows the words being said. */ subtitles?: boolean; children: ReactNode }) {
+export function Shell({
+  shot,
+  dark = false,
+  title,
+  titleAt = 6,
+  subtitles = true,
+  silent = [],
+  children,
+}: {
+  shot: string;
+  dark?: boolean;
+  title?: readonly string[];
+  titleAt?: number;
+  /** Off when the picture already shows the words being said. */
+  subtitles?: boolean;
+  /** Lines (by position in the clip) that get no subtitle: the ones typed on screen as they are said. */
+  silent?: readonly number[];
+  children: ReactNode;
+}) {
   const { f, c, lang } = useShot(shot);
   return (
     <Stage bg={dark ? color.ink : color.paper} fg={dark ? color.paper : color.ink}>
@@ -80,7 +98,7 @@ export function Shell({ shot, dark = false, title, titleAt = 6, subtitles = true
         </div>
       ) : null}
       {children}
-      {subtitles ? <Subtitles shot={shot} dark={dark} /> : null}
+      {subtitles ? <Subtitles shot={shot} dark={dark} silent={silent} /> : null}
       <Sequence from={Math.round((TIMELINES[lang]!.CLIPS[shot]! - TIMELINES[lang]!.SHOTS[shot]!.start) * FPS)} layout="none">
         <Audio src={staticFile(`vo/${lang}/${shot}.mp3`)} volume={VO_GAIN} />
       </Sequence>
@@ -89,17 +107,18 @@ export function Shell({ shot, dark = false, title, titleAt = 6, subtitles = true
 }
 
 /** The line being spoken, at the bottom; the words not said yet are grey. */
-function Subtitles({ shot, dark }: { shot: string; dark: boolean }) {
+function Subtitles({ shot, dark, silent }: { shot: string; dark: boolean; silent: readonly number[] }) {
   const { f, now, t, lang, at } = useShot(shot);
   const v = t.voice[shot]!;
   const clip = t.CLIPS[shot]!;
   const lines = NARRATION[lang].find((s) => s.id === shot)!.lines.map((line, i) => ({
+    i,
     from: clip + v.t[i]![0]!,
     to: clip + v.end[i]!,
     phrases: line.map((p, j) => ({ text: shown(p), at: clip + v.t[i]![j]! })),
   }));
   const line = [...lines].reverse().find((l) => now >= l.from - 0.12);
-  if (!line || now > line.to + 0.8) return null;
+  if (!line || now > line.to + 0.8 || silent.includes(line.i)) return null;
   return (
     <div style={{ position: "absolute", left: 48, right: 48, bottom: 76, textAlign: "center", textWrap: "balance", fontSize: lang === "en" ? 38 : 40, fontWeight: 700, lineHeight: 1.3, opacity: fade(f, at(line.from - 0.12), 5) }}>
       {line.phrases.map((ph) => (
@@ -146,7 +165,6 @@ const icons = () => ({
     </>
   ),
   check: <path d="M5 12.5l4.5 4.5L19 7" />,
-  cross: <path d="M6 6l12 12M18 6 6 18" />,
   lock: (
     <>
       <rect x="5" y="11" width="14" height="9" />
@@ -160,11 +178,10 @@ const icons = () => ({
     </>
   ),
   chat: <path d="M4 5h16v11H10l-4 4v-4H4z" />,
-  back: <path d="M4 9h10a5 5 0 0 1 0 10H8M8 5 4 9l4 4" />,
   pointer: <path d="M5 3l13 8.5-5.6 1.3L15.5 19l-2.6 1.2-3-6.2L6 17.5z" />,
   send: <path d="M12 19V5M6 11l6-6 6 6" />,
-  // the agent: a spark, not anyone's logo
-  agent: <path d="M12 3l2 6.5 6.5 2.5-6.5 2.5-2 6.5-2-6.5L3.5 12 10 9.5z" />,
+  // the agent: a prompt. Not anyone's logo, and not a star: next to the Nova Star that would read as ours
+  agent: <path d="M5 7l5 5-5 5M13 17h6" />,
 });
 type IconName = keyof ReturnType<typeof icons>;
 
@@ -295,7 +312,7 @@ export function Cursor({ f, path, clicks }: { f: number; path: readonly (readonl
 
 // --- a chat with a coding agent --------------------------------------------------------------------
 
-/** The agent's window. Not any product: a spark, a name, the repository it is working in, a thread, an input. */
+/** The agent's window. Not any product: a prompt mark, a name, the repository it is working in, a thread, an input. */
 export function AgentPanel({ style, children, input, repo = true }: { style?: CSSProperties; children: ReactNode; input: ReactNode; repo?: boolean }) {
   const c = copies[useContext(FilmLang)];
   return (
@@ -333,7 +350,7 @@ export function Said({ f, at, top, children }: { f: number; at: number; top: num
   );
 }
 
-/** What the agent answers: white, on the left, with its spark. */
+/** What the agent answers: white, on the left, with its mark. */
 export function Answer({ f, at, top, children }: { f: number; at: number; top: number; children: ReactNode }) {
   if (f < at) return null;
   return (

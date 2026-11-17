@@ -1,14 +1,20 @@
 """The narration → public/vo/<lang>/<id>.mp3 and voice.ts (when each phrase starts).
 
-    pip install edge-tts          (needs Node, ffmpeg and ffprobe on the path too)
+    pip install edge-tts==7.3.1   (needs Node, ffmpeg and ffprobe on the path too)
     python scripts/tts.py [zh|en] [segment ids…]
 
-The voice is Microsoft's (the service behind Edge's "read aloud", through the edge-tts package):
-free, no key. The clips and voice.ts are committed, so the film renders without it. Run it again
-only when narration.ts changes; with segment ids it redoes just those.
+WARNING: the voice comes from the service behind Edge's "read aloud", through the edge-tts package.
+It is free and needs no key, but it is NOT an official interface: it is meant for the Edge browser
+itself, calling it from a program like this is probably outside what Microsoft allows, and it can
+stop working at any time. The same voices have an official interface (Azure AI Speech, with a free
+tier and a key). Whether to move there is the founder's decision: see BRIEF.md, "旁白".
+
+The clips and voice.ts are committed, so the film renders without the service. Run this again only
+when narration.ts changes; with segment ids it redoes just those. voice.json is this script's own
+record (so a partial run keeps the other segments' times); the film reads voice.ts.
 
   VO_VOICE_ZH / VO_VOICE_EN   the voice (defaults below)
-  VO_RATE_ZH / VO_RATE_EN     e.g. "+8%"
+  VO_RATE_ZH / VO_RATE_EN     how much faster than the voice's own pace, e.g. "+8%"
 """
 
 import asyncio

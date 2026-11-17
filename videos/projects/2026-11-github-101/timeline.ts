@@ -18,7 +18,6 @@ const TAIL = 0.5; // after the last word, before the cut (the clip's own trailin
 
 /** Shot (and its clip, same id), and seconds to hold after the last word. */
 const PLAN: readonly (readonly [string, number?])[] = [["hook"], ["welcome"], ["what"], ["words"], ["start"], ["agent"], ["issue"], ["pr"], ["habits"], ["close", 1.4]];
-export const SHOT_IDS = PLAN.map(([id]) => id);
 
 const stagger = (t: number, n: number, step = 0.28) => Array.from({ length: n }, (_, i) => +(t + i * step).toFixed(2));
 
