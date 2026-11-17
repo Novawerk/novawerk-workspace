@@ -1,5 +1,11 @@
 # 发布文案 · Novawerk 101 · GitHub
 
+**从哪个账号发：创始人的个人账号，不从 Novawerk 的账号发。** 下面每一处（微信、小红书、英文版、
+LinkedIn）都一样。创始人 2026-11-17 定的。
+
+**Which account posts it: the founder's personal account, not a Novawerk account.** This holds for
+every platform below. Decided by the founder on 2026-11-17.
+
 ## 发给项目方（微信）
 
 发之前：用对方实际在用的那个 agent，把片里那两句话（开一条 Issue、提一个 PR）自己走一遍。片子只在
