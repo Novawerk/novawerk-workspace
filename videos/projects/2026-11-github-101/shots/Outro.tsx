@@ -52,7 +52,7 @@ export function Shot8Close() {
   const number = land(f, F8(CLOSE.land) + 12, 10);
   const line = fade(f, F8(CLOSE.line), 8);
   return (
-    <Shell shot="close" dark>
+    <Shell shot="close" dark subtitles={false}>
       <div style={{ position: "absolute", left: 0, right: 0, top: 400, display: "flex", justifyContent: "center", opacity: f >= start ? 1 : 0 }}>
         <Lockup
           height={104}

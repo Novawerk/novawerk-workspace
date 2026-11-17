@@ -6,6 +6,7 @@ import { NARRATION, shown } from "./narration";
 
 export const copy = {
   series: "NOVAWERK 101",
+  me: "你",
   demo: "示意",
   repo: "novawerk / demo",
   tabs: ["Code", "Issues", "Pull requests"],
@@ -75,6 +76,7 @@ export const copy = {
   edit: {
     title: ["文档和材料，", "**自己放进来**"],
     path: ["docs", "常见问题.md"],
+    preview: "Preview",
     doc: ["# 常见问题", "怎么注册？", "点右上角的「注册」。", "要收费吗？"],
     before: "（待补充）",
     after: "不收费，注册就能用。",
@@ -85,11 +87,15 @@ export const copy = {
     message: "补上收费问题的回答",
     direct: "Commit directly to the main branch.",
     branch: "Create a new branch for this commit and start a pull request.",
+    branchName: "your-name-patch-1",
+    propose: "Propose changes",
     addFile: "Add file",
     menu: ["Create new file", "Upload files"],
     folder: ["需求.md", "文案.md", "常见问题.md"],
     drag: "Drag files here to add them to your repository",
-    uploads: ["访谈记录.pdf", "封面图.png"],
+    uploads: ["活动流程.pdf", "封面图.png"],
+    uploadMessage: "上传活动流程和封面图",
+    filesChanged: "Files changed",
     openPr: "Open a pull request",
     createPr: "Create pull request",
     review: { who: "宁", text: "看过了，没问题" },

@@ -75,3 +75,11 @@ storyboard, style options, stills, sound, platforms. In short:
 - `timeline.ts` and `music.ts` run under plain Node (type stripping): no extensionless imports, no
   TypeScript-only syntax such as parameter properties or enums.
 - Chinese fonts are subset to the characters in `copy.ts` at render time, so text has to live there.
+- A film can have frames a still never shows: in 2026-11-github-101 a dialog laid over dimmed content
+  came out with a strip missing on many frames of the film, while every `still` of those frames was
+  whole. It went away once the dialog no longer kept `opacity: 1` and a zero `transform` after its
+  entrance, and the content behind was dimmed with a white sheet instead of `opacity` (`settle` and
+  `Veil` in that project's `shots/parts.tsx`). To check a film, render it twice and compare:
+  `ffmpeg -i a.mp4 -i b.mp4 -lavfi psnr=stats_file=psnr.txt -f null -`; a frame far below the rest
+  is one where a render went wrong. Even after the fix, one of two renders of that film dropped a
+  title for three frames while its page faded in, so do this before a film goes out.

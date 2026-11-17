@@ -48,18 +48,19 @@ put(WHAT.land, impact(1.2), 0.3, 0, 0.5);
 WORDS.gloss.forEach((t, i) => put(t, pluck(72 + [0, 4, 7][i]!, 0.8, 0.5), 0.25, 0, 0.6));
 
 // --- the pointer: a click each time it presses something
-const clicks = [START.accept, ISSUE.newClick, ISSUE.createClick, EDIT.pencilClick, EDIT.commitClick, EDIT.addFile, EDIT.upload, EDIT.pick, EDIT.createClick];
+const clicks = [START.accept, ISSUE.newClick, ISSUE.createClick, EDIT.pencilClick, EDIT.commitClick, EDIT.pickFirst, EDIT.addFile, EDIT.upload, EDIT.pick, EDIT.propose, EDIT.createClick];
 for (const t of clicks) {
   put(t, key(), 0.9);
   put(t + 0.02, snap(), 0.25, 0, 0.1);
 }
 
-// --- typing: a key for every character, at the speed the shots type (shots/parts.tsx `typed`)
+// --- typing: a key for every character, at the speed the shots type (shots/parts.tsx `typed`).
+// The counts are the lengths of the typed strings in copy.ts: change them together.
 const type = (from: number, chars: number, perSecond = 15) => each(from, from + chars / perSecond, 1 / perSecond, (t, i) => put(t, key(), 0.28 + (i % 3) * 0.05, ((i % 5) - 2) * 0.1));
 type(START.steps[0]! + 0.4, 9, 16);
 type(ISSUE.title, 13);
 type(ISSUE.desc, 14);
-type(ISSUE.desc + 14 / 15 + 0.2, 14);
+type(ISSUE.desc + 14 / 15 + 0.2, 13);
 type(EDIT.rewrite + 0.27, 10, 14);
 type(EDIT.message, 9, 13);
 put(ISSUE.paste, tock(), 0.5, 0, 0.2);

@@ -21,22 +21,35 @@ Novawerk 101 的第一条：给**不写代码的项目方**看的讲解片。共
 ## 能用的事实
 
 GitHub 的界面是英文的，片子里按钮都用英文原文，旁白用中文讲。下面的标签 2026-11-17 在 GitHub 网页上
-核对过：
+核对过；只有 **Create new file** 和 **Files changed** 两个是凭经验写的，那天没有点开看：
 
+- 仓库页的三个标签 **Code**、**Issues**、**Pull requests**。
 - Issues 页的 **New issue**；表单 **Create new issue**、**Add a title**、**Add a description**、
   **Create**、**Cancel**；Issue 下面 **Add a comment**、**Comment**；状态 **Open** / **Closed**。
-- 文件页的铅笔（Edit this file）；编辑页 **Cancel changes**、**Commit changes...**；对话框
-  **Commit changes**、**Commit message**，两个选项 *Commit directly to the main branch.* 和
+- 文件页的 **Preview** 和铅笔（Edit this file）；编辑页 **Cancel changes**、**Commit changes...**；
+  对话框 **Commit changes**、**Commit message**，两个选项 *Commit directly to the main branch.* 和
   *Create a new branch for this commit and start a pull request.*
-- **Add file** → **Upload files**；*Drag files here to add them to your repository*。
-- **Open a pull request**、**Create pull request**；合并后 **Merged**。
-- 接受邀请的按钮 **Accept invitation**。
+- 选了第二项以后，绿色按钮从 **Commit changes** 变成 **Propose changes**，下面多出一个填好的分支名
+  （`<用户名>-patch-1`）。这一条是独立审查指出、当天在上传页上点过确认的。
+- **Add file** → **Create new file** / **Upload files**；*Drag files here to add them to your
+  repository*；上传页自己带一块 Commit changes。
+- **Open a pull request**、**Create pull request**；PR 里的 **Files changed**；合并后 **Merged**。
+
+画面为了短做了三处简化，没有照搬真实流程：
+
+- 注册只画了 **Username** 和 **Sign up**。真实的注册表单还要邮箱和密码，最后的按钮是 Create account。
+- 邀请邮件里的按钮是 View invitation，点开的页面上才是 **Accept invitation**。片子把这两步画成了
+  一步（这一条来自审查意见和 GitHub 文档，没有拿真实邀请试过）。
+- 上传页的 Commit changes 在拖放区下面，同一页上；片子把它画成盖在上传页上面的一个框，和改文档时
+  弹出的对话框长得一样。
 
 界面是按真实布局画的示意（窗口右上角标「示意」），不是截图。仓库名 `novawerk / demo`、文件、Issue、
 人（「你」「宁」「周」）都是编的，不对应真实项目和真实的人。
 
 片子教的是「保存时选第二项，发起 Pull request，我们看过再合并」。有写权限的人也可以直接提交到 main，
-片子不教这条路：让改动先被看一眼，是我们想要的协作方式。
+片子不教这条路：让改动先被看一眼，是我们想要的协作方式。所以改文档和传材料两次保存都选第二项：
+改文档的对话框在说明打完后就换到第二项，不停在默认项上；旁白说「保存时选下面那一项」时，画面是
+上传的那次保存，之后的 Pull request 也是上传的那两个文件。
 
 ## 不能说的（这条特有的）
 
@@ -54,6 +67,10 @@ GitHub 的界面是英文的，片子里按钮都用英文原文，旁白用中�
 - 时间轴跟着旁白走（`timeline.ts`）：每个镜头的长度是它的旁白长度，再延到下一拍，所以切镜仍在
   120 BPM 的拍子上。画面里的每个动作等的是旁白里对应的那个词。
 - 发音只用语音识别反查过字句，没有人逐句听过；创始人 2026-11-17 听了试听版，说「差不多」。
+  成片音轨转回文字后和稿子对过，只有一处对不上：0:21「先认三个词」开头两个字，识别结果每次都不
+  一样（重新合成三遍也是）。这句话本身少见，分不清是念得含糊还是识别不准，要人听一下。
+- 响度（2026-11-17 量的）：整片 −15.3 LUFS，峰值 −1.1 dBFS；人声各段 −14 到 −15 LUFS；配乐和音效
+  在片中约 −27 LUFS，比人声低 12 dB 左右。
 
 ## 视觉和声音
 
@@ -62,9 +79,15 @@ GitHub 的界面是英文的，片子里按钮都用英文原文，旁白用中�
 - 配乐代码合成，C 大调（C Am F G），120 BPM，压在人声下面（`Root.tsx` 里半音量）。每次便签落下、
   每次点击、每个打出来的字、关闭和合并都有音效。
 - `kit/root.tsx` 为这条片子加了 `musicVolume`（默认 1，别的片子不受影响）。
+- 渲染时踩过一个坑：改文档那个 Commit changes 框，成片里很多帧上面三分之一没画出来（单帧 `still` 是
+  好的）。原因和改法记在 `../../README.md` 的 Gotchas 里。改完以后整片渲染了两遍逐帧对比：2925 帧里
+  只有 3 帧不一样（其中一遍在 Issue 页淡入的那一瞬间少画了标题），提交的是没问题的那一遍。所以以后重新
+  渲染这条片子，也要渲两遍对比一下。
 
 ## 定下来的事
 
 1. 2026-11-17：创始人选了要教的两件事、发给项目方加小红书、一条约 90 秒、加合成人声旁白。
-2. 2026-11-17：稿子合成出来是 86 秒人声，加上镜头之间的停顿，全片 97.5 秒。再压就要删内容或者念得
+2. 2026-11-17：独立审查后改了镜头 6（两次保存的顺序接不上、选第二项后按钮应该是 Propose changes），
+   演示上传的文件从「访谈记录」换成「活动流程」（下一个镜头就在说公开仓库不放隐私）。
+3. 2026-11-17：稿子合成出来是 86 秒人声，加上镜头之间的停顿，全片 97.5 秒。再压就要删内容或者念得
    太快，没有再压。

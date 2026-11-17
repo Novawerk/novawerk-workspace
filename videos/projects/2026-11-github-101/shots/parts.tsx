@@ -28,7 +28,22 @@ export const fade = (f: number, at: number, dur = 6) => progress(f, at, dur);
 
 // --- the frame ---------------------------------------------------------------------------------
 
-export function Shell({ shot, dark = false, title, titleAt = 6, children }: { shot: string; dark?: boolean; title?: readonly string[]; titleAt?: number; children: ReactNode }) {
+export function Shell({
+  shot,
+  dark = false,
+  title,
+  titleAt = 6,
+  subtitles = true,
+  children,
+}: {
+  shot: string;
+  dark?: boolean;
+  title?: readonly string[];
+  titleAt?: number;
+  /** Off when the picture already shows the words being said. */
+  subtitles?: boolean;
+  children: ReactNode;
+}) {
   const f = useCurrentFrame();
   return (
     <Stage bg={dark ? color.ink : color.paper} fg={dark ? color.paper : color.ink}>
@@ -49,7 +64,7 @@ export function Shell({ shot, dark = false, title, titleAt = 6, children }: { sh
         </div>
       ) : null}
       {children}
-      <Subtitles shot={shot} dark={dark} />
+      {subtitles ? <Subtitles shot={shot} dark={dark} /> : null}
       <Voice shot={shot} />
     </Stage>
   );
@@ -196,11 +211,25 @@ export function Window({ tab, style, children }: { tab?: number; style?: CSSProp
   );
 }
 
+/**
+ * Fade in and rise while `p` runs to 1, then no style at all. A box that keeps `opacity: 1` and a zero
+ * transform stays on a layer of its own, and the renderer has captured such layers with a strip not
+ * painted yet (the first cut of this film had the commit box's top third missing on many frames).
+ */
+export function settle(p: number, rise: number): CSSProperties {
+  return p < 1 ? { opacity: Math.min(1, Math.max(0, p)), transform: `translateY(${(1 - p) * rise}px)` } : {};
+}
+
+/** A sheet of white over what is behind a dialog. Not `opacity` on the content: see `settle`. */
+export function Veil() {
+  return <div style={{ position: "absolute", left: 0, top: 0, width: 946, height: 900, background: "rgba(255,255,255,0.78)" }} />;
+}
+
 /** A screen inside the window: on from `from` (frames) until `to`, with a short fade and rise. */
 export function Screen({ f, from = -99, to = 1e9, children }: { f: number; from?: number; to?: number; children: ReactNode }) {
   if (f < from || f >= to) return null;
   const p = fade(f, from, 6);
-  return <div style={{ position: "absolute", left: 0, top: 0, width: 946, opacity: p, transform: `translateY(${(1 - p) * 14}px)` }}>{children}</div>;
+  return <div style={{ position: "absolute", left: 0, top: 0, width: 946, ...settle(p, 14) }}>{children}</div>;
 }
 
 export function Btn({ children, primary = false, hot = false, style }: { children: ReactNode; primary?: boolean; hot?: boolean; style?: CSSProperties }) {
@@ -228,7 +257,7 @@ export function Btn({ children, primary = false, hot = false, style }: { childre
 
 /** A person: an initial in a circle. Nobody real. */
 export function Avatar({ who, size = 56 }: { who: string; size?: number }) {
-  const me = who === "你";
+  const me = who === copy.me;
   return (
     <div style={{ width: size, height: size, borderRadius: size / 2, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.46, fontWeight: 800, border: `3px solid ${color.ink}`, background: me ? color.ink : color.paper, color: me ? color.paper : color.ink }}>
       {who}
@@ -275,7 +304,9 @@ export function Cursor({ f, path, clicks }: { f: number; path: readonly (readonl
   return (
     <div style={{ position: "absolute", left: x, top: y, opacity, pointerEvents: "none" }}>
       {click === undefined ? null : <div style={{ position: "absolute", left: -40 * k - 8, top: -40 * k - 8, width: 80 * k + 16, height: 80 * k + 16, borderRadius: 60, border: `4px solid ${color.accent}`, opacity: 1 - k }} />}
-      <svg viewBox="0 0 24 24" width={54} height={54} style={{ display: "block", transform: `scale(${dip})`, transformOrigin: "0 0" }}>
+      {/* the dip is a smaller box, not a transform: a transform here puts the pointer on its own layer for
+          those frames, and the renderer has caught the layer under it half-painted */}
+      <svg viewBox="0 0 24 24" width={54 * dip} height={54 * dip} style={{ display: "block" }}>
         <path d="M4 2l15 9.5-6.6 1.4L16 20l-3 1.4-3.5-7L5 18.5z" fill={color.ink} stroke={color.paper} strokeWidth={1.6} strokeLinejoin="round" />
       </svg>
     </div>

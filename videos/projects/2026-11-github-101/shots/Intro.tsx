@@ -220,7 +220,7 @@ export function Shot4Start() {
       <Tag>{c.free}</Tag>
     </div>,
     <div key={1} style={{ display: "flex", alignItems: "center", gap: 14, opacity: fade(f, at[1]! + 6, 5) }}>
-      <Avatar who="你" />
+      <Avatar who={copy.me} />
       <div style={{ padding: "14px 22px", border, fontSize: 32, fontWeight: 700, whiteSpace: "nowrap" }}>{c.tell}</div>
     </div>,
     <div key={2} style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -253,7 +253,7 @@ export function Shot4Start() {
           </div>
         );
       })}
-      <Cursor f={f} path={[[accept - 24, 760, 1230], [accept - 5, 470, 1108]]} clicks={[accept]} />
+      <Cursor f={f} path={[[accept - 24, 760, 1230], [accept - 5, 588, 1094]]} clicks={[accept]} />
     </Shell>
   );
 }

@@ -4,7 +4,7 @@ import { useCurrentFrame } from "remotion";
 import { monoFamily } from "../../../kit/fonts";
 import { copy } from "../copy";
 import { EDIT, ISSUE, color, when } from "../theme";
-import { Avatar, Btn, Caret, Cursor, Icon, Pill, SOFT, Screen, Shell, Window, fade, frameIn, framesOf, land, typed, typingFrames } from "./parts";
+import { Avatar, Btn, Caret, Cursor, Icon, Pill, SOFT, Screen, Shell, Veil, Window, fade, frameIn, framesOf, land, settle, typed, typingFrames } from "./parts";
 
 // The two things a project owner does: open an issue and talk under it; change a document or add
 // files, as a pull request. Screens are drawn from GitHub's real layout and labels (BRIEF.md).
@@ -53,7 +53,6 @@ export const ISSUE_FRAMES = framesOf("issue");
 export function Shot5Issue() {
   const f = useCurrentFrame();
   const c = copy.issue;
-  const tab = F5(ISSUE.tab);
   const newHot = F5(when("issue1", 1, 0));
   const newClick = F5(ISSUE.newClick);
   const titleAt = F5(ISSUE.title);
@@ -68,7 +67,7 @@ export function Shot5Issue() {
 
   return (
     <Shell shot="issue" title={c.title}>
-      <Window tab={f >= tab ? 1 : 0} style={{ top: 250, height: 950 }}>
+      <Window tab={1} style={{ top: 250, height: 950 }}>
         {/* the list */}
         <Screen f={f} to={newClick + 3}>
           <div style={{ position: "absolute", left: 28, top: 30, fontSize: 40, fontWeight: 800 }}>{copy.tabs[1]}</div>
@@ -167,7 +166,7 @@ function Radio({ on, mark = false, children, top }: { on: boolean; mark?: boolea
 function CommitBox({ message, caret, second, hot, style }: { message: ReactNode; caret?: ReactNode; second: boolean; hot?: boolean; style?: CSSProperties }) {
   const c = copy.edit;
   return (
-    <div style={{ position: "absolute", left: 28, top: 30, width: 890, height: 560, background: color.paper, border, ...style }}>
+    <div style={{ position: "absolute", left: 28, top: 68, width: 890, height: 556, background: color.paper, border, boxShadow: `12px 12px 0 ${color.ink}`, ...style }}>
       <div style={{ position: "absolute", left: 28, top: 22, fontSize: 36, fontWeight: 800 }}>{c.commit}</div>
       <div style={{ position: "absolute", left: 28, top: 84, ...label }}>{c.commitMessage}</div>
       <Field top={124} height={68} style={{ width: 834 }}>
@@ -180,10 +179,16 @@ function CommitBox({ message, caret, second, hot, style }: { message: ReactNode;
       <Radio top={290} on={second} mark>
         {c.branch}
       </Radio>
-      <div style={{ position: "absolute", right: 28, top: 456, display: "flex", gap: 14 }}>
+      {second ? (
+        <div style={{ position: "absolute", left: 92, top: 398, width: 420, height: 50, border, display: "flex", alignItems: "center", gap: 10, padding: "0 14px", fontFamily: monoFamily, fontSize: 25, fontWeight: 600 }}>
+          <Icon name="pr" size={28} />
+          {c.branchName}
+        </div>
+      ) : null}
+      <div style={{ position: "absolute", right: 28, top: 470, display: "flex", gap: 14 }}>
         <Btn>{copy.issue.cancel}</Btn>
         <Btn primary hot={hot}>
-          {c.commit}
+          {second ? c.propose : c.commit}
         </Btn>
       </div>
     </div>
@@ -199,6 +204,8 @@ export function Shot6Edit() {
   const commitHot = F6(when("edit1", 1, 0));
   const commitClick = F6(EDIT.commitClick);
   const messageAt = F6(EDIT.message);
+  // the first box does not stay on the default: once the message is typed, the second option is clicked
+  const pickFirst = F6(EDIT.pickFirst);
   const folder = F6(EDIT.folder);
   const addHot = F6(when("edit2", 0, 1));
   const addFile = F6(EDIT.addFile);
@@ -206,6 +213,7 @@ export function Shot6Edit() {
   const drops = EDIT.drop.map(F6);
   const save = F6(EDIT.save);
   const pick = F6(EDIT.pick);
+  const propose = F6(EDIT.propose);
   const prForm = F6(when("pr", 0, 1));
   const createClick = F6(EDIT.createClick);
   const review = F6(EDIT.review);
@@ -215,7 +223,7 @@ export function Shot6Edit() {
   const erased = [...c.before].slice(0, Math.max(0, [...c.before].length - Math.max(0, f - rewrite))).join("");
   const typeAt = rewrite + [...c.before].length + 3;
   const line5 = f < typeAt ? erased : typed(c.after, f, typeAt, 14);
-  const source = ["# 常见问题", `## ${c.doc[1]}`, c.doc[2], `## ${c.doc[3]}`];
+  const source = [c.doc[0], `## ${c.doc[1]}`, c.doc[2], `## ${c.doc[3]}`];
   const merged = f >= merge;
 
   const editor = (
@@ -249,9 +257,9 @@ export function Shot6Edit() {
           <div style={{ position: "absolute", left: 28, top: 30 }}>
             <Crumb parts={c.path} />
           </div>
-          <div style={{ position: "absolute", left: 28, top: 104, width: 890, height: 560, border }}>
+          <div style={{ position: "absolute", left: 28, top: 104, width: 890, height: 500, border }}>
             <div style={{ height: 70, borderBottom: border, display: "flex", alignItems: "center", padding: "0 14px 0 24px", fontSize: 26, fontWeight: 700, color: color.muted }}>
-              Preview
+              {c.preview}
               <div style={{ marginLeft: "auto", width: 50, height: 50, display: "flex", alignItems: "center", justifyContent: "center", color: color.ink, border, boxShadow: f >= pencilHot ? `0 0 0 7px ${SOFT}, 0 0 0 10px ${color.accent}` : undefined }}>
                 <Icon name="pencil" size={32} />
               </div>
@@ -268,13 +276,15 @@ export function Shot6Edit() {
 
         {/* the editor, then the commit box over it */}
         <Screen f={f} from={pencilClick + 3} to={folder}>
-          <div style={{ opacity: f >= commitClick + 3 ? 0.25 : 1 }}>{editor}</div>
+          {editor}
+          {f >= commitClick + 3 ? <Veil /> : null}
           {f >= commitClick + 3 ? (
             <CommitBox
               message={typed(c.message, f, messageAt, 13)}
-              caret={<Caret f={f} on={f >= messageAt - 6} />}
-              second={false}
-              style={{ top: 96, boxShadow: `12px 12px 0 ${color.ink}`, opacity: fade(f, commitClick + 3, 5), transform: `translateY(${(1 - land(f, commitClick + 3)) * 30}px)` }}
+              caret={<Caret f={f} on={f >= messageAt - 6 && f < pickFirst} />}
+              second={f >= pickFirst}
+              hot={f >= pickFirst + 8}
+              style={settle(fade(f, commitClick + 3, 6), 30)}
             />
           ) : null}
         </Screen>
@@ -307,31 +317,34 @@ export function Shot6Edit() {
             </div>
           ) : null}
         </Screen>
-        <Screen f={f} from={upload + 3} to={save}>
-          <div style={{ position: "absolute", left: 28, top: 30, width: 890, height: 330, border: `3px dashed ${color.ink}`, background: f >= drops[0]! - 6 ? SOFT : undefined, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, textAlign: "center" }}>
-            <Icon name="upload" size={92} stroke={1.8} />
-            <div style={{ fontSize: 31, fontWeight: 800, width: 620, lineHeight: 1.35 }}>{c.drag}</div>
+        <Screen f={f} from={upload + 3} to={prForm}>
+          <div>
+            <div style={{ position: "absolute", left: 28, top: 30, width: 890, height: 330, border: `3px dashed ${color.ink}`, background: f >= drops[0]! - 6 ? SOFT : undefined, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, textAlign: "center" }}>
+              <Icon name="upload" size={92} stroke={1.8} />
+              <div style={{ fontSize: 31, fontWeight: 800, width: 620, lineHeight: 1.35 }}>{c.drag}</div>
+            </div>
+            {c.uploads.map((name, i) => {
+              const d = land(f, drops[i]!, 9);
+              return (
+                <div key={name} style={{ position: "absolute", left: 28, top: 392 + i * 104, width: 890, height: 88, border, background: color.paper, display: "flex", alignItems: "center", gap: 18, padding: "0 24px", fontFamily: monoFamily, fontSize: 30, fontWeight: 600, opacity: fade(f, drops[i]!, 3), transform: `translate(${(1 - d) * 260}px, ${(1 - d) * 240}px) rotate(${(1 - d) * 8}deg)` }}>
+                  <Icon name="file" size={42} />
+                  {name}
+                  <Icon name="check" size={40} stroke={3} style={{ marginLeft: "auto", color: color.accent, opacity: fade(f, drops[i]! + 9, 4) }} />
+                </div>
+              );
+            })}
           </div>
-          {c.uploads.map((name, i) => {
-            const d = land(f, drops[i]!, 9);
-            return (
-              <div key={name} style={{ position: "absolute", left: 28, top: 392 + i * 104, width: 890, height: 88, border, background: color.paper, display: "flex", alignItems: "center", gap: 18, padding: "0 24px", fontFamily: monoFamily, fontSize: 30, fontWeight: 600, opacity: fade(f, drops[i]!, 3), transform: `translate(${(1 - d) * 260}px, ${(1 - d) * 240}px) rotate(${(1 - d) * 8}deg)` }}>
-                <Icon name="file" size={42} />
-                {name}
-                <Icon name="check" size={40} stroke={3} style={{ marginLeft: "auto", color: color.accent, opacity: fade(f, drops[i]! + 9, 4) }} />
-              </div>
-            );
-          })}
         </Screen>
 
-        {/* saving: the second option makes it a pull request */}
+        {/* saving the upload: the second option makes it a pull request */}
         <Screen f={f} from={save} to={prForm}>
-          <CommitBox message={c.message} second={f >= pick} hot={f >= prForm - 12} />
+          <Veil />
+          <CommitBox message={c.uploadMessage} second={f >= pick} hot={f >= pick + 8} style={settle(fade(f, save, 6), 30)} />
         </Screen>
         <Screen f={f} from={prForm} to={createClick + 4}>
           <div style={{ position: "absolute", left: 28, top: 26, fontSize: 38, fontWeight: 800 }}>{c.openPr}</div>
           <div style={{ position: "absolute", left: 28, top: 100, ...label }}>{copy.issue.addTitle}</div>
-          <Field top={140}>{c.message}</Field>
+          <Field top={140}>{c.uploadMessage}</Field>
           <div style={{ position: "absolute", left: 28, top: 238, ...label }}>{copy.issue.addDesc}</div>
           <Field top={280} height={170} style={{ borderColor: color.lineStrong }} />
           <Btn primary hot style={{ position: "absolute", right: 28, top: 482 }}>
@@ -342,7 +355,7 @@ export function Shot6Edit() {
         {/* the pull request: someone looks, then it is merged */}
         <Screen f={f} from={createClick + 4}>
           <div style={{ position: "absolute", left: 28, top: 26, fontSize: 40, fontWeight: 800, whiteSpace: "nowrap" }}>
-            {c.message}
+            {c.uploadMessage}
             <span style={{ fontFamily: monoFamily, fontWeight: 500, color: color.muted }}> #14</span>
           </div>
           <div style={{ position: "absolute", left: 28, top: 100, transform: `scale(${merged ? 0.85 + 0.15 * land(f, merge, 9) : 1})`, transformOrigin: "0 50%" }}>
@@ -355,9 +368,12 @@ export function Shot6Edit() {
             )}
           </div>
           <div style={{ position: "absolute", left: 28, top: 190, width: 890, border, fontFamily: monoFamily, fontSize: 28, fontWeight: 500 }}>
-            <div style={{ height: 62, borderBottom: border, display: "flex", alignItems: "center", padding: "0 22px", fontWeight: 600 }}>{c.path.join("/")}</div>
-            <div style={{ height: 62, display: "flex", alignItems: "center", padding: "0 22px", color: color.muted }}>- {c.before}</div>
-            <div style={{ height: 62, display: "flex", alignItems: "center", padding: "0 22px", background: SOFT }}>+ {c.after}</div>
+            <div style={{ height: 62, borderBottom: border, display: "flex", alignItems: "center", padding: "0 22px", fontWeight: 600 }}>{c.filesChanged}</div>
+            {c.uploads.map((name) => (
+              <div key={name} style={{ height: 62, display: "flex", alignItems: "center", padding: "0 22px", background: SOFT }}>
+                + {c.path[0]}/{name}
+              </div>
+            ))}
           </div>
           <Comment f={f} at={review} who={c.review.who} text={c.review.text} top={420} tick />
           {merged ? (
@@ -371,8 +387,9 @@ export function Shot6Edit() {
       <Cursor f={f} path={[[pencilClick - 28, 600, 1040], [pencilClick - 5, 950, 606]]} clicks={[pencilClick]} />
       <Cursor f={f} path={[[commitClick - 26, 560, 1000], [commitClick - 5, 940, 500]]} clicks={[commitClick]} />
       <Cursor f={f} path={[[addFile - 22, 560, 1000], [addFile - 4, 950, 496], [addFile + 6, 950, 496], [upload - 4, 900, 640]]} clicks={[addFile, upload]} />
-      <Cursor f={f} path={[[pick - 22, 600, 1080], [pick - 4, 128, 812]]} clicks={[pick]} />
-      <Cursor f={f} path={[[createClick - 26, 520, 1100], [createClick - 5, 950, 962]]} clicks={[createClick]} />
+      <Cursor f={f} path={[[pickFirst - 16, 560, 1040], [pickFirst - 3, 160, 846]]} clicks={[pickFirst]} />
+      <Cursor f={f} path={[[pick - 22, 600, 1080], [pick - 4, 160, 846], [pick + 8, 160, 846], [propose - 4, 930, 1036]]} clicks={[pick, propose]} />
+      <Cursor f={f} path={[[createClick - 26, 520, 1100], [createClick - 5, 972, 972]]} clicks={[createClick]} />
     </Shell>
   );
 }

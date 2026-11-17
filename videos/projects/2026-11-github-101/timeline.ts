@@ -75,7 +75,6 @@ export const START = {
   accept: when("start", 2, 0) + 0.85,
 };
 export const ISSUE = {
-  tab: when("issue1", 0, 1),
   newClick: when("issue1", 1, 0) + 0.55,
   title: when("issue1", 1, 1),
   desc: when("issue1", 2, 0),
@@ -89,12 +88,15 @@ export const EDIT = {
   rewrite: when("edit1", 0, 1) + 1.9,
   commitClick: when("edit1", 1, 0) + 1.5,
   message: when("edit1", 1, 1),
+  // once the 9-character message is typed (13 a second), the second option is clicked
+  pickFirst: when("edit1", 1, 1) + 9 / 13 + 0.17,
   folder: when("edit2", 0, 0),
   addFile: when("edit2", 0, 1) + 0.35,
   upload: when("edit2", 0, 1) + 0.95,
   drop: stagger(when("edit2", 0, 2) + 0.35, 2, 0.3),
   save: when("pr", 0, 0),
   pick: when("pr", 0, 0) + 1.0,
+  propose: when("pr", 0, 1) - 0.17,
   createClick: when("pr", 0, 1) + 1.6,
   review: when("pr", 1, 0) + 0.3,
   merge: when("pr", 1, 1) + 0.35,
