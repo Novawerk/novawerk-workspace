@@ -47,6 +47,11 @@ pnpm typecheck
 `out/stills/`, `out/shots/` and `public/*.wav` are generated and ignored; the films and the
 covers in `out/` are committed.
 
+The code here is MIT, like the rest of the repository. A finished film can carry music that is not:
+2026-11-github-101's two films carry songs made by a music model. A project like that has a
+`NOTICE.md` next to its `out/` (`projects/2026-11-github-101/NOTICE.md`); read it before reusing
+anything from its films.
+
 ## Languages
 
 A project can have variants (`"variants": ["en"]` in `project.json`). Each variant gets its own
@@ -71,7 +76,7 @@ storyboard, style options, stills, sound, platforms. In short:
    (One film is cut to a finished song instead, 2026-11-github-101: its clock comes from the song,
    and the song files stay out of the repository, so without them that project's `studio`, `shot`
    and `render` don't run; `still` and the type check do. See its `BRIEF.md` and
-   `public/song/NOTICE.md`.)
+   `NOTICE.md`.)
 5. Review with `still` and `shot`; when it's right, `all`. Write `POST.md`.
 
 ## Gotchas

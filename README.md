@@ -4,7 +4,8 @@
 
 This is Novawerk's code, in the open: the public website, the admin panel, the
 API, the agents that help run the org, the knowledge base, posts and videos.
-It is public and MIT licensed. Contributions are welcome.
+It is public and MIT licensed, except that a few finished films under `videos/` carry music that
+is not (see each project's `NOTICE.md`). Contributions are welcome.
 
 Our internal records (minutes, decisions, finance, partners) and account details
 are not here. They live in a private repo, `Novawerk/novawerk`, together with the

@@ -20,7 +20,7 @@ again at his request, see above); the model cannot make them again. So this writ
 scripts/align.py, then `pnpm video 2026-11-github-101 all`. Change a word in the plan and lyrics.ts must change with it
 (align.py checks that they agree).
 
-The songs are not in this repository and not under its MIT licence: see public/song/NOTICE.md.
+The songs are not in this repository and not under its MIT licence: see NOTICE.md in the project's folder.
 """
 
 import json
