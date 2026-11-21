@@ -9,10 +9,10 @@
 
 import { readFileSync } from "node:fs";
 
-import { AVAILABILITY_OPTIONS, FUNCTION_OPTIONS, type IntakeMode } from "@nw/contracts";
+import type { IntakeMode } from "@nw/contracts";
 
 export interface IntakePrompts {
-  /** The rendered system prompt (same for every mode; the mode lives in the draft). */
+  /** The rendered system prompt for the project pitch. */
   system: string;
   turnReminder: string;
   greetings: Record<IntakeMode | "unknown", string>;
@@ -32,21 +32,14 @@ export function renderTemplate(template: string, vars: Record<string, string>): 
   });
 }
 
-const optionList = (options: readonly { value: string; label: string }[]) =>
-  options.map((o) => `"${o.value}" (${o.label})`).join(", ");
-
 let cached: IntakePrompts | undefined;
 
 export function loadIntakePrompts(): IntakePrompts {
   cached ??= {
-    system: renderTemplate(read(new URL("./prompts/system.md", import.meta.url)), {
-      functions: optionList(FUNCTION_OPTIONS),
-      availability: optionList(AVAILABILITY_OPTIONS),
-    }),
+    system: read(new URL("./prompts/system.md", import.meta.url)),
     turnReminder: read(new URL("./prompts/turn-reminder.md", import.meta.url)),
     greetings: {
       pitch: read(new URL("./prompts/greeting-pitch.md", import.meta.url)),
-      join: read(new URL("./prompts/greeting-join.md", import.meta.url)),
       unknown: read(new URL("./prompts/greeting-unknown.md", import.meta.url)),
     },
   };

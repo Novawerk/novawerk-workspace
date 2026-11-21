@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 
 import { inProcessIntakeTrigger, inProcessPromoTrigger } from "../src/agents.js";
 import type { IntakeRef } from "../src/types.js";
-import { createTestDb, makeApp, postJson, resetDb, validApplication, validSubmission } from "./helpers.js";
+import { createTestDb, makeApp, postJson, resetDb, validSubmission } from "./helpers.js";
 
 let db: Database;
 beforeAll(async () => {
@@ -19,19 +19,12 @@ beforeEach(async () => {
 });
 
 describe("starting the intake agent", () => {
-  it("dispatches once per stored pitch or application, with the new row id", async () => {
+  it("dispatches once per stored pitch, with the new row id", async () => {
     const calls: IntakeRef[] = [];
     const { app } = makeApp(db, { triggerIntake: async (ref) => void calls.push(ref) });
 
     const pitch = (await (await app.request("/public/submissions", postJson(validSubmission))).json()) as { id: string };
-    const application = (await (await app.request("/public/applications", postJson(validApplication))).json()) as {
-      id: string;
-    };
-
-    expect(calls).toEqual([
-      { table: "project_submissions", id: pitch.id },
-      { table: "member_applications", id: application.id },
-    ]);
+    expect(calls).toEqual([{ table: "project_submissions", id: pitch.id }]);
   });
 
   it("does not dispatch for a honeypot hit", async () => {

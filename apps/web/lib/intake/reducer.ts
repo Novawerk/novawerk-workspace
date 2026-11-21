@@ -10,7 +10,6 @@ import {
   type IntakeMessagePart,
   type IntakeMode,
   type IntakeSession,
-  type JoinDraft,
   type PitchDraft,
   type ResumeRef,
 } from "@nw/contracts";
@@ -21,7 +20,6 @@ export type ToolPart = Extract<IntakeMessagePart, { type: "tool" }>;
 
 export interface DraftEdits {
   pitch: PitchDraft;
-  join: JoinDraft;
 }
 
 /** A field's new value: text, a list of choices, or the CV (null removes it). */
@@ -65,7 +63,7 @@ export const initialIntakeState: IntakeState = {
   status: "open",
   messages: [],
   serverDraft: emptyIntakeDraft(),
-  edits: { pitch: {}, join: {} },
+  edits: { pitch: {} },
   saveFailed: false,
   turnsLeft: null,
   streamingId: null,
@@ -84,7 +82,7 @@ export type IntakeAction =
   | { type: "stream_failed"; assistantId: string; userId: string; text: string; message: string; gone: boolean }
   | { type: "stream_end"; assistantId: string; stopped: boolean }
   | { type: "discard_failed" }
-  | { type: "edit"; mode: IntakeMode; field: string; value: DraftEditValue }
+  | { type: "edit"; field: string; value: DraftEditValue }
   | { type: "saved"; draft: IntakeDraft; sent: DraftEdits }
   | { type: "save_failed" }
   | { type: "submitted" }
@@ -96,7 +94,6 @@ export function displayDraft(state: IntakeState, fallbackMode: IntakeMode): Inta
   return {
     mode: serverDraft.mode ?? fallbackMode,
     pitch: { ...serverDraft.pitch, ...edits.pitch },
-    join: { ...serverDraft.join, ...edits.join },
   };
 }
 
@@ -177,20 +174,19 @@ export function intakeReducer(state: IntakeState, action: IntakeAction): IntakeS
     case "edit":
       return {
         ...state,
-        edits: { ...state.edits, [action.mode]: { ...state.edits[action.mode], [action.field]: action.value } },
+        edits: { pitch: { ...state.edits.pitch, [action.field]: action.value } },
       };
 
     case "saved": {
       // Drop the edits the API now has; keep anything typed while the PATCH was in flight.
-      const keep = (mode: IntakeMode) => {
-        const current: Record<string, unknown> = state.edits[mode];
-        const sent: Record<string, unknown> = action.sent[mode];
-        return Object.fromEntries(Object.entries(current).filter(([key, value]) => !sameValue(value, sent[key])));
-      };
+      const current: Record<string, unknown> = state.edits.pitch;
+      const sent: Record<string, unknown> = action.sent.pitch;
       return {
         ...state,
         serverDraft: action.draft,
-        edits: { pitch: keep("pitch"), join: keep("join") },
+        edits: {
+          pitch: Object.fromEntries(Object.entries(current).filter(([key, value]) => !sameValue(value, sent[key]))),
+        },
         saveFailed: false,
       };
     }
@@ -229,7 +225,7 @@ function applyEvent(state: IntakeState, action: Extract<IntakeAction, { type: "e
 
     case "draft": {
       const mode = event.draft.mode ?? state.serverDraft.mode;
-      const fields = mode ? changedFields(state.serverDraft[mode], event.draft[mode], state.edits[mode]) : [];
+      const fields = mode ? changedFields(state.serverDraft.pitch, event.draft.pitch, state.edits.pitch) : [];
       return {
         ...state,
         serverDraft: event.draft,

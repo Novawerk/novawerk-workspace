@@ -2,8 +2,6 @@
 // (name and email come last). Names match the @nw/contracts draft shapes
 // (and the plain forms), so the same keys travel through draft events, PATCH and `issues`.
 
-import { AVAILABILITY_OPTIONS, FUNCTION_OPTIONS, type IntakeMode } from "@nw/contracts";
-
 export type DraftFieldKind = "text" | "email" | "textarea" | "multi" | "single";
 
 export interface DraftField {
@@ -55,38 +53,12 @@ export const PITCH_FIELDS: readonly DraftField[] = [
   },
 ];
 
-export const JOIN_FIELDS: readonly DraftField[] = [
-  { key: "functions", label: "What you do", kind: "multi", options: FUNCTION_OPTIONS },
-  { key: "background", label: "Background", kind: "text", maxLength: 300, hint: "One line on what you do or study." },
-  {
-    key: "motivation",
-    label: "Why Novawerk",
-    kind: "textarea",
-    maxLength: 2000,
-    hint: "What do you want to build, learn or help with here?",
-  },
-  { key: "availability", label: "Time you can give", kind: "single", options: AVAILABILITY_OPTIONS },
-  { key: "city", label: "City", kind: "text", optional: true, maxLength: 100, autoComplete: "address-level2" },
-  { key: "name", label: "Name", kind: "text", maxLength: 100, autoComplete: "name", hint: "We ask for this at the end of the chat." },
-  { key: "email", label: "Email", kind: "email", maxLength: 200, autoComplete: "email", hint: "So we can reply." },
-  {
-    key: "links",
-    label: "Links",
-    kind: "textarea",
-    optional: true,
-    maxLength: 500,
-    hint: "LinkedIn, GitHub, a portfolio — anything that shows your work.",
-  },
-];
+export const fieldsFor = () => PITCH_FIELDS;
 
-export const fieldsFor = (mode: IntakeMode) => (mode === "pitch" ? PITCH_FIELDS : JOIN_FIELDS);
-
-export const fieldLabel = (mode: IntakeMode, key: string) =>
-  fieldsFor(mode).find((f) => f.key === key)?.label ?? (key === "resume" ? "CV" : key);
+export const fieldLabel = (key: string) => PITCH_FIELDS.find((f) => f.key === key)?.label ?? (key === "resume" ? "CV" : key);
 
 export type DraftValue = string | string[] | undefined;
 
 export function isEmptyValue(value: DraftValue): boolean {
   return Array.isArray(value) ? value.length === 0 : !value?.trim();
 }
-

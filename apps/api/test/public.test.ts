@@ -212,43 +212,10 @@ describe("POST /public/submissions", () => {
 });
 
 describe("POST /public/applications", () => {
-  it("stores the application with functions, availability and consent", async () => {
-    const { app, sent } = makeApp(db);
-    const res = await app.request("/public/applications", postJson(validApplication));
-    expect(res.status).toBe(201);
-    const { id } = (await res.json()) as { id: string };
-
-    const [row] = await db.select().from(memberApplications);
-    expect(row).toMatchObject({
-      id,
-      email: "grace@example.com",
-      city: "Berlin",
-      functions: ["developer", "research"],
-      availability: "2to5",
-      links: null,
-      status: "new",
-    });
-    expect(row?.consentAt).toBeInstanceOf(Date);
-
-    expect(sent[0]).toMatchObject({ subject: "New member application: Grace Hopper", replyTo: "grace@example.com" });
-    expect(sent[0]?.text).toContain("Developer, Research");
-    expect(sent[0]?.text).toContain("2–5 hours a week");
-    expect(sent[0]?.text).toContain(validApplication.motivation);
-  });
-
-  it("answers 400 with field issues", async () => {
-    const { app } = makeApp(db);
-    const res = await app.request("/public/applications", postJson({ ...validApplication, functions: [], consent: false }));
-    expect(res.status).toBe(400);
-    const body = (await res.json()) as { issues: Record<string, string[]> };
-    expect(Object.keys(body.issues).sort()).toEqual(["consent", "functions"]);
-    expect(await db.select().from(memberApplications)).toHaveLength(0);
-  });
-
-  it("answers 200 to a filled honeypot and stores nothing", async () => {
+  it("returns 404 without storing an application or notifying the team", async () => {
     const { app, notify } = makeApp(db);
-    const res = await app.request("/public/applications", postJson({ ...validApplication, website: "spam" }));
-    expect(res.status).toBe(200);
+    const res = await app.request("/public/applications", postJson(validApplication));
+    expect(res.status).toBe(404);
     expect(await db.select().from(memberApplications)).toHaveLength(0);
     expect(notify).not.toHaveBeenCalled();
   });

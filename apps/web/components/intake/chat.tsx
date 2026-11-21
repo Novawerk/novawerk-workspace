@@ -1,6 +1,6 @@
 "use client";
 
-import { RESUME_ATTACHED_TEXT, type IntakeDisplayMessage, type IntakeMode } from "@nw/contracts";
+import { RESUME_ATTACHED_TEXT, type IntakeDisplayMessage } from "@nw/contracts";
 import { memo, useCallback, useLayoutEffect, useRef, useState, type UIEvent } from "react";
 
 import type { IntakeController } from "@/lib/intake/use-intake";
@@ -11,30 +11,17 @@ import { NovaStar } from "@/components/nova-star";
 import { Composer } from "./composer";
 import { Markdown } from "./markdown";
 
-const INTRO: Record<IntakeMode, string> = {
-  pitch:
-    "Hi! Tell us about the project you want to start: what it is, and who it's for. Plain words are fine.\n\nWe'll ask a few questions and fill in your draft as we go. You check it and send it when it's ready.",
-  join: "Hi! Tell us a little about yourself: what you do, and what you'd like to build or learn at Novawerk.\n\nWe'll ask a few questions and fill in your intro as we go. You check it and send it when it's ready.",
-};
+const INTRO =
+  "Hi! Tell us about the project you want to start: what it is, and who it's for. Plain words are fine.\n\nWe'll ask a few questions and fill in your draft as we go. You check it and send it when it's ready.";
 
-const PLACEHOLDER: Record<IntakeMode, string> = {
-  pitch: "Describe your idea…",
-  join: "Tell us about you…",
-};
+const PLACEHOLDER = "Describe your idea…";
 
 /** One-tap openers for people who don't know where to start. Sent as the first message. */
-const SUGGESTIONS: Record<IntakeMode, string[]> = {
-  pitch: [
-    "I have an idea for an app, but it's still rough",
-    "I want to fix a problem in my neighbourhood",
-    "I'm not sure it's a project yet. Help me think it through",
-  ],
-  join: [
-    "I'm a developer and want to build something useful",
-    "I design things and want a real project to work on",
-    "I'd like to help, but I don't know where yet",
-  ],
-};
+const SUGGESTIONS = [
+  "I have an idea for an app, but it's still rough",
+  "I want to fix a problem in my neighbourhood",
+  "I'm not sure it's a project yet. Help me think it through",
+];
 
 // ─── Auto-scroll ─────────────────────────────────────────────────────────────
 
@@ -221,7 +208,7 @@ const textOf = (message: AssistantMessage) =>
 
 // ─── Pane ────────────────────────────────────────────────────────────────────
 
-export function ChatPane({ intake, mode }: { intake: IntakeController; mode: IntakeMode }) {
+export function ChatPane({ intake }: { intake: IntakeController }) {
   const { state, streaming } = intake;
   const { ref: scrollRef, onScroll, atBottom, jump, follow } = useStickToBottom(state.messages);
   const submitted = state.status === "submitted";
@@ -268,7 +255,7 @@ export function ChatPane({ intake, mode }: { intake: IntakeController; mode: Int
               <>
                 {state.messages.length === 0 ? (
                   <AssistantText>
-                    <Markdown text={INTRO[mode]} />
+                    <Markdown text={INTRO} />
                   </AssistantText>
                 ) : null}
                 {state.messages.map((message) => (
@@ -281,7 +268,7 @@ export function ChatPane({ intake, mode }: { intake: IntakeController; mode: Int
                 ))}
                 {showSuggestions ? (
                   <div className="flex flex-col items-start gap-2 pl-8">
-                    {SUGGESTIONS[mode].map((text) => (
+                    {SUGGESTIONS.map((text) => (
                       <button
                         key={text}
                         type="button"
@@ -299,8 +286,7 @@ export function ChatPane({ intake, mode }: { intake: IntakeController; mode: Int
                 {submitted ? (
                   <AssistantText>
                     <p>
-                      Thanks{name ? `, ${name}` : ""}. Your {intake.draft.mode === "pitch" ? "pitch" : "intro"} is
-                      with the team now. We usually reply within a few days.
+                      Thanks{name ? `, ${name}` : ""}. Your pitch is with the team now. We usually reply within a few days.
                     </p>
                   </AssistantText>
                 ) : null}
@@ -351,7 +337,7 @@ export function ChatPane({ intake, mode }: { intake: IntakeController; mode: Int
         streaming={streaming}
         disabled={state.phase !== "ready" || submitted || outOfTurns}
         disabledReason={disabledReason}
-        placeholder={PLACEHOLDER[mode]}
+        placeholder={PLACEHOLDER}
         onSend={(text) => {
           follow();
           return intake.send(text);

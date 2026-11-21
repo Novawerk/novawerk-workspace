@@ -26,7 +26,7 @@ const STEPS = [
 
 const MODES: { mode: Mode; title: string; page: string }[] = [
   { mode: "pitch", title: "Pitch a project", page: "/submit" },
-  { mode: "join", title: "Join", page: "/join" },
+  { mode: "join", title: "Legacy join", page: "/join (closed)" },
 ]
 
 export function IntakeSection({ intake }: { intake: Intake }) {
@@ -34,7 +34,7 @@ export function IntakeSection({ intake }: { intake: Intake }) {
     <Section
       id="metrics-intake"
       title="Intake funnel"
-      description="How far people get with the Intake Agent before they send a pitch or an application."
+      description="How far people get with the Intake Agent on pitches, plus historical data from the closed join flow."
     >
       <div className="grid gap-3 lg:grid-cols-2">
         {MODES.map(({ mode, title, page }) => (

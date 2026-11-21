@@ -13,7 +13,7 @@ import { applyServerIssues } from "@/components/forms/server-issues";
 import { Review, Wizard, firstStepWithError, useFormDraft, type WizardStep } from "@/components/forms/wizard";
 import { buttonOutline, textLink } from "@/components/ui";
 import { sendForm } from "@/lib/api";
-import { FORM_DRAFT_KEYS } from "@/lib/form-drafts";
+import { FORM_DRAFT_KEY } from "@/lib/form-drafts";
 import { SEND_FAILED_MESSAGE } from "@/lib/site";
 
 type Input = z.input<typeof projectSubmissionInput>;
@@ -33,7 +33,6 @@ const FIELDS = [
   "consent",
 ] as const satisfies readonly (keyof Input)[];
 
-const DRAFT_KEY = FORM_DRAFT_KEYS.pitch;
 const NOT_SAVED = ["consent", "website"] as const;
 const LAST_STEP = 6;
 
@@ -61,7 +60,7 @@ export function SubmissionWizard() {
   const { register, formState, getValues, handleSubmit, setError, control } = form;
   const errors = formState.errors;
 
-  const draft = useFormDraft(DRAFT_KEY, form, { omit: NOT_SAVED, lastStep: LAST_STEP });
+  const draft = useFormDraft(FORM_DRAFT_KEY, form, { omit: NOT_SAVED, lastStep: LAST_STEP });
 
   const values = getValues();
   const steps: WizardStep<Input>[] = [

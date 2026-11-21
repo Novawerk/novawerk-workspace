@@ -62,10 +62,21 @@ export class PgAgentStore implements AgentStore {
   }
 }
 
+/** Only the stored mode identifies a retired join session; legacy drafts always had a `join` key. */
+export function isLegacyJoinSession(row: Pick<AgentSession, "draft">): boolean {
+  const draft = row.draft;
+  return (
+    typeof draft === "object" &&
+    draft !== null &&
+    !Array.isArray(draft) &&
+    (draft as Record<string, unknown>).mode === "join"
+  );
+}
+
 /** The draft column is jsonb; fill in missing parts so callers always get a full IntakeDraft. */
 export function draftOf(row: Pick<AgentSession, "draft">): IntakeDraft {
   const d = (row.draft ?? {}) as Partial<IntakeDraft>;
-  return { mode: d.mode ?? null, pitch: d.pitch ?? {}, join: d.join ?? {} };
+  return { mode: d.mode === "pitch" ? "pitch" : null, pitch: d.pitch ?? {} };
 }
 
 export async function createIntakeSession(
@@ -89,8 +100,7 @@ export function isUntouched(row: Pick<AgentSession, "status" | "userTurns" | "dr
   return (
     row.status === "open" &&
     row.userTurns === 0 &&
-    Object.keys(draft.pitch).length === 0 &&
-    Object.keys(draft.join).length === 0
+    Object.keys(draft.pitch).length === 0
   );
 }
 
@@ -145,8 +155,7 @@ export async function mergeDraft(db: Database, id: string, patch: IntakeDraftPat
     .set({
       draft: sql`jsonb_build_object(
         'mode', coalesce(${mode}::jsonb, ${agentSessions.draft} -> 'mode', 'null'::jsonb),
-        'pitch', coalesce(${agentSessions.draft} -> 'pitch', '{}'::jsonb) || ${JSON.stringify(patch.pitch ?? {})}::jsonb,
-        'join', coalesce(${agentSessions.draft} -> 'join', '{}'::jsonb) || ${JSON.stringify(patch.join ?? {})}::jsonb
+        'pitch', coalesce(${agentSessions.draft} -> 'pitch', '{}'::jsonb) || ${JSON.stringify(patch.pitch ?? {})}::jsonb
       )`,
     })
     .where(and(eq(agentSessions.id, id), eq(agentSessions.status, "open")))

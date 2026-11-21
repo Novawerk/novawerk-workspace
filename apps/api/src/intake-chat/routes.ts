@@ -1,4 +1,4 @@
-// The Intake Agent chat on novawerk.io/submit and /join (contract: @nw/contracts intake.ts).
+// The Intake Agent chat on novawerk.io/submit (contract: @nw/contracts intake.ts).
 //
 //   POST  /public/intake/sessions               → 201 IntakeSession (static greeting, no model call)
 //   GET   /public/intake/sessions/:id           → IntakeSession (an untouched one gets the current greeting first)
@@ -28,7 +28,6 @@ import {
   intakeResumeInput,
   intakeStartInput,
   intakeSubmitInput,
-  memberApplicationInput,
   projectSubmissionInput,
   RESUME_ATTACHED_TEXT,
   type IntakeEvent,
@@ -38,9 +37,7 @@ import { agentSessions, type AgentSession } from "@nw/db";
 
 import { agentTurnEvent, recordServerEvent } from "../analytics/record.js";
 import {
-  announceMemberApplication,
   announceProjectSubmission,
-  insertMemberApplication,
   insertProjectSubmission,
   RESUME_MISSING,
   resumeIssues,
@@ -59,6 +56,7 @@ import {
   createIntakeSession,
   draftOf,
   getIntakeSession,
+  isLegacyJoinSession,
   isUntouched,
   mergeDraft,
   refreshUntouchedSession,
@@ -81,6 +79,7 @@ const PING_MS = 15_000;
 const MESSAGES = {
   busy: "We're still answering your last message. Wait for it to finish, then send again.",
   submitted: "This conversation was already sent. Start a new chat if you want to send something else.",
+  legacyJoin: "This Member application chat has ended. Start a new project pitch from /submit.",
   noTurnsLeft:
     "This chat reached its message limit. Check the panel and press Send, or start a new chat.",
   tooManySessions: "Too many new chats from your network. Please try again later.",
@@ -151,6 +150,7 @@ export function intakeChatRoutes({ db, logger, notify, triggerIntake, intakeChat
     const { maxTurns, turnLockMs } = live();
     const row = await getIntakeSession(db, id);
     if (!row) return c.json(notFound, 404);
+    if (isLegacyJoinSession(row)) return c.json({ error: MESSAGES.legacyJoin }, 410);
     const no = blocked(row);
     if (no) return c.json({ error: no.error }, no.status);
     const locked = await acquireTurn(db, id, { maxTurns, lockMs: turnLockMs });
@@ -264,7 +264,7 @@ export function intakeChatRoutes({ db, logger, notify, triggerIntake, intakeChat
       if (!live().limiter.take(clientIp(c))) return c.json({ error: MESSAGES.tooManySessions }, 429);
 
       const prompts = loadIntakePrompts();
-      const mode = parsed.data.mode ?? null;
+      const mode = parsed.data.mode ?? "pitch";
       const row = await createIntakeSession(db, {
         mode,
         systemPrompt: prompts.system,
@@ -277,6 +277,7 @@ export function intakeChatRoutes({ db, logger, notify, triggerIntake, intakeChat
     .get("/sessions/:id", zValidator("param", idParam, notFoundIfInvalid), async (c) => {
       const row = await getIntakeSession(db, c.req.valid("param").id);
       if (!row) return c.json(notFound, 404);
+      if (isLegacyJoinSession(row)) return c.json({ error: MESSAGES.legacyJoin }, 410);
       if (isUntouched(row)) {
         const prompts = loadIntakePrompts();
         await refreshUntouchedSession(db, row.id, {
@@ -324,7 +325,7 @@ export function intakeChatRoutes({ db, logger, notify, triggerIntake, intakeChat
         const draft = mode ? await mergeDraft(db, id, { mode, [mode]: { resume } }) : undefined;
         if (!draft) {
           await releaseTurn(db, id, locked.turnLockedUntil);
-          return c.json(validationFailed({ mode: ["Pick: pitch a project, or join as a Member"] }), 400);
+          return c.json(validationFailed({ mode: ["Choose a project pitch"] }), 400);
         }
 
         const context = buildIntakeContext({
@@ -345,6 +346,7 @@ export function intakeChatRoutes({ db, logger, notify, triggerIntake, intakeChat
         const { id } = c.req.valid("param");
         const row = await getIntakeSession(db, id);
         if (!row) return c.json(notFound, 404);
+        if (isLegacyJoinSession(row)) return c.json({ error: MESSAGES.legacyJoin }, 410);
         if (row.status === "submitted") return c.json({ error: MESSAGES.submitted }, 410);
         const draft = await mergeDraft(db, id, c.req.valid("json"));
         if (!draft) return c.json({ error: MESSAGES.submitted }, 410);
@@ -357,6 +359,7 @@ export function intakeChatRoutes({ db, logger, notify, triggerIntake, intakeChat
       const body = await readJson(c);
       const row = await getIntakeSession(db, id);
       if (!row) return c.json(notFound, 404);
+      if (isLegacyJoinSession(row)) return c.json({ error: MESSAGES.legacyJoin }, 410);
       if (row.status === "submitted") return c.json({ error: MESSAGES.submitted }, 410);
 
       // Same rules as the plain forms: the draft must pass the form schema; consent is the
@@ -370,7 +373,7 @@ export function intakeChatRoutes({ db, logger, notify, triggerIntake, intakeChat
       if (Object.keys(issues).length) return c.json(validationFailed(issues), 400);
 
       /** Claims the session (open → submitted) and stores the row in one transaction. */
-      const claim = (insert: (tx: typeof db) => Promise<string>, link: "submissionId" | "applicationId") =>
+      const claim = (insert: (tx: typeof db) => Promise<string>) =>
         db.transaction(async (tx) => {
           const [claimed] = await tx
             .update(agentSessions)
@@ -379,30 +382,18 @@ export function intakeChatRoutes({ db, logger, notify, triggerIntake, intakeChat
             .returning({ id: agentSessions.id });
           if (!claimed) return null;
           const newId = await insert(tx);
-          await tx.update(agentSessions).set({ [link]: newId }).where(eq(agentSessions.id, id));
+          await tx.update(agentSessions).set({ submissionId: newId }).where(eq(agentSessions.id, id));
           return newId;
         });
 
-      if (draft.mode === "pitch") {
-        const parsed = projectSubmissionInput.safeParse({ ...draft.pitch, consent: true });
-        if (!parsed.success) return c.json(validationFailed(issuesFrom(parsed.error)), 400);
-        const cv = await resumeIssues(files, parsed.data.resume, logger);
-        if (cv) return c.json(validationFailed(cv), 400);
-        const newId = await claim((tx) => insertProjectSubmission(tx, parsed.data), "submissionId");
-        if (!newId) return c.json({ error: MESSAGES.submitted }, 410);
-        await recordServerEvent(db, { name: "form_received", props: { form: "pitch", via: "chat", turns: row.userTurns } }, logger);
-        await announceProjectSubmission(announce, parsed.data, newId);
-        return c.json({ ok: true as const, id: newId }, 201);
-      }
-
-      const parsed = memberApplicationInput.safeParse({ ...draft.join, consent: true });
+      const parsed = projectSubmissionInput.safeParse({ ...draft.pitch, consent: true });
       if (!parsed.success) return c.json(validationFailed(issuesFrom(parsed.error)), 400);
       const cv = await resumeIssues(files, parsed.data.resume, logger);
       if (cv) return c.json(validationFailed(cv), 400);
-      const newId = await claim((tx) => insertMemberApplication(tx, parsed.data), "applicationId");
+      const newId = await claim((tx) => insertProjectSubmission(tx, parsed.data));
       if (!newId) return c.json({ error: MESSAGES.submitted }, 410);
-      await recordServerEvent(db, { name: "form_received", props: { form: "join", via: "chat", turns: row.userTurns } }, logger);
-      await announceMemberApplication(announce, parsed.data, newId);
+      await recordServerEvent(db, { name: "form_received", props: { form: "pitch", via: "chat", turns: row.userTurns } }, logger);
+      await announceProjectSubmission(announce, parsed.data, newId);
       return c.json({ ok: true as const, id: newId }, 201);
     });
 }

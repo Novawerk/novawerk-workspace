@@ -1,13 +1,7 @@
 // Plain-text emails to the team inbox when a form comes in. Every field is listed so the
 // team can triage from the inbox; `replyTo` is the submitter.
 
-import {
-  AVAILABILITY_OPTIONS,
-  FUNCTION_OPTIONS,
-  type MemberApplicationInput,
-  type ProjectSubmissionInput,
-  type ResumeRef,
-} from "@nw/contracts";
+import type { ProjectSubmissionInput, ResumeRef } from "@nw/contracts";
 import type { TeamNotification } from "@nw/email";
 
 import type { Logger, Notifier } from "./types.js";
@@ -18,9 +12,6 @@ const line = (label: string, value: string | undefined) => `${label}: ${value ||
 const block = (label: string, value: string) => `${label}:\n${value}\n`;
 /** The file stays in the private store: the email names it, the admin panel opens it. */
 const cv = (resume: ResumeRef | null | undefined) => line("CV", resume ? `${resume.name} (open it in the admin panel)` : undefined);
-
-const labelOf = (options: readonly { value: string; label: string }[], value: string) =>
-  options.find((o) => o.value === value)?.label ?? value;
 
 export function submissionNotification(input: ProjectSubmissionInput, id: string): TeamNotification {
   return {
@@ -42,29 +33,6 @@ export function submissionNotification(input: ProjectSubmissionInput, id: string
       cv(input.resume),
       "",
       `Submission id: ${id}`,
-    ].join("\n"),
-  };
-}
-
-export function applicationNotification(input: MemberApplicationInput, id: string): TeamNotification {
-  return {
-    subject: `New member application: ${oneLine(input.name)}`,
-    replyTo: input.email,
-    text: [
-      `${input.name} applied to join on novawerk.io/join. Reply to this email to reach them.`,
-      "",
-      line("Name", input.name),
-      line("Email", input.email),
-      line("City", input.city),
-      line("Functions", input.functions.map((f) => labelOf(FUNCTION_OPTIONS, f)).join(", ")),
-      line("Availability", labelOf(AVAILABILITY_OPTIONS, input.availability)),
-      line("Background", input.background),
-      "",
-      block("Motivation", input.motivation),
-      line("Links", input.links),
-      cv(input.resume),
-      "",
-      `Application id: ${id}`,
     ].join("\n"),
   };
 }

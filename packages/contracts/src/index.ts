@@ -30,9 +30,6 @@ export const AVAILABILITY_OPTIONS = [
 ] as const;
 export type AvailabilityOption = (typeof AVAILABILITY_OPTIONS)[number]["value"];
 
-const values = <T extends readonly { value: string }[]>(opts: T) =>
-  opts.map((o) => o.value) as unknown as [T[number]["value"], ...T[number]["value"][]];
-
 // ─── Field helpers ───────────────────────────────────────────────────────────
 
 const name = z.string().trim().min(1, "Please enter your name").max(100, "Keep it under 100 characters");
@@ -75,7 +72,7 @@ export const resumeRef = z.object({
 });
 export type ResumeRef = z.infer<typeof resumeRef>;
 
-/** Optional on both forms. `null` is a CV the visitor removed again in the chat panel. */
+/** Optional on project pitches. `null` is a CV the visitor removed again in the chat panel. */
 const optionalResume = resumeRef.nullish();
 
 // ─── Forms ───────────────────────────────────────────────────────────────────
@@ -96,26 +93,6 @@ export const projectSubmissionInput = z.object({
   website: honeypot,
 });
 export type ProjectSubmissionInput = z.infer<typeof projectSubmissionInput>;
-
-/** novawerk.io/join — apply to become a Member. */
-export const memberApplicationInput = z.object({
-  name,
-  email,
-  city: z.string().trim().max(100).optional().or(z.literal("")),
-  functions: z.array(z.enum(values(FUNCTION_OPTIONS))).min(1, "Pick at least one"),
-  background: z.string().trim().min(2, "Tell us a little about yourself").max(300),
-  motivation: z
-    .string()
-    .trim()
-    .min(20, "A bit more detail, please (20+ characters)")
-    .max(2000, "Keep it under 2000 characters"),
-  availability: z.enum(values(AVAILABILITY_OPTIONS), { error: "Pick one" }),
-  links: optionalLinks,
-  resume: optionalResume,
-  consent: mustAccept("Please accept the privacy note so we can contact you"),
-  website: honeypot,
-});
-export type MemberApplicationInput = z.infer<typeof memberApplicationInput>;
 
 /** The newsletter box on /about. */
 export const newsletterSignupInput = z.object({
@@ -226,9 +203,9 @@ export const applicationUpdateInput = z
 export type ApplicationUpdateInput = z.infer<typeof applicationUpdateInput>;
 
 // ═════════════════════════════════════════════════════════════════════════════
-// The Intake Agent: a chat on novawerk.io/submit and /join that helps a visitor put together
-// a project pitch or a member application. The agent only collects and tidies; the visitor
-// reviews the draft, ticks consent and presses Send themselves (POST …/submit).
+// The Intake Agent: a chat on novawerk.io/submit that helps a visitor put together a project
+// pitch. The agent only collects and tidies; the visitor reviews the draft, ticks consent and
+// presses Send themselves (POST …/submit).
 //
 // Endpoints (apps/api):
 //   POST  /public/intake/sessions               intakeStartInput      → 201 IntakeSession
@@ -242,8 +219,12 @@ export type ApplicationUpdateInput = z.infer<typeof applicationUpdateInput>;
 // The session id (uuid) is the visitor's only key to their conversation; the web app keeps it
 // in localStorage so a refresh resumes the chat.
 
-export const INTAKE_MODES = ["pitch", "join"] as const;
+export const INTAKE_MODES = ["pitch"] as const;
 export type IntakeMode = (typeof INTAKE_MODES)[number];
+
+/** Modes retained in historical intake analytics; new events use IntakeMode only. */
+export const INTAKE_ANALYTICS_MODES = ["pitch", "join"] as const;
+export type IntakeAnalyticsMode = (typeof INTAKE_ANALYTICS_MODES)[number];
 
 /** Everything the agent (or the visitor) has filled in so far. All optional until Send. */
 export const pitchDraft = z.object({
@@ -261,31 +242,13 @@ export const pitchDraft = z.object({
 }).partial();
 export type PitchDraft = z.infer<typeof pitchDraft>;
 
-const functionValues = FUNCTION_OPTIONS.map((o) => o.value) as [string, ...string[]];
-const availabilityValues = AVAILABILITY_OPTIONS.map((o) => o.value) as [string, ...string[]];
-
-export const joinDraft = z.object({
-  name: z.string().max(100),
-  email: z.string().max(200),
-  city: z.string().max(100),
-  functions: z.array(z.enum(functionValues)).max(FUNCTION_OPTIONS.length),
-  background: z.string().max(300),
-  motivation: z.string().max(2000),
-  availability: z.enum(availabilityValues),
-  links: z.string().max(500),
-  /** Set by the visitor's upload in the panel, never by the agent (see the update_draft tool). */
-  resume: resumeRef.nullable(),
-}).partial();
-export type JoinDraft = z.infer<typeof joinDraft>;
-
 export interface IntakeDraft {
-  /** null until the visitor (or the agent, after asking) picks one. */
+  /** null only for an uninitialized or historical draft. */
   mode: IntakeMode | null;
   pitch: PitchDraft;
-  join: JoinDraft;
 }
 
-export const emptyIntakeDraft = (mode: IntakeMode | null = null): IntakeDraft => ({ mode, pitch: {}, join: {} });
+export const emptyIntakeDraft = (mode: IntakeMode | null = null): IntakeDraft => ({ mode, pitch: {} });
 
 // ─── Display ─────────────────────────────────────────────────────────────────
 
@@ -335,8 +298,7 @@ export type IntakeMessageInput = z.infer<typeof intakeMessageInput>;
 export const intakeDraftPatchInput = z.object({
   mode: z.enum(INTAKE_MODES).optional(),
   pitch: pitchDraft.optional(),
-  join: joinDraft.optional(),
-});
+}).strict();
 export type IntakeDraftPatchInput = z.infer<typeof intakeDraftPatchInput>;
 
 /** The visitor's message when they attach a CV in the chat. The chat shows it as an attachment. */
@@ -345,7 +307,7 @@ export const RESUME_ATTACHED_TEXT = "I attached my CV.";
 /** The visitor attached a CV in the chat (uploaded first, see POST /public/uploads/resume). */
 export const intakeResumeInput = z.object({
   resume: resumeRef,
-  /** Used when the chat has no mode yet. */
+  /** Used when a historical draft has no mode yet. */
   mode: z.enum(INTAKE_MODES).optional(),
 });
 export type IntakeResumeInput = z.infer<typeof intakeResumeInput>;
@@ -367,21 +329,16 @@ const PITCH_BLANKS = {
   team: "",
   timeline: "",
 } satisfies Required<Omit<PitchDraft, "links" | "resume">>;
-const JOIN_BLANKS = { name: "", email: "", functions: [], background: "", motivation: "" } satisfies Partial<JoinDraft>;
-
 /**
  * What's still missing or too short before this draft can be sent, as field → message.
  * Uses the same schemas as the plain forms, so the agent, the panel and the API agree.
  * Consent is the visitor's own click and is never reported here.
  */
 export function intakeDraftIssues(draft: IntakeDraft): Record<string, string> {
-  if (!draft.mode) return { mode: "Pick: pitch a project, or join as a Member" };
+  if (!draft.mode) return { mode: "Choose a project pitch" };
   // Absent fields count as empty, so the forms' own messages ("Please enter your name") show
   // instead of zod's generic "expected string, received undefined".
-  const result =
-    draft.mode === "pitch"
-      ? projectSubmissionInput.omit({ consent: true, website: true }).safeParse({ ...PITCH_BLANKS, ...draft.pitch })
-      : memberApplicationInput.omit({ consent: true, website: true }).safeParse({ ...JOIN_BLANKS, ...draft.join });
+  const result = projectSubmissionInput.omit({ consent: true, website: true }).safeParse({ ...PITCH_BLANKS, ...draft.pitch });
   if (result.success) return {};
   const issues: Record<string, string> = {};
   for (const issue of result.error.issues) {
@@ -1510,8 +1467,13 @@ export type CtaTarget = (typeof CTA_TARGETS)[number];
 export const CTA_PLACEMENTS = ["header", "hero", "get-involved", "footer", "contribute"] as const;
 export type CtaPlacement = (typeof CTA_PLACEMENTS)[number];
 
+/** Form kinds retained in historical analytics. */
 export const FORM_KINDS = ["pitch", "join", "newsletter"] as const;
 export type FormKind = (typeof FORM_KINDS)[number];
+
+/** Forms currently accepted on the website. */
+export const WEB_FORM_KINDS = ["pitch", "newsletter"] as const;
+export type WebFormKind = (typeof WEB_FORM_KINDS)[number];
 
 /** Why an Intake Agent reply didn't arrive (from the HTTP status, never from the text). */
 export const INTAKE_FAILURE_REASONS = ["network", "busy", "limit", "gone", "unavailable", "error"] as const;
@@ -1552,7 +1514,7 @@ export const webEventInput = z.discriminatedUnion("name", [
   webEvent("cta_click", { target: z.enum(CTA_TARGETS), placement: z.enum(CTA_PLACEMENTS) }),
   webEvent("project_click", { project: eventSlug }),
 
-  // The Intake Agent (/submit, /join). `turns` = visitor messages so far.
+  // The Intake Agent on /submit. `turns` = visitor messages so far.
   webEvent("intake_open", { mode: intakeMode, resumed: z.boolean() }),
   webEvent("intake_unavailable", { mode: intakeMode }),
   webEvent("intake_message", { mode: intakeMode, turn: eventCount, suggestion: z.boolean() }),
@@ -1589,10 +1551,10 @@ export const webEventInput = z.discriminatedUnion("name", [
   webEvent("profile_saved", {}),
   webEvent("account_deleted", {}),
 
-  // The plain step-by-step forms and the newsletter box.
+  // The plain project-pitch form and the newsletter box.
   webEvent("form_step", { form: intakeMode, step: eventCount, of: eventCount }),
-  webEvent("form_submitted", { form: z.enum(FORM_KINDS) }),
-  webEvent("form_failed", { form: z.enum(FORM_KINDS), reason: z.enum(["invalid", "unavailable"]) }),
+  webEvent("form_submitted", { form: z.enum(WEB_FORM_KINDS) }),
+  webEvent("form_failed", { form: z.enum(WEB_FORM_KINDS), reason: z.enum(["invalid", "unavailable"]) }),
 ]);
 export type WebEventInput = z.infer<typeof webEventInput>;
 export type WebEventName = WebEventInput["name"];
@@ -1682,9 +1644,9 @@ export interface AdminMetrics {
     projectClicks: { project: string; clicks: number }[];
   };
   intake: {
-    funnel: Record<IntakeMode, IntakeFunnel>;
-    exits: Record<IntakeMode, IntakeExits>;
-    chats: Record<IntakeMode, IntakeChats>;
+    funnel: Record<IntakeAnalyticsMode, IntakeFunnel>;
+    exits: Record<IntakeAnalyticsMode, IntakeExits>;
+    chats: Record<IntakeAnalyticsMode, IntakeChats>;
     /** Replies that failed, by reason (browser side). */
     replyFailures: { reason: IntakeFailureReason; count: number }[];
     /** Times the plain form stood in because the assistant was off. */

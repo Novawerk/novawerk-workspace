@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Mock of the Intake Agent API (apps/api) for working on /submit and /join without the backend.
+// Mock of the Intake Agent API (apps/api) for working on /submit without the backend.
 // Dev tool only: canned replies, in-memory sessions, no LLM, no database.
 //
 //   node apps/web/scripts/mock-intake-api.mjs            # http://localhost:8799
@@ -39,12 +39,9 @@ const sessions = new Map();
 
 // ─── Draft logic ─────────────────────────────────────────────────────────────
 
-const ORDER = {
-  pitch: ["product", "projectName", "userJourney", "referencesAndInnovation", "team", "timeline", "name", "email"],
-  join: ["background", "functions", "motivation", "availability", "name", "email"],
-};
+const ORDER = ["product", "projectName", "userJourney", "referencesAndInnovation", "team", "timeline", "name", "email"];
 
-const LONG = new Set(["product", "userJourney", "referencesAndInnovation", "team", "timeline", "motivation"]);
+const LONG = new Set(["product", "userJourney", "referencesAndInnovation", "team", "timeline"]);
 
 const LABELS = {
   name: "Name",
@@ -56,19 +53,11 @@ const LABELS = {
   team: "Team",
   timeline: "Timeline",
   links: "Links",
-  city: "City",
-  functions: "What you do",
-  background: "Background",
-  motivation: "Why Novawerk",
-  availability: "Time you can give",
 };
 
 // Same opening lines as apps/api/src/intake-chat/prompts/greeting-*.md.
-const GREETINGS = {
-  pitch:
-    "Hi, welcome to Novawerk. Tell me about the project you want to start. A few rough sentences are enough. I'll shape them into a pitch in the panel as we talk, and you can edit anything there. Nothing goes out until you press Send.\n\nSo: what do you want to build, and for whom?",
-  join: "Hi, good to see you here. I'll put your Member application together in the panel as we talk. You can edit anything there, and nothing goes out until you press Send.\n\nTo start: what do you do, and what kind of work do you enjoy? If you have a CV at hand, attach it with the paperclip and I'll fill in what I can.",
-};
+const GREETING =
+  "Hi, welcome to Novawerk. Tell me about the project you want to start. A few rough sentences are enough. I'll shape them into a pitch in the panel as we talk, and you can edit anything there. Nothing goes out until you press Send.\n\nSo: what do you want to build, and for whom?";
 
 const SUBMITTED = "This conversation was already sent. Start a new chat if you want to send something else.";
 
@@ -79,61 +68,26 @@ const QUESTIONS = {
   referencesAndInnovation: "Are there similar products or projects? What's different about yours?",
   team: "Who's on it so far, and which skills are still missing?",
   timeline: "What do you want done by when? Rough is fine.",
-  background: "What do you do or study? One line is enough.",
-  functions:
-    "Which of these fit you: **product**, **development**, **design**, **research**, **PR / marketing**, **operations**? Pick as many as you like.",
-  motivation: "What do you want to build, learn or help with at Novawerk?",
-  availability: "How much time can you give a week: under 2 hours, 2–5, 5–10, or more than 10?",
   name: "What's your name?",
   email: "And your email, so we can reply?",
 };
 
 const SAMPLE = {
-  pitch: {
-    name: "Ada Lovelace",
-    email: "ada@example.com",
-    projectName: "Routes",
-    product: "A map of safe cycling routes for kids, built from what parents report on their way to school.",
-    userJourney:
-      "A parent hears about it at school, opens the map, checks the route their kid takes and reports a dangerous crossing in two taps.",
-    referencesAndInnovation:
-      "Komoot and Strava show sporty routes. Nobody maps school routes from the parents' side, block by block.",
-    team: "Me (product, research) and a friend who codes. We still need a designer and someone for outreach.",
-    timeline: "A pilot with two schools by spring, all schools in the district by the end of next year.",
-    links: "https://example.com/routes-prototype",
-  },
-  join: {
-    name: "Grace Hopper",
-    email: "grace@example.com",
-    city: "Berlin",
-    functions: ["developer", "research"],
-    background: "Backend developer, ten years of Go and Postgres.",
-    motivation: "I want to build something useful with people who care, and learn how to run a product from idea to launch.",
-    availability: "2to5",
-    links: "https://github.com/example",
-  },
+  name: "Ada Lovelace",
+  email: "ada@example.com",
+  projectName: "Routes",
+  product: "A map of safe cycling routes for kids, built from what parents report on their way to school.",
+  userJourney:
+    "A parent hears about it at school, opens the map, checks the route their kid takes and reports a dangerous crossing in two taps.",
+  referencesAndInnovation:
+    "Komoot and Strava show sporty routes. Nobody maps school routes from the parents' side, block by block.",
+  team: "Me (product, research) and a friend who codes. We still need a designer and someone for outreach.",
+  timeline: "A pilot with two schools by spring, all schools in the district by the end of next year.",
+  links: "https://example.com/routes-prototype",
 };
 
-const FUNCTION_WORDS = [
-  ["pm", /\b(product|pm|manager)\b/i],
-  ["developer", /\b(develop|developer|code|coding|engineer|programm)/i],
-  ["design", /\b(design|designer|ux|ui)\b/i],
-  ["research", /\b(research|study|science)/i],
-  ["marketing", /\b(marketing|pr|social media|comms)\b/i],
-  ["operations", /\b(operations|ops|organis|organiz)/i],
-];
-
-function parseAvailability(text) {
-  const t = text.toLowerCase();
-  if (/(under|less than|<)\s*2|\b1\b|an hour/.test(t)) return "lt2";
-  if (/(more than|over|>)\s*10|1[1-9]|20/.test(t)) return "gt10";
-  if (/5\s*(-|–|to)\s*10|\b[6-9]\b|\b10\b/.test(t)) return "5to10";
-  if (/2\s*(-|–|to)\s*5|\b[2-5]\b/.test(t)) return "2to5";
-  return undefined;
-}
-
-const missingFields = (mode, draft) =>
-  ORDER[mode].filter((key) => {
+const missingFields = (draft) =>
+  ORDER.filter((key) => {
     const value = draft[key];
     if (Array.isArray(value)) return value.length === 0;
     if (!value || !String(value).trim()) return true;
@@ -144,8 +98,7 @@ const missingFields = (mode, draft) =>
 
 /** Apply a visitor message to the draft. Returns the field keys it changed. */
 function applyMessage(session, text) {
-  const mode = session.draft.mode;
-  const draft = session.draft[mode];
+  const draft = session.draft.pitch;
   const before = JSON.stringify(draft);
   const changed = new Set();
   const set = (key, value) => {
@@ -154,7 +107,7 @@ function applyMessage(session, text) {
   };
 
   if (text.trim().toLowerCase() === "fill") {
-    for (const [key, value] of Object.entries(SAMPLE[mode])) set(key, value);
+    for (const [key, value] of Object.entries(SAMPLE)) set(key, value);
     return [...changed];
   }
 
@@ -171,26 +124,10 @@ function applyMessage(session, text) {
   }
 
   // Nothing left to ask (the draft is complete): only names and emails are picked up.
-  const asking = session.asking === undefined ? ORDER[mode][0] : session.asking;
+  const asking = session.asking === undefined ? ORDER[0] : session.asking;
   if (!consumed && asking) {
     const clean = text.trim();
     switch (asking) {
-      case "functions": {
-        const found = FUNCTION_WORDS.filter(([, re]) => re.test(clean)).map(([value]) => value);
-        if (found.length) set("functions", found);
-        break;
-      }
-      case "availability": {
-        const value = parseAvailability(clean);
-        if (value) set("availability", value);
-        break;
-      }
-      case "background": {
-        set("background", clean.slice(0, 300));
-        const found = FUNCTION_WORDS.filter(([, re]) => re.test(clean)).map(([value]) => value);
-        if (found.length && !(draft.functions ?? []).length) set("functions", found);
-        break;
-      }
       case "projectName":
         set("projectName", clean.replace(/^(it'?s called|the name is|call it)\s+/i, "").slice(0, 120));
         break;
@@ -210,8 +147,7 @@ function applyMessage(session, text) {
 }
 
 function replyFor(session, changed) {
-  const mode = session.draft.mode;
-  const missing = missingFields(mode, session.draft[mode]);
+  const missing = missingFields(session.draft.pitch);
   const asked = session.asking;
   const lead = changed.length
     ? `Thanks. I've put that under ${changed.map((k) => `**${LABELS[k] ?? k}**`).join(", ")}.`
@@ -219,13 +155,11 @@ function replyFor(session, changed) {
 
   if (missing.length === 0) {
     session.asking = null;
-    return `${lead}\n\nThat's everything we need. Have a look at your draft, change anything you like, tick the box${
-      mode === "join" ? "es" : ""
-    } and press **Send**.`;
+    return `${lead}\n\nThat's everything we need. Have a look at your draft, change anything you like, tick the box and press **Send**.`;
   }
   const next = missing[0];
   session.asking = next;
-  if (next === asked && LONG.has(next) && String(session.draft[mode][next] ?? "").trim()) {
+  if (next === asked && LONG.has(next) && String(session.draft.pitch[next] ?? "").trim()) {
     return `${lead}\n\nThat's a start. Can you say a bit more? We need a few sentences (20+ characters).`;
   }
   const left = missing.length > 1 ? `\n\n_${missing.length} things to go._` : "";
@@ -349,16 +283,12 @@ const MAX = {
   team: 2000,
   timeline: 2000,
   links: 500,
-  city: 100,
-  background: 300,
-  motivation: 2000,
 };
 
 function submitIssues(session) {
-  const mode = session.draft.mode;
-  const draft = session.draft[mode];
+  const draft = session.draft.pitch;
   const issues = {};
-  for (const key of missingFields(mode, draft)) issues[key] = [`${LABELS[key]}: please fill this in`];
+  for (const key of missingFields(draft)) issues[key] = [`${LABELS[key]}: please fill this in`];
   if (String(draft.email ?? "").includes("taken")) {
     issues.email = ["We already have a submission from this email. Use another one, or write to info@novawerk.io."];
   }
@@ -394,13 +324,11 @@ const server = createServer(async (req, res) => {
     if (!body) return json(res, 400, { error: "Invalid JSON" });
     // Honeypot filled: like the real API, nothing is created.
     if (body.website) return res.writeHead(204).end();
-    const mode = body.mode === "join" || body.mode === "pitch" ? body.mode : null;
-    const greeting = mode
-      ? [{ id: randomUUID(), role: "assistant", parts: [{ type: "text", text: GREETINGS[mode] }], createdAt: new Date().toISOString() }]
-      : [];
+    if (body.mode !== undefined && body.mode !== "pitch") return json(res, 400, { error: "Invalid mode" });
+    const greeting = [{ id: randomUUID(), role: "assistant", parts: [{ type: "text", text: GREETING }], createdAt: new Date().toISOString() }];
     const session = {
       id: randomUUID(),
-      draft: { mode, pitch: {}, join: {} },
+      draft: { mode: "pitch", pitch: {} },
       status: "open",
       messages: greeting,
       turnsLeft: TURNS,
@@ -449,15 +377,13 @@ const server = createServer(async (req, res) => {
     if (!body) return json(res, 400, { error: "Invalid JSON" });
     if (session.status !== "open") return json(res, 410, { error: SUBMITTED });
     const issues = {};
-    for (const mode of ["pitch", "join"]) {
-      for (const [key, value] of Object.entries(body[mode] ?? {})) {
-        if (typeof value === "string" && MAX[key] && value.length > MAX[key]) issues[key] = ["Too long"];
-      }
+    if (body.mode !== undefined && body.mode !== "pitch") issues.mode = ["Invalid mode"];
+    for (const [key, value] of Object.entries(body.pitch ?? {})) {
+      if (typeof value === "string" && MAX[key] && value.length > MAX[key]) issues[key] = ["Too long"];
     }
     if (Object.keys(issues).length) return json(res, 400, { error: "Invalid draft", issues });
-    if (body.mode === "pitch" || body.mode === "join") session.draft.mode = body.mode;
+    session.draft.mode = "pitch";
     session.draft.pitch = { ...session.draft.pitch, ...(body.pitch ?? {}) };
-    session.draft.join = { ...session.draft.join, ...(body.join ?? {}) };
     await sleep(120);
     return json(res, 200, publicSession(session));
   }

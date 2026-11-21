@@ -3,7 +3,7 @@
 // The browser's events arrive through ./ingest.ts; the catalog is in docs/analytics.md.
 
 import type { AgentErrorCode, TurnTrace } from "@nw/agent-harness";
-import type { FormKind, IntakeMode } from "@nw/contracts";
+import type { IntakeMode, WebFormKind } from "@nw/contracts";
 import { analyticsEvents, type Database } from "@nw/db";
 
 import type { Logger } from "../types.js";
@@ -12,7 +12,7 @@ export type ServerEvent =
   /** A visitor opened a new Intake Agent chat. */
   | { name: "intake_session_created"; props: { mode: IntakeMode | null } }
   /** A pitch, an application or a newsletter signup was stored. `turns`: visitor messages, for chats. */
-  | { name: "form_received"; props: { form: FormKind; via: "form" | "chat"; turns: number | null } }
+  | { name: "form_received"; props: { form: WebFormKind; via: "form" | "chat"; turns: number | null } }
   /** One visitor or member message and the agent's reply. */
   | {
       name: "agent_turn";
