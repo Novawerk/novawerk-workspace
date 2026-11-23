@@ -6,10 +6,10 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { MockProvider, type MockStep, type ToolCall } from "@nw/agent-harness";
 import type { IntakeEvent, IntakeSession } from "@nw/contracts";
-import { agentMessages, agentSessions, agentTraces, memberApplications, projectSubmissions, type Database } from "@nw/db";
+import { agentMessages, agentSessions, agentTraces, projectSubmissions, type Database } from "@nw/db";
 
 import type { IntakeChatOptions, IntakeRef } from "../src/types.js";
-import { createTestDb, makeApp, postJson, resetDb, validApplication, validSubmission } from "./helpers.js";
+import { createTestDb, makeApp, postJson, resetDb, validSubmission } from "./helpers.js";
 
 let db: Database;
 beforeAll(async () => {
@@ -75,7 +75,6 @@ function parseSSE(text: string): IntakeEvent[] {
 const types = (events: IntakeEvent[]) => events.map((e) => e.type);
 
 const { consent: _c, ...pitchFields } = validSubmission;
-const { consent: _c2, ...joinFields } = validApplication;
 
 async function waitFor(check: () => Promise<boolean>, ms = 2000) {
   const until = Date.now() + ms;
@@ -108,25 +107,24 @@ describe("Intake Agent: availability", () => {
 });
 
 describe("POST /public/intake/sessions", () => {
-  it.each([
-    ["pitch", "pitch", /what do you want to build/],
-    ["join", "join", /what do you do/],
-    [undefined, null, /Which one brings you here/],
-  ] as const)("mode %s: frozen system prompt, static greeting, no model call", async (mode, expected, greeting) => {
+  it("starts a pitch session with a frozen prompt and static greeting, without a model call", async () => {
     const t = setup();
-    const session = await t.start(mode ? { mode } : {});
+    const session = await t.start();
 
-    expect(session).toMatchObject({ status: "open", turnsLeft: 40, draft: { mode: expected, pitch: {}, join: {} } });
+    expect(session).toMatchObject({ status: "open", turnsLeft: 40, draft: { mode: "pitch", pitch: {} } });
     expect(session.messages).toHaveLength(1);
     const [hello] = session.messages;
     expect(hello?.role).toBe("assistant");
-    expect(hello?.role === "assistant" && hello.parts).toEqual([{ type: "text", text: expect.stringMatching(greeting) }]);
+    expect(hello?.role === "assistant" && hello.parts).toEqual([
+      { type: "text", text: expect.stringMatching(/what do you want to build/) },
+    ]);
     expect(t.provider.requests).toHaveLength(0);
 
     const stored = await t.row(session.id);
     expect(stored.agent).toBe("intake");
     expect(stored.systemPrompt).toContain("You are Novawerk's assistant on novawerk.io");
-    expect(stored.systemPrompt).toContain('"developer" (Developer)');
+    expect(stored.systemPrompt).toContain("project pitch");
+    expect(stored.systemPrompt).not.toContain("Member application");
     expect(stored.systemPrompt).not.toContain("{{");
     expect(stored.systemPrompt).not.toContain("<!--");
   });
@@ -138,12 +136,24 @@ describe("POST /public/intake/sessions", () => {
     expect(await db.select().from(agentSessions)).toEqual([]);
   });
 
-  it("rejects an unknown mode", async () => {
-    const t = setup();
-    const res = await t.app.request("/public/intake/sessions", postJson({ mode: "invest" }));
-    expect(res.status).toBe(400);
-    expect(((await res.json()) as { issues: Record<string, string[]> }).issues).toHaveProperty("mode");
-  });
+  it.each(["join", "invest"])(
+    "rejects unsupported mode %s",
+    async (mode) => {
+      const t = setup();
+
+      const res = await t.app.request(
+        "/public/intake/sessions",
+        postJson({ mode })
+      );
+
+      expect(res.status).toBe(400);
+      expect(
+        ((await res.json()) as {
+          issues: Record<string, string[]>;
+        }).issues
+      ).toHaveProperty("mode");
+    }
+  );
 
   it("limits new sessions per IP", async () => {
     const t = setup([], { sessionsPerHour: 2 });
@@ -164,7 +174,8 @@ describe("GET /public/intake/sessions/:id", () => {
   });
 
   // A session started before the prompts were reworded.
-  async function staleSession(t: ReturnType<typeof setup>, mode: "pitch" | "join") {
+  async function staleSession(t: ReturnType<typeof setup>) {
+    const mode = "pitch";
     const session = await t.start({ mode });
     await db.update(agentSessions).set({ systemPrompt: "Old system prompt." }).where(eq(agentSessions.id, session.id));
     await db
@@ -181,25 +192,86 @@ describe("GET /public/intake/sessions/:id", () => {
 
   it("gives an untouched session the current greeting and system prompt", async () => {
     const t = setup();
-    const { id } = await staleSession(t, "join");
+    const { id } = await staleSession(t);
 
     const resumed = await t.get(id);
     expect(resumed.messages).toHaveLength(1);
-    expect(greetingOf(resumed)).toMatch(/what do you do/);
-    expect((await t.row(id)).systemPrompt).toContain("You are Novawerk's assistant on novawerk.io");
+    expect(greetingOf(resumed)).toMatch(/what do you want to build/);
+    expect((await t.row(id)).systemPrompt).toContain("You are Novawerk's assistant on novawerk.io\/submit");
   });
 
   it("keeps the frozen prompts once the visitor wrote or edited the panel", async () => {
     const t = setup([say("Tell me more.")]);
-    const wrote = await staleSession(t, "pitch");
+    const wrote = await staleSession(t);
     await t.turn(wrote.id, "A map of quiet cafés.");
-    const edited = await staleSession(t, "pitch");
+    const edited = await staleSession(t);
     await t.patch(edited.id, { pitch: { projectName: "Quiet cafés" } });
 
     for (const { id } of [wrote, edited]) {
       expect(greetingOf(await t.get(id))).toBe("Hi, I'm the old greeting.");
       expect((await t.row(id)).systemPrompt).toBe("Old system prompt.");
     }
+  });
+
+  it("keeps historical pitch sessions with the legacy empty join field accessible", async () => {
+    const t = setup([call({ name: "update_draft", args: { mode: "pitch", pitch: { product: "A useful project idea" } } }), say("Tell me more.")]);
+    const session = await t.start();
+    const legacyDraft = { mode: "pitch", pitch: { projectName: "Example" }, join: {} };
+    await db.update(agentSessions).set({ draft: legacyDraft }).where(eq(agentSessions.id, session.id));
+
+    const resumed = await t.get(session.id);
+    expect(resumed.draft).toEqual({ mode: "pitch", pitch: { projectName: "Example" } });
+    expect((await t.turn(session.id, "A useful project")).find((event) => event.type === "draft")).toMatchObject({
+      draft: { mode: "pitch", pitch: { product: "A useful project idea" } },
+    });
+  });
+
+  it("keeps historical uninitialized sessions accessible as pitch onboarding", async () => {
+    const t = setup([call({ name: "update_draft", args: { mode: "pitch", pitch: { product: "A useful project idea" } } }), say("Tell me more.")]);
+    const session = await t.start();
+    const legacyDraft = { mode: null, pitch: {}, join: {} };
+    await db.update(agentSessions).set({ draft: legacyDraft }).where(eq(agentSessions.id, session.id));
+
+    const resumed = await t.get(session.id);
+    expect(resumed.draft).toEqual({ mode: null, pitch: {} });
+    expect(greetingOf(resumed)).toMatch(/what do you want to build/);
+    expect((await t.turn(session.id, "A useful project")).find((event) => event.type === "draft")).toMatchObject({
+      draft: { mode: "pitch", pitch: { product: "A useful project idea" } },
+    });
+  });
+
+  it("retires stored join-mode sessions without rewriting their draft", async () => {
+    const t = setup();
+    const session = await t.start();
+
+    const legacyDraft = {
+      mode: "join",
+      pitch: {},
+      join: { name: "Grace" }
+    };
+
+    await db.update(agentSessions)
+      .set({ draft: legacyDraft })
+      .where(eq(agentSessions.id, session.id));
+
+    // 1. Verify all operations are rejected
+    const response = await t.app.request(`/public/intake/sessions/${session.id}`);
+
+    expect(response.status).toBe(410);
+    expect(((await response.json()) as { error: string }).error)
+      .toMatch(/Member application chat has ended/);
+
+    expect((await t.send(session.id, "hello")).status).toBe(410);
+    expect((await t.patch(session.id, { pitch: { name: "Grace" } })).status).toBe(410);
+    expect((await t.submit(session.id, { consent: true })).status).toBe(410);
+
+    // 2. Verify rejected operations did not modify the session
+    const stored = await t.row(session.id);
+
+    expect(stored.draft).toEqual(legacyDraft);
+    expect(stored.status).toBe("open");
+    expect(stored.submissionId).toBeNull();
+    expect(stored.applicationId).toBeNull();
   });
 });
 
@@ -223,7 +295,7 @@ describe("POST /public/intake/sessions/:id/messages", () => {
     const draftEvent = events.find((e) => e.type === "draft");
     expect(draftEvent).toEqual({
       type: "draft",
-      draft: { mode: "pitch", pitch: { product: "A map of bouldering routes for local crags" }, join: {} },
+      draft: { mode: "pitch", pitch: { product: "A map of bouldering routes for local crags" } },
     });
     expect(events.find((e) => e.type === "tool_result")).toEqual({
       type: "tool_result",
@@ -242,7 +314,7 @@ describe("POST /public/intake/sessions/:id/messages", () => {
     expect(first!.tools.map((x) => x.name)).toEqual(["update_draft", "review_draft"]);
     expect(first!.messages[0]).toMatchObject({ role: "assistant" });
     const user = first!.messages[1]!;
-    expect(user.role === "user" && user.context).toContain('<draft mode="not chosen">');
+    expect(user.role === "user" && user.context).toContain('<draft mode="pitch">');
     expect(user.role === "user" && user.context).toContain("Visitor messages left after this one: 39");
     expect(user.role === "user" && user.context).toContain("<reminder>");
 
@@ -263,27 +335,27 @@ describe("POST /public/intake/sessions/:id/messages", () => {
   });
 
   it("returns invalid update_draft arguments to the model as an error and keeps the draft", async () => {
-    const t = setup([call({ name: "update_draft", args: { join: { availability: "lots" } } }), say("Sorry, how many hours?")]);
-    const session = await t.start({ mode: "join" });
-    const events = await t.turn(session.id, "I have lots of time");
+    const t = setup([call({ name: "update_draft", args: { join: { name: "Grace" } } }), say("Tell me about your project.")]);
+    const session = await t.start();
+    const events = await t.turn(session.id, "I want to pitch a project");
     expect(events.find((e) => e.type === "tool_result")).toMatchObject({ isError: true });
     expect(events.some((e) => e.type === "draft")).toBe(false);
-    expect((await t.get(session.id)).draft.join).toEqual({});
+    expect((await t.get(session.id)).draft.pitch).toEqual({});
     const toolMsg = t.provider.requests[1]!.messages.at(-1)!;
     expect(toolMsg.role === "tool" && toolMsg.content).toContain("Invalid arguments");
   });
 
   it("review_draft lists gaps, then says ready and reminds about consent and Send", async () => {
     const t = setup([call({ name: "review_draft", args: {} }), say("A few things left."), call({ name: "review_draft", args: {} }), say("Ready.")]);
-    const session = await t.start({ mode: "join" });
-    await t.patch(session.id, { join: { name: "Grace Hopper", email: "grace@example.com" } });
+    const session = await t.start();
+    await t.patch(session.id, { pitch: { name: "Grace Hopper", email: "grace@example.com" } });
     await t.turn(session.id, "Is it ready?");
     const gaps = t.provider.requests[1]!.messages.at(-1)!;
     expect(gaps.role === "tool" && gaps.content).toContain("✓ name");
-    expect(gaps.role === "tool" && gaps.content).toContain("✗ motivation");
+    expect(gaps.role === "tool" && gaps.content).toContain("✗ product");
     expect(gaps.role === "tool" && gaps.content).toContain("Not ready yet");
 
-    await t.patch(session.id, { join: joinFields });
+    await t.patch(session.id, { pitch: pitchFields });
     await t.turn(session.id, "Now?");
     const ready = t.provider.requests[3]!.messages.at(-1)!;
     expect(ready.role === "tool" && ready.content).toContain("Ready to send. You cannot send it");
@@ -396,15 +468,19 @@ describe("POST /public/intake/sessions/:id/messages", () => {
 });
 
 describe("PATCH /public/intake/sessions/:id/draft", () => {
-  it("merges fields, sets the mode and validates limits", async () => {
+  it("merges pitch fields and rejects the retired join draft", async () => {
     const t = setup();
     const session = await t.start();
-    await t.patch(session.id, { mode: "join", join: { name: "Grace" } });
-    const res = await t.patch(session.id, { join: { city: "Berlin" } });
-    expect(((await res.json()) as IntakeSession).draft).toEqual({ mode: "join", pitch: {}, join: { name: "Grace", city: "Berlin" } });
+    await t.patch(session.id, { mode: "pitch", pitch: { name: "Grace" } });
+    const res = await t.patch(session.id, { pitch: { team: "A small team with design and engineering experience" } });
+    expect(((await res.json()) as IntakeSession).draft).toEqual({
+      mode: "pitch",
+      pitch: { name: "Grace", team: "A small team with design and engineering experience" },
+    });
 
-    const bad = await t.patch(session.id, { join: { background: "x".repeat(301) } });
+    const bad = await t.patch(session.id, { pitch: { projectName: "x".repeat(121) } });
     expect(bad.status).toBe(400);
+    expect((await t.patch(session.id, { join: { name: "Grace" } })).status).toBe(400);
     expect((await t.patch("00000000-0000-4000-8000-000000000000", {})).status).toBe(404);
   });
 });
@@ -432,21 +508,6 @@ describe("POST /public/intake/sessions/:id/submit", () => {
     expect((await t.get(session.id)).status).toBe("submitted");
   });
 
-  it("sends a member application with consent", async () => {
-    const t = setup();
-    const session = await t.start({ mode: "join" });
-    await t.patch(session.id, { join: joinFields });
-
-    const res = await t.submit(session.id, { consent: true });
-    expect(res.status).toBe(201);
-    const { id } = (await res.json()) as { id: string };
-    const [row] = await db.select().from(memberApplications);
-    expect(row).toMatchObject({ id, name: "Grace Hopper", functions: ["developer", "research"], availability: "2to5", links: null });
-    expect(t.sent[0]?.subject).toBe("New member application: Grace Hopper");
-    expect(t.triggered).toEqual([{ table: "member_applications", id }]);
-    expect(await t.row(session.id)).toMatchObject({ status: "submitted", applicationId: id });
-  });
-
   it("answers 400 with the missing fields and stores nothing", async () => {
     const t = setup();
     const session = await t.start({ mode: "pitch" });
@@ -463,12 +524,12 @@ describe("POST /public/intake/sessions/:id/submit", () => {
     expect((await t.row(session.id)).status).toBe("open");
   });
 
-  it("asks to pick a mode first", async () => {
+  it("requires a complete pitch before Send", async () => {
     const t = setup();
     const session = await t.start();
     const res = await t.submit(session.id, { consent: true });
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { issues: Record<string, string[]> }).issues).toHaveProperty("mode");
+    expect(((await res.json()) as { issues: Record<string, string[]> }).issues).toHaveProperty("product");
   });
 
   it("needs consent", async () => {
@@ -481,15 +542,7 @@ describe("POST /public/intake/sessions/:id/submit", () => {
       consent: ["Please accept the privacy note so we can contact you"],
     });
 
-    const join = await t.start({ mode: "join" });
-    await t.patch(join.id, { join: joinFields });
-    const joinNoConsent = await t.submit(join.id, { consent: false });
-    expect(joinNoConsent.status).toBe(400);
-    expect(((await joinNoConsent.json()) as { issues: Record<string, string[]> }).issues).toEqual({
-      consent: ["Please accept the privacy note so we can contact you"],
-    });
     expect(await db.select().from(projectSubmissions)).toEqual([]);
-    expect(await db.select().from(memberApplications)).toEqual([]);
   });
 
   it("closes the session after Send: 410 on messages, edits and a second Send", async () => {
@@ -553,7 +606,7 @@ describe("display history", () => {
 });
 
 describe("dev mock", () => {
-  it("fills the next missing field from each message", async () => {
+  it("fills the next missing pitch field from each message", async () => {
     const { intakeMockStep } = await import("../src/intake-chat/mock.js");
     const provider = new MockProvider({ demo: intakeMockStep, chunkDelayMs: 0 });
     const made = makeApp(db, { intakeChat: { provider } });
@@ -562,12 +615,9 @@ describe("dev mock", () => {
     const sendText = async (text: string) =>
       parseSSE(await (await made.app.request(`/public/intake/sessions/${session.id}/messages`, postJson({ text }))).text());
 
-    const first = await sendText("I want to join as a member");
-    expect(first.find((e) => e.type === "draft")).toMatchObject({ draft: { mode: "join" } });
-    const second = await sendText("Grace");
-    expect(second.find((e) => e.type === "draft")).toMatchObject({ draft: { join: { name: "Grace" } } });
-    // Not an email: a placeholder, so the next message goes on to the next field.
-    const third = await sendText("I build things");
-    expect(third.find((e) => e.type === "draft")).toMatchObject({ draft: { join: { email: "visitor@example.com" } } });
+    const first = await sendText("Ada Lovelace");
+    expect(first.find((e) => e.type === "draft")).toMatchObject({ draft: { mode: "pitch", pitch: { name: "Ada Lovelace" } } });
+    const second = await sendText("I have a project idea");
+    expect(second.find((e) => e.type === "draft")).toMatchObject({ draft: { pitch: { email: "visitor@example.com" } } });
   });
 });

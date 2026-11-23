@@ -6,14 +6,10 @@ import { z } from "zod";
 
 import { defineTool, ToolRegistry, type ToolContext } from "@nw/agent-harness";
 import {
-  AVAILABILITY_OPTIONS,
-  FUNCTION_OPTIONS,
   INTAKE_MODES,
   intakeDraftIssues,
-  joinDraft,
   pitchDraft,
   type IntakeDraft,
-  type JoinDraft,
   type PitchDraft,
 } from "@nw/contracts";
 import type { Database } from "@nw/db";
@@ -27,13 +23,9 @@ export interface IntakeToolApp {
   onDraft(draft: IntakeDraft): void;
 }
 
-const labels = (options: readonly { value: string; label: string }[]) =>
-  options.map((o) => `"${o.value}" = ${o.label}`).join("; ");
-
 /** The draft fields the agent fills in: everything but the CV. */
 type AgentFields<T> = Exclude<keyof T, "resume">;
 const agentPitchDraft = pitchDraft.omit({ resume: true });
-const agentJoinDraft = joinDraft.omit({ resume: true });
 
 const PITCH_DOCS: Record<AgentFields<PitchDraft>, string> = {
   name: "The visitor's name, as they gave it.",
@@ -47,17 +39,6 @@ const PITCH_DOCS: Record<AgentFields<PitchDraft>, string> = {
   links: "Optional links (deck, prototype, repo).",
 };
 
-const JOIN_DOCS: Record<AgentFields<JoinDraft>, string> = {
-  name: "The visitor's name, as they gave it.",
-  email: "Their email address, exactly as they wrote it.",
-  city: "Optional: where they live.",
-  functions: `The full list of functions they want to take on (replaces the previous list). Values: ${labels(FUNCTION_OPTIONS)}.`,
-  background: "One line on who they are, max 300 characters.",
-  motivation: "Why Novawerk and what they want to build or learn. 20+ characters.",
-  availability: `Time they can give. One of: ${labels(AVAILABILITY_OPTIONS)}.`,
-  links: "Optional links (portfolio, GitHub, LinkedIn).",
-};
-
 /** The contract's draft schema (same limits) with a description on every field, strict keys. */
 function described<T extends z.ZodRawShape>(schema: z.ZodObject<T>, docs: Record<keyof T, string>, what: string) {
   const shape = Object.fromEntries(
@@ -68,7 +49,6 @@ function described<T extends z.ZodRawShape>(schema: z.ZodObject<T>, docs: Record
 
 const FIELDS = {
   pitch: Object.keys(agentPitchDraft.shape) as AgentFields<PitchDraft>[],
-  join: Object.keys(agentJoinDraft.shape) as AgentFields<JoinDraft>[],
 };
 
 const isFilled = (value: unknown) => (Array.isArray(value) ? value.length > 0 : typeof value === "string" && value.trim() !== "");
@@ -81,21 +61,20 @@ export const updateDraft = defineTool({
   name: "update_draft",
   description:
     "Save what you learned into the visitor's draft (the panel they see next to the chat). Call it as soon as you learn something, before you reply. Send only the fields you learned or changed; each value replaces that field. Write every value in English, whatever language you chat in: translate the visitor's answers faithfully, keep names and proper nouns, add nothing. Never invent values. This does not send anything.",
-  schema: z.object({
+  schema: z.strictObject({
     mode: z
       .enum(INTAKE_MODES)
       .optional()
-      .describe('What the visitor wants: "pitch" (start a project) or "join" (become a Member).'),
+      .describe('The visitor wants to pitch a project.'),
     pitch: described(agentPitchDraft, PITCH_DOCS, "Project pitch fields.").optional(),
-    join: described(agentJoinDraft, JOIN_DOCS, "Member application fields.").optional(),
   }),
   async run(args, ctx: ToolContext<IntakeToolApp>) {
-    if (args.mode === undefined && !args.pitch && !args.join) throw new Error("Nothing to save: pass mode, pitch or join.");
+    if (args.mode === undefined && !args.pitch) throw new Error("Nothing to save: pass mode or pitch.");
     const draft = await mergeDraft(ctx.app.db, ctx.sessionId, args);
     if (!draft) throw new Error("This conversation was already sent. The draft can't change any more.");
     ctx.app.onDraft(draft);
 
-    if (!draft.mode) return 'Saved. The mode is not set yet: find out whether they want to pitch or join, then save mode.';
+    if (!draft.mode) return 'Saved. The visitor wants to pitch a project; save mode as "pitch".';
     const fields = draft[draft.mode] as Record<string, unknown>;
     const filled = FIELDS[draft.mode].filter((f) => isFilled(fields[f]));
     const issues = intakeDraftIssues(draft);

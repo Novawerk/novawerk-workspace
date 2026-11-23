@@ -13,34 +13,23 @@ const CV_TEXT_BLOCK = /<cv_text>\n([\s\S]*?)\n<\/cv_text>/;
 function draftFromContext(context: string | undefined): IntakeDraft {
   const match = context ? DRAFT_BLOCK.exec(context) : null;
   if (!match) return emptyIntakeDraft();
-  const mode = match[1] === "pitch" || match[1] === "join" ? match[1] : null;
+  if (match[1] !== "pitch") return emptyIntakeDraft();
   try {
     const body = JSON.parse(match[2]!) as Record<string, unknown>;
-    if (!mode) return { mode: null, pitch: (body.pitch ?? {}) as IntakeDraft["pitch"], join: (body.join ?? {}) as IntakeDraft["join"] };
-    return { ...emptyIntakeDraft(mode), [mode]: body };
+    return { mode: "pitch", pitch: body as IntakeDraft["pitch"] };
   } catch {
-    return emptyIntakeDraft(mode);
+    return emptyIntakeDraft("pitch");
   }
 }
 
-const LONG_FIELDS = new Set(["product", "userJourney", "referencesAndInnovation", "team", "timeline", "motivation"]);
+const LONG_FIELDS = new Set(["product", "userJourney", "referencesAndInnovation", "team", "timeline"]);
 
 function patchFor(draft: IntakeDraft, field: string, text: string): Record<string, unknown> {
-  if (field === "mode") return { mode: /join|member|mitmach|beitreten|加入/i.test(text) ? "join" : "pitch" };
   // An email from the message, or a placeholder: the field is validated, and a message that isn't
   // one would be asked for again forever.
   const email = () => /[\w.+-]+@[\w-]+(\.[\w-]+)+/.exec(text)?.[0] ?? "visitor@example.com";
-  const value =
-    field === "functions"
-      ? ["other"]
-      : field === "availability"
-        ? "2to5"
-        : field === "email"
-          ? email()
-          : LONG_FIELDS.has(field)
-            ? text.padEnd(20, ".")
-            : text;
-  return { [draft.mode!]: { [field]: value } };
+  const value = field === "email" ? email() : LONG_FIELDS.has(field) ? text.padEnd(20, ".") : text;
+  return { pitch: { [field]: value } };
 }
 
 /** From an attached CV: the first email address and up to three links. */
@@ -56,11 +45,11 @@ export const intakeMockStep: MockStep = (req) => {
     const draft = draftFromContext(last.context);
     const cv = last.context ? CV_TEXT_BLOCK.exec(last.context)?.[1] : undefined;
     if (last.context?.includes("no text we can read")) {
-      return { text: "(mock model) I can't read that file, but it's attached for the team. Tell me what you do.", toolCalls: [] };
+      return { text: "(mock model) I can't read that file, but it's attached for the team. Tell me about your project idea.", toolCalls: [] };
     }
     if (cv !== undefined) {
       const fields = fromCv(cv);
-      if (!draft.mode || Object.keys(fields).length === 0) return { text: "(mock model) I read your CV. Tell me what you'd like to do here.", toolCalls: [] };
+      if (!draft.mode || Object.keys(fields).length === 0) return { text: "(mock model) I read your CV. Tell me what you'd like to build.", toolCalls: [] };
       return {
         text: "(mock model) I read your CV.",
         toolCalls: [{ id: `mock_${Date.now()}`, name: "update_draft", args: { [draft.mode]: fields } }],

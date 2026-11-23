@@ -1,4 +1,4 @@
-import type { ApiError, FormKind } from "@nw/contracts";
+import type { ApiError, WebFormKind } from "@nw/contracts";
 
 import { track } from "./analytics";
 
@@ -41,12 +41,11 @@ export async function postToApi(path: `/public/${string}`, body: unknown): Promi
 
 const FORM_PATHS = {
   pitch: "/public/submissions",
-  join: "/public/applications",
   newsletter: "/public/subscribe",
-} as const satisfies Record<FormKind, `/public/${string}`>;
+} as const satisfies Record<WebFormKind, `/public/${string}`>;
 
 /** POST one of the public forms, and count how it went (lib/analytics.ts). */
-export async function sendForm(form: FormKind, body: unknown): Promise<PostResult> {
+export async function sendForm(form: WebFormKind, body: unknown): Promise<PostResult> {
   const result = await postToApi(FORM_PATHS[form], body);
   if (result.ok) track("form_submitted", { form });
   else track("form_failed", { form, reason: result.reason });

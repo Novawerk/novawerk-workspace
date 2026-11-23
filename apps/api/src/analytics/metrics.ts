@@ -12,8 +12,8 @@ import {
   CTA_PLACEMENTS,
   CTA_TARGETS,
   FORM_KINDS,
+  INTAKE_ANALYTICS_MODES,
   INTAKE_FAILURE_REASONS,
-  INTAKE_MODES,
   SUBMISSION_STATUSES,
   type AdminMetrics,
   type CtaPlacement,
@@ -22,7 +22,7 @@ import {
   type IntakeExits,
   type IntakeFailureReason,
   type IntakeFunnel,
-  type IntakeMode,
+  type IntakeAnalyticsMode,
 } from "@nw/contracts";
 import {
   analyticsEvents as ae,
@@ -68,9 +68,10 @@ const visitsWhere = (condition: SQL) =>
 const sumOf = (key: string) => sql<number>`coalesce(sum(${intProp(key)}), 0)`.mapWith(Number);
 const berlinDay = sql<string>`to_char((${ae.createdAt} at time zone ${sql.raw(`'${TIME_ZONE}'`)})::date, 'YYYY-MM-DD')`;
 
-const byMode = <T>(make: () => T): Record<IntakeMode, T> =>
-  Object.fromEntries(INTAKE_MODES.map((mode) => [mode, make()])) as Record<IntakeMode, T>;
-const isMode = (value: string | null): value is IntakeMode => INTAKE_MODES.includes(value as IntakeMode);
+const byMode = <T>(make: () => T): Record<IntakeAnalyticsMode, T> =>
+  Object.fromEntries(INTAKE_ANALYTICS_MODES.map((mode) => [mode, make()])) as Record<IntakeAnalyticsMode, T>;
+const isMode = (value: string | null): value is IntakeAnalyticsMode =>
+  INTAKE_ANALYTICS_MODES.includes(value as IntakeAnalyticsMode);
 const isOneOf = <T extends string>(list: readonly T[], value: string | null): value is T => list.includes(value as T);
 const iso = (value: Date | string | null | undefined) => (value ? new Date(value).toISOString() : null);
 const toNumber = (value: unknown) => (value === null || value === undefined ? null : Number(value));

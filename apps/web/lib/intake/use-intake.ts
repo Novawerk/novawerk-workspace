@@ -200,11 +200,10 @@ export function useIntake(pageMode: IntakeMode) {
 
     const s = stateRef.current;
     if (!s.sessionId || s.status !== "open") return true;
-    const sent: DraftEdits = { pitch: s.edits.pitch, join: s.edits.join };
+    const sent: DraftEdits = { pitch: s.edits.pitch };
     const patch: IntakeDraftPatchInput = {};
     if (hasKeys(sent.pitch)) patch.pitch = sent.pitch;
-    if (hasKeys(sent.join)) patch.join = sent.join;
-    if (!patch.pitch && !patch.join) return true;
+    if (!patch.pitch) return true;
     if (!s.serverDraft.mode) patch.mode = pageMode;
 
     const saving = patchDraft(s.sessionId, patch)
@@ -224,11 +223,11 @@ export function useIntake(pageMode: IntakeMode) {
   }, [pageMode]);
 
   const editField = useCallback(
-    (mode: IntakeMode, field: string, value: DraftEditValue) => {
-      dispatch({ type: "edit", mode, field, value });
-      if (!editedRef.current.has(`${mode}.${field}`)) {
-        editedRef.current.add(`${mode}.${field}`);
-        track("intake_field_edit", { mode, field });
+    (field: string, value: DraftEditValue) => {
+      dispatch({ type: "edit", field, value });
+      if (!editedRef.current.has(`pitch.${field}`)) {
+        editedRef.current.add(`pitch.${field}`);
+        track("intake_field_edit", { mode: "pitch", field });
       }
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => void flushEdits(), SAVE_DELAY_MS);
@@ -294,7 +293,7 @@ export function useIntake(pageMode: IntakeMode) {
           track("intake_unavailable", { mode });
           // The agent went away mid-chat: the plain form takes over with what we have so far.
           const draft = displayDraft(stateRef.current, pageMode);
-          seedFormDraft(draft.mode, draft[draft.mode]);
+          seedFormDraft(draft.pitch);
           dispatch({ type: "unavailable" });
         } else {
           track("intake_reply_failed", { mode, reason: failureReason(error) });
@@ -342,7 +341,7 @@ export function useIntake(pageMode: IntakeMode) {
         track("intake_field_edit", { mode, field: "resume" });
       }
       if (!resume || !canTakeTurn(s)) {
-        dispatch({ type: "edit", mode, field: "resume", value: resume });
+        dispatch({ type: "edit", field: "resume", value: resume });
         await flushEdits();
         return;
       }

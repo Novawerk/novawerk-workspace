@@ -468,7 +468,7 @@ export const memberApplications = pgTable(
   (t) => [index("member_applications_status_idx").on(t.status)],
 );
 
-// ─── Agent chats: the Intake Agent (/submit, /join) and the admin assistant ──
+// ─── Agent chats: the Intake Agent (/submit) and the admin assistant ─────────
 // A visitor's conversation with the intake assistant, or a member's with the admin assistant
 // (`agent` says which). Holds personal data (the chat transcript, the draft): the privacy
 // notice must cover it.
@@ -482,7 +482,7 @@ export const agentSessions = pgTable("agent_sessions", {
   agent: text("agent").notNull(),
   /** Rendered once at creation and never changed (keeps the model's prompt cache warm). */
   systemPrompt: text("system_prompt").notNull(),
-  /** The pitch / application being drafted (IntakeDraft in @nw/contracts). */
+  /** The pitch being drafted (IntakeDraft in @nw/contracts); old join-mode rows remain JSON. */
   draft: jsonb("draft").$type<unknown>().notNull(),
   status: agentSessionStatus("status").notNull().default("open"),
   userTurns: integer("user_turns").notNull().default(0),

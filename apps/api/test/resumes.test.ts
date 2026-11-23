@@ -86,19 +86,8 @@ describe("POST /public/uploads/resume", () => {
   });
 });
 
-describe("the plain forms with a CV", () => {
-  it("store the CV with an application and name it in the team email", async () => {
-    const files = new FakeFiles();
-    const { app, sent } = makeApp(db, { files });
-    const resume = await upload(app, files);
-    const res = await app.request("/public/applications", postJson({ ...validApplication, resume }));
-    expect(res.status).toBe(201);
-    const [row] = await db.select().from(memberApplications);
-    expect(row).toMatchObject({ resumePathname: resume.pathname, resumeName: "Grace Hopper CV.pdf" });
-    expect(sent[0]?.text).toContain("CV: Grace Hopper CV.pdf (open it in the admin panel)");
-  });
-
-  it("store the CV with a pitch", async () => {
+describe("the plain pitch form with a CV", () => {
+  it("stores the CV with a pitch", async () => {
     const files = new FakeFiles();
     const { app } = makeApp(db, { files });
     const resume = await upload(app, files, "ada.docx", DOCX);
@@ -107,27 +96,27 @@ describe("the plain forms with a CV", () => {
     expect(row).toMatchObject({ resumePathname: resume.pathname, resumeName: "ada.docx" });
   });
 
-  it("work without a CV, as before", async () => {
+  it("works without a CV, as before", async () => {
     const { app, sent } = makeApp(db, { files: new FakeFiles() });
-    expect((await app.request("/public/applications", postJson({ ...validApplication, resume: null }))).status).toBe(201);
-    expect((await db.select().from(memberApplications))[0]).toMatchObject({ resumePathname: null, resumeName: null });
+    expect((await app.request("/public/submissions", postJson({ ...validSubmission, resume: null }))).status).toBe(201);
+    expect((await db.select().from(projectSubmissions))[0]).toMatchObject({ resumePathname: null, resumeName: null });
     expect(sent[0]?.text).toContain("CV: —");
   });
 
-  it("refuse a CV that isn't in the store any more, and store nothing", async () => {
+  it("refuses a CV that isn't in the store any more without storing the pitch", async () => {
     const files = new FakeFiles();
     const { app } = makeApp(db, { files });
     const resume = await upload(app, files);
     files.privateFiles.delete(resume.pathname);
-    const res = await app.request("/public/applications", postJson({ ...validApplication, resume }));
+    const res = await app.request("/public/submissions", postJson({ ...validSubmission, resume }));
     expect(res.status).toBe(400);
     expect(((await res.json()) as { issues: Record<string, string[]> }).issues).toEqual({
       resume: ["We can't find your CV any more. Please attach it again."],
     });
-    expect(await db.select().from(memberApplications)).toEqual([]);
+    expect(await db.select().from(projectSubmissions)).toEqual([]);
   });
 
-  it("refuse anything outside _resumes/, such as a member's own document", async () => {
+  it("refuses anything outside _resumes/, such as a member's own document", async () => {
     const files = new FakeFiles();
     files.privateFiles.set("ada/1f0c7a52-8d7e-4f8e-9a51-2b1e6f0c9d11-contract.pdf", { contentType: PDF, body: "%PDF" });
     const { app } = makeApp(db, { files });
@@ -154,7 +143,7 @@ function chat(script: MockStep[] = []) {
   const made = makeApp(db, { files, intakeChat: { provider } });
   const { app } = made;
   const headers = { "Content-Type": "application/json", "X-Forwarded-For": "203.0.113.7" };
-  const start = async (mode: "pitch" | "join") =>
+  const start = async (mode: "pitch" = "pitch") =>
     (await (await app.request("/public/intake/sessions", { method: "POST", headers, body: JSON.stringify({ mode }) })).json()) as IntakeSession;
   const patch = (id: string, body: unknown) =>
     app.request(`/public/intake/sessions/${id}/draft`, { method: "PATCH", headers, body: JSON.stringify(body) });
@@ -185,29 +174,28 @@ const contextOf = (t: ReturnType<typeof chat>, request: number) => {
   return user?.role === "user" ? (user.context ?? "") : "";
 };
 
-const { consent: _c, ...joinFields } = validApplication;
+const { consent: _c, ...pitchFields } = validSubmission;
 
 describe("the chat with a CV", () => {
-  it("keeps the visitor's CV in the draft, lets them remove it, and sends it with the application", async () => {
+  it("keeps the visitor's CV in the pitch draft, lets them remove it, and sends it with the pitch", async () => {
     const t = chat();
-    const session = await t.start("join");
+    const session = await t.start();
     const resume = await upload(t.app, t.files);
 
-    const attached = (await (await t.patch(session.id, { join: { ...joinFields, resume } })).json()) as IntakeSession;
-    expect(attached.draft.join.resume).toEqual(resume);
-    const removed = (await (await t.patch(session.id, { join: { resume: null } })).json()) as IntakeSession;
-    expect(removed.draft.join.resume).toBeNull();
-    await t.patch(session.id, { join: { resume } });
+    const attached = (await (await t.patch(session.id, { pitch: { ...pitchFields, resume } })).json()) as IntakeSession;
+    expect(attached.draft.pitch.resume).toEqual(resume);
+    const removed = (await (await t.patch(session.id, { pitch: { resume: null } })).json()) as IntakeSession;
+    expect(removed.draft.pitch.resume).toBeNull();
+    await t.patch(session.id, { pitch: { resume } });
 
     expect((await t.submit(session.id)).status).toBe(201);
-    expect((await db.select().from(memberApplications))[0]).toMatchObject({ resumePathname: resume.pathname, resumeName: resume.name });
+    expect((await db.select().from(projectSubmissions))[0]).toMatchObject({ resumePathname: resume.pathname, resumeName: resume.name });
   });
 
   it("refuses Send when the CV is gone, and keeps the chat open", async () => {
     const t = chat();
     const session = await t.start("pitch");
     const resume = await upload(t.app, t.files);
-    const { consent: _, ...pitchFields } = validSubmission;
     await t.patch(session.id, { pitch: { ...pitchFields, resume } });
     t.files.privateFiles.clear();
 
@@ -220,20 +208,20 @@ describe("the chat with a CV", () => {
 
   it("validates the CV in a draft edit", async () => {
     const t = chat();
-    const session = await t.start("join");
-    const res = await t.patch(session.id, { join: { resume: { pathname: "ada/contract.pdf", name: "x.pdf" } } });
+    const session = await t.start();
+    const res = await t.patch(session.id, { pitch: { resume: { pathname: "ada/contract.pdf", name: "x.pdf" } } });
     expect(res.status).toBe(400);
   });
 
   it("never lets the agent set the CV, and never shows it the file name", async () => {
     const pathname = "_resumes/1f0c7a52-8d7e-4f8e-9a51-2b1e6f0c9d11-cv.pdf";
     const t = chat([
-      call({ name: "update_draft", args: { join: { resume: { pathname, name: "cv.pdf" } } } }),
+      call({ name: "update_draft", args: { pitch: { resume: { pathname, name: "cv.pdf" } } } }),
       say("I can't attach files."),
       call({ name: "review_draft", args: {} }),
       say("Your CV is attached."),
     ]);
-    const session = await t.start("join");
+    const session = await t.start();
     await t.message(session.id, "Attach my CV please");
     const toolResult = t.provider.requests[1]!.messages.at(-1)!;
     expect(toolResult.role === "tool" && toolResult.content).toContain("Invalid arguments");
@@ -241,7 +229,7 @@ describe("the chat with a CV", () => {
 
     // Attached in the panel: the agent learns that there is one, nothing more.
     const resume = await upload(t.app, t.files, "Grace Hopper CV.pdf");
-    await t.patch(session.id, { join: { resume } });
+    await t.patch(session.id, { pitch: { resume } });
     await t.message(session.id, "I attached it in the panel");
     expect(contextOf(t, 2)).toContain("The visitor attached a CV.");
     expect(contextOf(t, 2)).not.toContain("Grace Hopper CV");
@@ -257,19 +245,19 @@ describe("POST /public/intake/sessions/:id/resume", () => {
 
   it("attaches the CV, has the agent read it in a turn of its own, and fills the draft", async () => {
     const t = chat([
-      call({ name: "update_draft", args: { join: { email: "grace@example.com", background: "Compiler engineer", city: "Berlin" } } }),
-      say("I filled in your email, background and city. What would you like to work on?"),
+      call({ name: "update_draft", args: { pitch: { email: "grace@example.com", name: "Grace Hopper" } } }),
+      say("I filled in your name and email. What do you want to build?"),
     ]);
-    const session = await t.start("join");
+    const session = await t.start();
     const resume = t.stored("Grace Hopper CV.pdf", "application/pdf", tinyPdf(CV));
 
-    const res = await t.attach(session.id, { resume, mode: "join" });
+    const res = await t.attach(session.id, { resume, mode: "pitch" });
     expect(res.status).toBe(200);
     const sent = await events(res);
     // The panel learns about the CV before the agent says anything.
-    expect(sent[0]).toMatchObject({ type: "draft", draft: { join: { resume } } });
+    expect(sent[0]).toMatchObject({ type: "draft", draft: { pitch: { resume } } });
     expect(sent.filter((e) => e.type === "draft").at(-1)).toMatchObject({
-      draft: { join: { resume, email: "grace@example.com", background: "Compiler engineer", city: "Berlin" } },
+      draft: { pitch: { resume, email: "grace@example.com", name: "Grace Hopper" } },
     });
     expect(sent.at(-1)).toMatchObject({ type: "turn_end" });
 
@@ -284,12 +272,12 @@ describe("POST /public/intake/sessions/:id/resume", () => {
     const after = (await (await t.app.request(`/public/intake/sessions/${session.id}`)).json()) as IntakeSession;
     expect(after.messages.at(-2)).toMatchObject({ role: "user", text: RESUME_ATTACHED_TEXT });
     expect(after.turnsLeft).toBe(39);
-    expect(after.draft.join.resume).toEqual(resume);
+    expect(after.draft.pitch.resume).toEqual(resume);
   });
 
   it("only that turn carries the text", async () => {
     const t = chat([say("Thanks for your CV."), say("Sure.")]);
-    const session = await t.start("join");
+    const session = await t.start();
     await (await t.attach(session.id, { resume: t.stored("cv.pdf", "application/pdf", tinyPdf(CV)) })).text();
     await t.message(session.id, "What next?");
     expect(contextOf(t, 1)).toContain("The visitor attached a CV.");
@@ -311,7 +299,7 @@ describe("POST /public/intake/sessions/:id/resume", () => {
 
   it("refuses a CV that isn't uploaded, without using a turn", async () => {
     const t = chat();
-    const session = await t.start("join");
+    const session = await t.start();
     const res = await t.attach(session.id, { resume: { pathname: "_resumes/1f0c7a52-8d7e-4f8e-9a51-2b1e6f0c9d11-cv.pdf", name: "cv.pdf" } });
     expect(res.status).toBe(400);
     expect(((await res.json()) as { issues: object }).issues).toHaveProperty("resume");
@@ -322,11 +310,11 @@ describe("POST /public/intake/sessions/:id/resume", () => {
 
   it("validates the request, answers 404 and 410 like the chat, and 400 without the file store", async () => {
     const t = chat([say("ok")]);
-    const session = await t.start("join");
+    const session = await t.start();
     expect((await t.attach(session.id, { resume: { pathname: "ada/contract.pdf", name: "x" } })).status).toBe(400);
     expect((await t.attach("00000000-0000-4000-8000-000000000000", { resume: t.stored("cv.pdf", "application/pdf", "x") })).status).toBe(404);
 
-    await t.patch(session.id, { join: joinFields });
+    await t.patch(session.id, { pitch: pitchFields });
     expect((await t.submit(session.id)).status).toBe(201);
     expect((await t.attach(session.id, { resume: t.stored("cv2.pdf", "application/pdf", "x") })).status).toBe(410);
 
@@ -348,8 +336,15 @@ describe("GET /admin/applications/:id/resume and /admin/submissions/:id/resume",
     const files = new FakeFiles();
     const { app } = makeApp(db, { files });
     const resume = await upload(app, files, "Grace Hopper CV.pdf");
-    await app.request("/public/applications", postJson({ ...validApplication, resume }));
-    const [row] = await db.select().from(memberApplications);
+    const [row] = await db
+      .insert(memberApplications)
+      .values({
+        ...validApplication,
+        consentAt: new Date(),
+        resumePathname: resume.pathname,
+        resumeName: resume.name,
+      })
+      .returning({ id: memberApplications.id });
 
     expect((await adminFetch(app, "GET", `/admin/applications/${row!.id}/resume`, undefined, null)).status).toBe(401);
     const res = await adminFetch(app, "GET", `/admin/applications/${row!.id}/resume`);

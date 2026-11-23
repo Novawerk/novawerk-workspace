@@ -305,7 +305,7 @@ function Tick({
 export function DraftPanel({ intake }: { intake: IntakeController }) {
   const { state, draft } = intake;
   const mode: IntakeMode = draft.mode;
-  const fields = fieldsFor(mode);
+  const fields = fieldsFor();
   const values = draft[mode] as Record<string, DraftValue>;
   const issues = intakeDraftIssues(draft);
   const missing = Object.keys(issues).length;
@@ -333,7 +333,7 @@ export function DraftPanel({ intake }: { intake: IntakeController }) {
   };
 
   const edit = (key: string, value: string | string[]) => {
-    intake.editField(mode, key, value);
+    intake.editField(key, value);
     clearIssue(key);
   };
 
@@ -371,8 +371,6 @@ export function DraftPanel({ intake }: { intake: IntakeController }) {
     intake.startOver();
   };
 
-  const kind = mode === "pitch" ? "pitch" : "intro";
-
   if (submitted) {
     return (
       <div className="relative min-h-0 flex-1 overflow-y-auto px-5 py-8 sm:px-6">
@@ -384,14 +382,10 @@ export function DraftPanel({ intake }: { intake: IntakeController }) {
         >
           <p className="text-xl font-medium tracking-tight">Got it. We usually reply within a few days.</p>
           <p className="mt-3 text-muted">
-            {mode === "pitch"
-              ? "Your pitch is with the team. Keep an eye on your inbox — we may ask a few questions first."
-              : "Your intro is with the team. Meanwhile, have a look at what Members are building."}
+            Your pitch is with the team. Keep an eye on your inbox — we may ask a few questions first.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <Link href="/" className={buttonOutline}>
-              {mode === "pitch" ? "Back to the projects" : "See the projects"}
-            </Link>
+            <Link href="/" className={buttonOutline}>Back to the projects</Link>
             <button type="button" onClick={startOver} className={`${textLink} text-sm`}>
               Start a new one
             </button>
@@ -420,7 +414,7 @@ export function DraftPanel({ intake }: { intake: IntakeController }) {
     <>
       <div className="shrink-0 px-5 pt-5 pb-4 sm:px-6">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-base font-semibold tracking-tight">Your {kind}</h2>
+          <h2 className="text-base font-semibold tracking-tight">Your pitch</h2>
           <p className={`text-sm tabular-nums ${missing === 0 ? "font-medium text-accent" : "text-muted"}`}>
             {missing === 0 ? "Ready to send" : `${done} of ${required.length}`}
           </p>
@@ -428,7 +422,7 @@ export function DraftPanel({ intake }: { intake: IntakeController }) {
         <div
           className="mt-3 h-1 w-full bg-line"
           role="progressbar"
-          aria-label={`Your ${kind}`}
+          aria-label="Your pitch"
           aria-valuemin={0}
           aria-valuemax={required.length}
           aria-valuenow={done}
@@ -451,7 +445,7 @@ export function DraftPanel({ intake }: { intake: IntakeController }) {
 
       <p className="sr-only" aria-live="polite">
         {state.changed.fields.length > 0
-          ? `Updated in your draft: ${state.changed.fields.map((key) => fieldLabel(mode, key)).join(", ")}.`
+          ? `Updated in your draft: ${state.changed.fields.map(fieldLabel).join(", ")}.`
           : ""}
       </p>
 
@@ -522,7 +516,7 @@ export function DraftPanel({ intake }: { intake: IntakeController }) {
               aria-describedby={sendBlocker ? "send-blocker" : undefined}
               className="inline-flex h-11 w-full items-center justify-center gap-2 border border-accent bg-accent px-5 text-sm font-medium text-paper transition-colors hover:border-accent-deep hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {sending ? "Sending…" : `Send ${kind}`}
+              {sending ? "Sending…" : "Send pitch"}
               {!sending ? (
                 <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden="true">
                   <path d="M3 8h10M8.5 3.5L13 8l-4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="square" />

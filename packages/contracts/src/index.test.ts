@@ -23,7 +23,6 @@ import {
   RESUME_PREFIX,
   applicationUpdateInput,
   financeEntryInput,
-  memberApplicationInput,
   memberCreateInput,
   memberSelfUpdateInput,
   memberUpdateInput,
@@ -80,42 +79,23 @@ describe("projectSubmissionInput", () => {
   });
 });
 
-describe("memberApplicationInput", () => {
-  const valid = {
-    name: "Ada",
-    email: "ada@example.com",
-    functions: ["developer"],
-    background: "Frontend developer",
-    motivation: long,
-    availability: "2to5",
-    consent: true as const,
-  };
-
-  it("accepts a complete application", () => {
-    expect(memberApplicationInput.safeParse(valid).success).toBe(true);
-  });
-
-  it("needs at least one known function", () => {
-    expect(memberApplicationInput.safeParse({ ...valid, functions: [] }).success).toBe(false);
-    expect(memberApplicationInput.safeParse({ ...valid, functions: ["wizard"] }).success).toBe(false);
-  });
-});
-
 describe("CVs", () => {
   const pathname = "_resumes/1f0c7a52-8d7e-4f8e-9a51-2b1e6f0c9d11-grace-hopper-cv.pdf";
-  const application = {
+  const pitch = {
     name: "Ada",
     email: "ada@example.com",
-    functions: ["developer"],
-    background: "Frontend developer",
-    motivation: long,
-    availability: "2to5",
+    projectName: "Routes",
+    product: long,
+    userJourney: long,
+    referencesAndInnovation: long,
+    team: long,
+    timeline: long,
     consent: true as const,
   };
 
-  it("are optional on both forms", () => {
+  it("are optional on the pitch form", () => {
     for (const resume of [undefined, null, { pathname, name: "Grace Hopper CV.pdf" }]) {
-      expect(memberApplicationInput.safeParse({ ...application, resume }).success).toBe(true);
+      expect(projectSubmissionInput.safeParse({ ...pitch, resume }).success).toBe(true);
     }
   });
 
@@ -139,12 +119,21 @@ describe("CVs", () => {
     expect(resumeUploadInput.safeParse({ ...ok, size: MAX_RESUME_BYTES + 1 }).success).toBe(false);
   });
 
-  it("never block Send in the chat", async () => {
+  it("keeps CV attachment optional in a pitch draft", async () => {
     const { intakeDraftIssues } = await import("./index.js");
-    const join = { name: "Ada", email: "ada@example.com", functions: ["developer"], background: "Dev", motivation: long, availability: "2to5" as const };
-    expect(intakeDraftIssues({ mode: "join", pitch: {}, join })).toEqual({});
-    expect(intakeDraftIssues({ mode: "join", pitch: {}, join: { ...join, resume: null } })).toEqual({});
-    expect(intakeDraftIssues({ mode: "join", pitch: {}, join: { ...join, resume: { pathname, name: "cv.pdf" } } })).toEqual({});
+    const pitch = {
+      name: "Ada",
+      email: "ada@example.com",
+      projectName: "Routes",
+      product: long,
+      userJourney: long,
+      referencesAndInnovation: long,
+      team: long,
+      timeline: long,
+    };
+    expect(intakeDraftIssues({ mode: "pitch", pitch })).toEqual({});
+    expect(intakeDraftIssues({ mode: "pitch", pitch: { ...pitch, resume: null } })).toEqual({});
+    expect(intakeDraftIssues({ mode: "pitch", pitch: { ...pitch, resume: { pathname, name: "cv.pdf" } } })).toEqual({});
   });
 });
 
@@ -207,7 +196,7 @@ describe("intakeDraftIssues", () => {
 
   it("lists the pitch fields still missing, and is empty when complete", async () => {
     const { intakeDraftIssues } = await import("./index.js");
-    const partial = intakeDraftIssues({ mode: "pitch", pitch: { name: "Ada" }, join: {} });
+    const partial = intakeDraftIssues({ mode: "pitch", pitch: { name: "Ada" } });
     expect(Object.keys(partial)).toEqual(
       expect.arrayContaining(["email", "projectName", "product", "userJourney", "referencesAndInnovation", "team", "timeline"]),
     );
@@ -225,31 +214,18 @@ describe("intakeDraftIssues", () => {
         team: long,
         timeline: long,
       },
-      join: {},
     });
     expect(complete).toEqual({});
   });
 
   it("uses the forms' own messages for fields that are still absent", async () => {
     const { intakeDraftIssues } = await import("./index.js");
-    const pitch = intakeDraftIssues({ mode: "pitch", pitch: {}, join: {} });
+    const pitch = intakeDraftIssues({ mode: "pitch", pitch: {} });
     expect(pitch.name).toBe("Please enter your name");
     expect(pitch.projectName).toBe("Give it a working title");
     expect(pitch.product).toBe("Product: a bit more detail, please (20+ characters)");
     expect(pitch).not.toHaveProperty("links");
-    const join = intakeDraftIssues({ mode: "join", pitch: {}, join: {} });
-    expect(join).toMatchObject({ functions: "Pick at least one", availability: "Pick one", background: "Tell us a little about yourself" });
-    expect(Object.values({ ...pitch, ...join }).join(" ")).not.toMatch(/received undefined/);
-  });
-
-  it("never asks the agent for consent", async () => {
-    const { intakeDraftIssues } = await import("./index.js");
-    const issues = intakeDraftIssues({
-      mode: "join",
-      pitch: {},
-      join: { name: "Ada", email: "ada@example.com", functions: ["developer"], background: "Dev", motivation: long, availability: "2to5" },
-    });
-    expect(issues).toEqual({});
+    expect(Object.values(pitch).join(" ")).not.toMatch(/received undefined/);
   });
 });
 
@@ -416,7 +392,7 @@ describe("webEventsInput", () => {
       { name: "page_view", path: "/", referrer: "https://github.com/", props: { utmSource: " LinkedIn " } },
       { name: "cta_click", path: "/about", props: { target: "join", placement: "footer" } },
       { name: "intake_close", path: "/submit", props: { mode: "pitch", turns: 3, filled: 5, required: 8, submitted: false } },
-      { name: "form_step", path: "/join", props: { form: "join", step: 2, of: 6 } },
+      { name: "form_step", path: "/submit", props: { form: "pitch", step: 2, of: 6 } },
     );
     expect(parsed.success).toBe(true);
     expect(parsed.data?.events[0]?.props).toEqual({ utmSource: "linkedin" });

@@ -45,6 +45,9 @@ admin panel /metrics ◀──────────────────�
 ## Browser events (`source = web`)
 
 The schema is `webEventInput` in `@nw/contracts`; the API stores nothing else.
+New Intake Agent events are pitch-only; the website's form events cover pitches and newsletter
+signups. Older join-mode events remain in the database and in historical intake metrics, but the
+website no longer emits them.
 
 | Event | Props | When |
 |-------|-------|------|
@@ -63,8 +66,8 @@ The schema is `webEventInput` in `@nw/contracts`; the API stores nothing else.
 | `intake_submit_failed` | `mode`, `reason` invalid/error | Send didn't go through |
 | `intake_start_over` | `mode`, `turns` | Start over |
 | `intake_close` | `mode`, `turns`, `filled`, `required`, `submitted` | the dialog closed, the route hid, or the tab went away |
-| `form_step` | `form` pitch/join, `step`, `of` | a plain-form step is shown |
-| `form_submitted` | `form` pitch/join/newsletter | a plain form or the newsletter went through |
+| `form_step` | `form` pitch, `step`, `of` | a plain project-pitch step is shown |
+| `form_submitted` | `form` pitch/newsletter | a plain form or the newsletter went through |
 | `form_failed` | `form`, `reason` invalid/unavailable | it didn't |
 | `task_view` | `status` | a task page opened (no task id; profile paths are counted as `/u/_`, never with the handle) |
 | `task_filter` | `filter` search/area/size/status/skills/sort/view | a board control changed (which one, never its value) |
@@ -89,7 +92,7 @@ No visit id, no path: these only count.
 |-------|-------|------------|
 | `intake_session_created` | `mode` | `POST /public/intake/sessions` |
 | `agent_turn` | `agent` intake/admin-assistant, `mode`, `turn`, `steps`, `ms`, `inputTokens`, `cachedInputTokens`, `outputTokens`, `error` (code), `aborted` | every chat message, after the reply |
-| `form_received` | `form` pitch/join/newsletter, `via` form/chat, `turns` | every stored pitch, application or signup |
+| `form_received` | `form` pitch/join/newsletter, `via` form/chat, `turns` | every stored pitch or signup, plus historical application events |
 
 ## The Metrics page
 
@@ -98,7 +101,7 @@ calendar days in Europe/Berlin, today included.
 
 - **Traffic** — visits (distinct page loads) and page views per day; top pages, referrers,
   campaigns, countries, regions; phone vs computer; CTA and project clicks.
-- **Intake funnel** (browser) — per mode, page loads that opened the chat → sent a message →
+- **Intake funnel** (browser) — current project pitches and historical join-mode events: page loads that opened the chat → sent a message →
   had a complete draft → sent it. **Where people left**: each page load's last `intake_close`
   that wasn't sent, as "before the first message", "while drafting", "with the draft ready".
 - **Chats** (server) — started, with at least one message, sent, messages per sent chat. Ad

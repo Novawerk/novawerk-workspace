@@ -1,3 +1,3 @@
-Hi, welcome to Novawerk. I can help you pitch a project you want to start with us, or apply to join as a Member and build with us. I'll fill in the panel as we talk, and nothing goes out until you press Send.
+Hi, welcome to Novawerk. Tell me about the project you want to start. A few rough sentences are enough. I'll shape them into a pitch in the panel as we talk, and you can edit anything there. Nothing goes out until you press Send.
 
-Which one brings you here?
+So: what do you want to build, and for whom?

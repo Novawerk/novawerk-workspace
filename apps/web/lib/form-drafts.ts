@@ -2,12 +2,7 @@
 // and a way to hand them what the Intake Agent collected, so switching to the plain form
 // never starts from a blank page.
 
-import type { IntakeMode } from "@nw/contracts";
-
-export const FORM_DRAFT_KEYS = {
-  pitch: "nw:submit-draft",
-  join: "nw:join-draft",
-} as const satisfies Record<IntakeMode, string>;
+export const FORM_DRAFT_KEY = "nw:submit-draft";
 
 /** Text with something in it, a non-empty list, or an attached CV. */
 const isFilled = (v: unknown) =>
@@ -16,14 +11,15 @@ const isFilled = (v: unknown) =>
 const filledOnly = (values: Record<string, unknown>) => Object.fromEntries(Object.entries(values).filter(([, v]) => isFilled(v)));
 
 /** Seed the plain form's saved draft, unless the visitor already typed something there. */
-export function seedFormDraft(mode: IntakeMode, values: Record<string, unknown>) {
+export function seedFormDraft(values: Record<string, unknown>) {
   const filled = filledOnly(values);
   if (Object.keys(filled).length === 0) return;
   try {
-    const key = FORM_DRAFT_KEYS[mode];
-    const existing = JSON.parse(window.localStorage.getItem(key) ?? "null") as { values?: Record<string, unknown> } | null;
+    const existing = JSON.parse(window.localStorage.getItem(FORM_DRAFT_KEY) ?? "null") as {
+      values?: Record<string, unknown>;
+    } | null;
     if (existing?.values && Object.keys(filledOnly(existing.values)).length > 0) return;
-    window.localStorage.setItem(key, JSON.stringify({ values: filled, step: 0 }));
+    window.localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify({ values: filled, step: 0 }));
   } catch {
     // Storage unavailable or unreadable: the plain form starts as it is.
   }

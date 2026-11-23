@@ -13,7 +13,6 @@ import {
   MAX_RESUME_BYTES,
   NEWSLETTER_PATHS,
   RESUME_PREFIX,
-  memberApplicationInput,
   newsletterConfirmQuery,
   newsletterSignupInput,
   newsletterUnsubscribeQuery,
@@ -35,9 +34,7 @@ import { safeFilename } from "@nw/object-store";
 
 import { recordServerEvent } from "../analytics/record.js";
 import {
-  announceMemberApplication,
   announceProjectSubmission,
-  insertMemberApplication,
   insertProjectSubmission,
   resumeIssues,
 } from "../forms.js";
@@ -106,16 +103,6 @@ export function publicRoutes({
       const id = await insertProjectSubmission(db, input);
       await recordServerEvent(db, { name: "form_received", props: { form: "pitch", via: "form", turns: null } }, logger);
       await announceProjectSubmission(announce, input, id);
-      return c.json({ ok: true as const, id }, 201);
-    })
-
-    .post("/applications", zValidator("json", memberApplicationInput, rejectInvalidForm), async (c) => {
-      const input = c.req.valid("json");
-      const cv = await resumeIssues(files, input.resume, logger);
-      if (cv) return c.json(validationFailed(cv), 400);
-      const id = await insertMemberApplication(db, input);
-      await recordServerEvent(db, { name: "form_received", props: { form: "join", via: "form", turns: null } }, logger);
-      await announceMemberApplication(announce, input, id);
       return c.json({ ok: true as const, id }, 201);
     })
 

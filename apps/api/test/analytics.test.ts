@@ -152,16 +152,14 @@ describe("POST /public/events", () => {
 // ─── Events the API writes itself ────────────────────────────────────────────
 
 describe("server events", () => {
-  it("counts plain-form pitches, applications and newsletter signups", async () => {
+  it("counts plain-form pitches and newsletter signups", async () => {
     const { app } = makeApp(db, { sendNewsletterConfirmation: async () => undefined });
     expect((await app.request("/public/submissions", postJson(validSubmission))).status).toBe(201);
-    expect((await app.request("/public/applications", postJson(validApplication))).status).toBe(201);
     expect((await app.request("/public/subscribe", postJson({ email: "ada@example.com" }))).status).toBe(200);
 
     const rows = await events();
     expect(rows.map((r) => [r.name, r.source, r.props])).toEqual([
       ["form_received", "api", { form: "pitch", via: "form", turns: null }],
-      ["form_received", "api", { form: "join", via: "form", turns: null }],
       ["form_received", "api", { form: "newsletter", via: "form", turns: null }],
     ]);
     // Nothing that identifies the sender.
@@ -206,12 +204,12 @@ describe("server events", () => {
     const { app } = makeApp(db, { intakeChat: { provider } });
     const headers = { "Content-Type": "application/json" };
     const { id } = (await (
-      await app.request("/public/intake/sessions", { method: "POST", headers, body: JSON.stringify({ mode: "join" }) })
+      await app.request("/public/intake/sessions", { method: "POST", headers, body: JSON.stringify({ mode: "pitch" }) })
     ).json()) as { id: string };
     await (await app.request(`/public/intake/sessions/${id}/messages`, { method: "POST", headers, body: JSON.stringify({ text: "hi" }) })).text();
 
     const [, turn] = await events();
-    expect(turn!.props).toMatchObject({ agent: "intake", mode: "join", turn: 1, error: "model_error" });
+    expect(turn!.props).toMatchObject({ agent: "intake", mode: "pitch", turn: 1, error: "model_error" });
   });
 });
 

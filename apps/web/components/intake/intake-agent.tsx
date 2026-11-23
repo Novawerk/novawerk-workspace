@@ -38,7 +38,7 @@ export function IntakeAgent({
 
   const showForm = state.phase === "unavailable";
 
-  const required = fieldsFor(draft.mode).filter((f) => !f.optional).length;
+  const required = fieldsFor().filter((f) => !f.optional).length;
   const missing = Object.keys(intakeDraftIssues(draft)).length;
   const submitted = state.status === "submitted";
   const filled = Math.max(0, required - missing);
@@ -169,7 +169,7 @@ export function IntakeAgent({
               aria-label="Chat"
               className={`${tab === "chat" ? "flex" : "hidden"} relative min-h-0 flex-1 flex-col lg:flex`}
             >
-              <ChatPane intake={intake} mode={mode} />
+              <ChatPane intake={intake} />
             </section>
 
             <section
