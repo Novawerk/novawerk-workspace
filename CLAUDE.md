@@ -58,7 +58,8 @@ accounts, DNS, secrets), `runbook.md` (operations, restore), `security.md`, `ana
   (`isMaintainer()` in `@nw/db`, `mayOpenAdminPanel()` in `apps/api/src/auth.ts`). The board's
   `contributor_*` columns point at `members`. Task board rules live in `@nw/tasks`; see
   `docs/architecture.md`, "Contributor task board". One session cookie (`nw_session`) for the
-  site, the admin panel and the API; personal access tokens never reach `/admin`. Tests in
+  site, the admin panel and the API; personal access tokens never reach `/admin`. A maintainer's
+  token with `projects:write` adds and edits portfolio projects over MCP only (`create_project`). Tests in
   `apps/api/test/admin-access.test.ts` walk every `/admin` route: keep them passing.
 - **Outbound email is gated.** Anything sent to someone outside Novawerk goes into `outbox`
   and waits for a maintainer's approval:

@@ -42,7 +42,7 @@ import {
   taskListQuery,
   type TokenScope,
 } from "@nw/contracts";
-import { isMaintainer, projects, type Member, type Project } from "@nw/db";
+import { PUBLIC_PROJECT_STATUSES, isMaintainer, projects, type Member, type Project } from "@nw/db";
 import {
   TaskRuleError,
   addPost,
@@ -418,7 +418,7 @@ export function buildMcpServer(
     tagline: p.tagline,
     description: p.description,
     status: p.status,
-    on_website: p.status !== "draft" && p.status !== "archived",
+    on_website: (PUBLIC_PROJECT_STATUSES as readonly string[]).includes(p.status),
     year: p.year,
     link: p.link,
     cover_url: p.coverUrl,
@@ -426,7 +426,11 @@ export function buildMcpServer(
     sort_order: p.sortOrder,
     launch_date: p.launchDate,
   });
-  const savedOut = (saved: ProjectSaved) => ({ project: { ...projectOut(saved.project), body: saved.project.body }, website: saved.website, posts_planned: saved.postsPlanned });
+  const savedOut = (saved: ProjectSaved) => ({
+    project: { ...projectOut(saved.project), body: saved.project.body },
+    website: saved.website,
+    posts_planned: saved.postsPlanned,
+  });
 
   const projectFields = {
     title: z.string().optional(),
