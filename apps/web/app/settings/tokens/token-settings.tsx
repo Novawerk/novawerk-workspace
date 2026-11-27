@@ -4,6 +4,7 @@ import {
   TOKEN_EXPIRY_DAYS,
   TOKEN_LIMITS,
   TOKEN_SCOPES,
+  isMaintainerScope,
   tokenCreateInput,
   type ContributorTokenInfo,
   type CreatedToken,
@@ -30,6 +31,7 @@ const SCOPE_TEXT: Record<TokenScope, { what: string; note?: string }> = {
   "tasks:work": { what: "Link pull requests and release your own tasks" },
   "suggestions:write": { what: "Suggest tasks and +1 suggestions" },
   "profile:write": { what: "Edit your profile text" },
+  "projects:write": { what: "Add and edit portfolio projects", note: "Maintainers only. New projects start as drafts, off the website." },
 };
 
 const TOOLS: [string, string][] = [
@@ -40,6 +42,7 @@ const TOOLS: [string, string][] = [
   ["suggest_task, upvote_task, remove_upvote", "suggestions:write"],
   ["link_pr, release_task", "tasks:work"],
   ["update_profile", "profile:write"],
+  ["list_projects, create_project, update_project", "projects:write (maintainers)"],
 ];
 
 const fetchTokens = () => api<ContributorTokenInfo[]>("/contrib/tokens");
@@ -65,14 +68,14 @@ export function TokenSettings() {
           <SignInPanel returnTo="/settings/tokens" heading={false} />
         </div>
       ) : (
-        <Tokens />
+        <Tokens maintainer={session.me.role === "maintainer"} />
       )}
       <Connect />
     </>
   );
 }
 
-function Tokens() {
+function Tokens({ maintainer }: { maintainer: boolean }) {
   const toast = useToast();
   const [tokens, setTokens] = useState<ContributorTokenInfo[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -181,6 +184,7 @@ function Tokens() {
           <CreatedSecret token={created} onDone={() => setCreated(null)} />
         ) : (
           <NewToken
+            maintainer={maintainer}
             full={(tokens?.filter((t) => !t.expired).length ?? 0) >= TOKEN_LIMITS.activePerContributor}
             onCreated={async (t) => {
               setCreated(t);
@@ -193,7 +197,15 @@ function Tokens() {
   );
 }
 
-function NewToken({ full, onCreated }: { full: boolean; onCreated: (t: CreatedToken) => void | Promise<void> }) {
+function NewToken({
+  full,
+  maintainer,
+  onCreated,
+}: {
+  full: boolean;
+  maintainer: boolean;
+  onCreated: (t: CreatedToken) => void | Promise<void>;
+}) {
   const [name, setName] = useState("");
   const [days, setDays] = useState<"30" | "90">("90");
   const [scopes, setScopes] = useState<TokenScope[]>(["proposals:write", "discussion:write", "tasks:work"]);
@@ -248,7 +260,7 @@ function NewToken({ full, onCreated }: { full: boolean; onCreated: (t: CreatedTo
       </div>
       <fieldset className="grid gap-2.5">
         <legend className={`${fieldLabel} mb-1.5`}>Scopes</legend>
-        {TOKEN_SCOPES.map((s) => (
+        {TOKEN_SCOPES.filter((s) => maintainer || !isMaintainerScope(s)).map((s) => (
           <Check
             key={s}
             checked={s === "tasks:read" || scopes.includes(s)}

@@ -279,9 +279,13 @@ and the API. The pages, the admin side, the GitHub webhook, tokens and emails co
   more"); emails go out from the events.
 - **Agents** act for a contributor with a personal access token (`contributor_tokens`: only the
   SHA-256 of `nwt_…` is kept; scopes `tasks:read` (always), `proposals:write`,
-  `discussion:write`, `tasks:work`, `suggestions:write`, `profile:write`; 30 or 90 days; at most
-  10 live; revocable). `Authorization: Bearer` works on `/contrib/*` (each route checks its
-  scope), on the board's `/public` reads (optional) and on `/mcp`. A token never manages
+  `discussion:write`, `tasks:work`, `suggestions:write`, `profile:write`, and for maintainers
+  only `projects:write`; 30 or 90 days; at most 10 live; revocable). `Authorization: Bearer`
+  works on `/contrib/*` (each route checks its scope), on the board's `/public` reads (optional)
+  and on `/mcp`, never on `/admin`. With `projects:write` a maintainer's agent adds and edits
+  portfolio projects over MCP (`list_projects`, `create_project`, `update_project`), through the
+  same code as the admin panel (`apps/api/src/admin/projects.ts`); a new one is a draft, off the
+  website. Only a maintainer can make such a token, and the role is checked again on every call. A token never manages
   tokens, confirms drafts, deletes the account, or changes the handle or who sees the profile.
   A proposal made with a token is a `draft` until its person confirms it in the browser
   (`POST /contrib/proposals/:id/confirm`); a token edits and discards drafts only, and drafts

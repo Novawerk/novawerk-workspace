@@ -10,21 +10,26 @@
 // reached are planned (`postsPlanned` in the answer) and the promo agent drafts them.
 
 import { zValidator } from "@hono/zod-validator";
-import { asc, desc, eq, inArray, ne } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 
 import { INITIATOR_ROLE, projectInput, projectTeamInput, projectUpdateInput } from "@nw/contracts";
 import { isMaintainer, members, projectMembers, projects, type Database, type Project } from "@nw/db";
 
-import { conflict, isUniqueViolation, notFound, notFoundIfInvalid, rejectInvalid, validationFailed } from "../../http.js";
-import { planPosts, recordStatusChange, today } from "../../admin/lifecycle.js";
+import { conflict, notFound, notFoundIfInvalid, rejectInvalid, validationFailed } from "../../http.js";
+import {
+  SLUG_TAKEN,
+  SlugTakenError,
+  createProject,
+  dropUnusedImages,
+  imagesOf,
+  refreshWebsite,
+  updateProject,
+} from "../../admin/projects.js";
 import { requireAdmin } from "../../auth.js";
-import { revalidateWeb } from "../../revalidate.js";
 import type { ApiEnv } from "../../types.js";
 import { ADMIN_PROJECT_FIELDS, canChangeTeam, projectIdsOf } from "./access.js";
 import { uuidParam, type AdminDeps } from "./shared.js";
-
-const SLUG_TAKEN = "Another project already uses this slug";
 
 export interface TeamMember {
   memberId: string;
@@ -50,29 +55,9 @@ async function teamsOf(db: Database, projectIds: string[]): Promise<Map<string, 
   return teams;
 }
 
-/** Every picture URL a project uses. */
-const imagesOf = (p: Pick<Project, "coverUrl" | "gallery">) => [
-  ...(p.coverUrl ? [p.coverUrl] : []),
-  ...(p.gallery ?? []).map((g) => g.url),
-];
-
 export function projectRoutes({ db, env, logger, files, triggerPromo }: AdminDeps) {
-  // The portfolio, and the contributors wall: it shows who started which public project.
-  const refreshWebsite = () => revalidateWeb(env.webRevalidate, logger, ["projects", "contributors"]);
-
-  /** Delete pictures `before` had and nothing uses any more. Best effort: never fails a save. */
-  async function dropUnusedImages(projectId: string, before: string[], after: string[]) {
-    const gone = before.filter((url) => !after.includes(url));
-    if (!gone.length || !files?.ready.public) return;
-    const others = await db
-      .select({ coverUrl: projects.coverUrl, gallery: projects.gallery })
-      .from(projects)
-      .where(ne(projects.id, projectId));
-    const stillUsed = new Set(others.flatMap(imagesOf));
-    await files
-      .deletePublicImages(gone.filter((url) => !stillUsed.has(url)))
-      .catch((err) => logger.warn("[api] could not delete project pictures:", err));
-  }
+  const deps = { db, env, logger, files, triggerPromo };
+  const refresh = () => refreshWebsite(deps);
 
   return (
     new Hono<ApiEnv>()
@@ -105,18 +90,10 @@ export function projectRoutes({ db, env, logger, files, triggerPromo }: AdminDep
 
       .post("/", requireAdmin, zValidator("json", projectInput, rejectInvalid), async (c) => {
         try {
-          const project = await db.transaction(async (tx) => {
-            const [row] = await tx.insert(projects).values(c.req.valid("json")).returning();
-            await recordStatusChange(tx, { projectId: row!.id, from: null, to: row!.status, by: c.get("member").id });
-            return row!;
-          });
-          const postsPlanned = await planPosts({ db, triggerPromo, logger }, project.id);
-          return c.json(
-            { project: { ...project, team: [] as TeamMember[] }, website: await refreshWebsite(), postsPlanned },
-            201,
-          );
+          const saved = await createProject(deps, c.req.valid("json"), c.get("member").id);
+          return c.json({ ...saved, project: { ...saved.project, team: [] as TeamMember[] } }, 201);
         } catch (err) {
-          if (isUniqueViolation(err)) return c.json(conflict("slug", SLUG_TAKEN), 409);
+          if (err instanceof SlugTakenError) return c.json(conflict("slug", SLUG_TAKEN), 409);
           throw err;
         }
       })
@@ -131,37 +108,13 @@ export function projectRoutes({ db, env, logger, files, triggerPromo }: AdminDep
           if (!isMaintainer(c.get("member")) && ADMIN_PROJECT_FIELDS.some((f) => patch[f] !== undefined)) {
             return c.json({ error: "Only admins change the stage, featured, order or slug" }, 403);
           }
-          const [before] = await db
-            .select({ coverUrl: projects.coverUrl, gallery: projects.gallery, status: projects.status, launchDate: projects.launchDate })
-            .from(projects)
-            .where(eq(projects.id, id))
-            .limit(1);
-          if (!before) return c.json(notFound, 404);
-          const launching = patch.status === "launched" && before.status !== "launched";
-          const launchDate = patch.launchDate === undefined ? before.launchDate : patch.launchDate;
           try {
-            const row = await db.transaction(async (tx) => {
-              const [updated] = await tx
-                .update(projects)
-                .set({ ...patch, ...(launching && !launchDate ? { launchDate: today() } : {}) })
-                .where(eq(projects.id, id))
-                .returning();
-              if (updated && updated.status !== before.status) {
-                await recordStatusChange(tx, { projectId: id, from: before.status, to: updated.status, by: c.get("member").id });
-              }
-              return updated;
-            });
-            if (!row) return c.json(notFound, 404);
-            await dropUnusedImages(id, imagesOf(before), imagesOf(row));
-            const lifecycleChanged = row.status !== before.status || row.launchDate !== before.launchDate;
-            const postsPlanned = lifecycleChanged ? await planPosts({ db, triggerPromo, logger }, id) : 0;
+            const saved = await updateProject(deps, id, patch, c.get("member").id);
+            if (!saved) return c.json(notFound, 404);
             const teams = await teamsOf(db, [id]);
-            return c.json(
-              { project: { ...row, team: teams.get(id) ?? [] }, website: await refreshWebsite(), postsPlanned },
-              200,
-            );
+            return c.json({ ...saved, project: { ...saved.project, team: teams.get(id) ?? [] } }, 200);
           } catch (err) {
-            if (isUniqueViolation(err)) return c.json(conflict("slug", SLUG_TAKEN), 409);
+            if (err instanceof SlugTakenError) return c.json(conflict("slug", SLUG_TAKEN), 409);
             throw err;
           }
         },
@@ -171,8 +124,8 @@ export function projectRoutes({ db, env, logger, files, triggerPromo }: AdminDep
         // The team goes with it (cascade). The pitch it came from stays, unlinked.
         const [row] = await db.delete(projects).where(eq(projects.id, c.req.valid("param").id)).returning();
         if (!row) return c.json(notFound, 404);
-        await dropUnusedImages(row.id, imagesOf(row), []);
-        return c.json({ ok: true as const, website: await refreshWebsite() }, 200);
+        await dropUnusedImages(deps, row.id, imagesOf(row), []);
+        return c.json({ ok: true as const, website: await refresh() }, 200);
       })
 
       /** Replace the whole team in one go: the editor sends the list as it looks on screen. */
@@ -211,7 +164,7 @@ export function projectRoutes({ db, env, logger, files, triggerPromo }: AdminDep
             if (team.length) await tx.insert(projectMembers).values(team.map((m) => ({ projectId: id, ...m })));
           });
           const teams = await teamsOf(db, [id]);
-          return c.json({ team: teams.get(id) ?? [], website: await refreshWebsite() }, 200);
+          return c.json({ team: teams.get(id) ?? [], website: await refresh() }, 200);
         },
       )
   );

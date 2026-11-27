@@ -1788,8 +1788,13 @@ export const TOKEN_SCOPES = [
   "tasks:work",
   "suggestions:write",
   "profile:write",
+  "projects:write",
 ] as const;
 export type TokenScope = (typeof TOKEN_SCOPES)[number];
+
+/** Scopes only a maintainer may put on a token: they run Novawerk, not one person's own work. */
+export const MAINTAINER_TOKEN_SCOPES = ["projects:write"] as const satisfies readonly TokenScope[];
+export const isMaintainerScope = (s: TokenScope) => (MAINTAINER_TOKEN_SCOPES as readonly TokenScope[]).includes(s);
 
 /** Limits per contributor, enforced by the API. */
 export const TASK_LIMITS = {
