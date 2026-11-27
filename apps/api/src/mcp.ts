@@ -2,11 +2,13 @@
 // on the same @nw/tasks functions as /public and /contrib. Reading needs nothing; acting needs a
 // personal access token (`Authorization: Bearer nwt_…`) with the tool's scope. A proposal made
 // here is a draft until its person confirms it in the browser. Everything an agent writes shows
-// "via agent · <token name>".
+// "via agent · <token name>". Maintainers can also give a token `projects:write` and add or
+// edit portfolio projects here (create_project starts a draft). /admin stays browser-only.
 //
 // Add it to Claude Code:  claude mcp add --transport http novawerk https://api.novawerk.io/mcp \
 //                           --header "Authorization: Bearer nwt_…"
 
+import { asc, desc } from "drizzle-orm";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { Hono } from "hono";
@@ -16,6 +18,7 @@ import { z } from "zod";
 import { parsePullRequestUrl } from "@nw/github";
 import {
   CONTRIBUTOR_SORTS,
+  PROJECT_STATUSES,
   PROFILE_ACCENTS,
   PROFILE_BANNERS,
   PROPOSAL_ETAS,
@@ -32,12 +35,14 @@ import {
   postInput,
   prLinkInput,
   profileUpdateInput,
+  projectInput,
+  projectUpdateInput,
   proposalInput,
   suggestionInput,
   taskListQuery,
   type TokenScope,
 } from "@nw/contracts";
-import type { Member } from "@nw/db";
+import { isMaintainer, projects, type Member, type Project } from "@nw/db";
 import {
   TaskRuleError,
   addPost,
@@ -61,6 +66,7 @@ import {
   type TokenContext,
 } from "@nw/tasks";
 
+import { SlugTakenError, createProject, findProject, updateProject, type ProjectSaved } from "./admin/projects.js";
 import { tellChatProfile } from "./chat-sso.js";
 import { FixedWindowLimiter, clientIp } from "./intake-chat/rate-limit.js";
 import { revalidateWeb } from "./revalidate.js";
@@ -87,7 +93,7 @@ const taskNumber = (id: string) => {
 
 /** One server per request (stateless): its tools see this request's caller. */
 export function buildMcpServer(
-  deps: Pick<AppDeps, "db" | "env" | "githubApi"> & { logger: Logger },
+  deps: Pick<AppDeps, "db" | "env" | "githubApi" | "files" | "triggerPromo"> & { logger: Logger },
   caller: Caller,
   gate: TokenGate,
 ): McpServer {
@@ -100,6 +106,7 @@ export function buildMcpServer(
       return ok(await fn());
     } catch (err) {
       if (err instanceof TaskRuleError) return fail(err.message);
+      if (err instanceof SlugTakenError) return fail(`slug: ${err.message}`);
       if (err instanceof z.ZodError) return fail(err.issues.map((i) => `${i.path.join(".") || "input"}: ${i.message}`).join("\n"));
       deps.logger.error("[mcp] tool failed:", err);
       return fail("Something went wrong on our side.");
@@ -117,6 +124,13 @@ export function buildMcpServer(
     requireScope(caller.token, scope);
     if (kind === "write") gate.take(caller.token.id, "write");
     return { me: caller.contributor, via: { tokenId: caller.token.id } };
+  };
+
+  /** A maintainer's token with projects:write. Checked on every call: a role can change after the token was made. */
+  const asMaintainer = (kind: "read" | "write" = "write") => {
+    const who = as("projects:write", kind);
+    if (!isMaintainer(who.me)) throw new TaskRuleError("forbidden", "Only maintainers add or edit portfolio projects.");
+    return who;
   };
 
   const readOnly = { readOnlyHint: true, openWorldHint: false } as const;
@@ -393,6 +407,97 @@ export function buildMcpServer(
         const row = await updateProfile(db, me.id, profileUpdateInput.parse({ ...rest, ...(display_name !== undefined ? { displayName: display_name } : {}) }));
         await tellChatProfile(deps, row.id);
         return { ...toContributorMe(row), email: null, notifyEmail: null };
+      }),
+  );
+
+  // ─── Portfolio projects (maintainers, projects:write) ────────────────────
+  const projectOut = (p: Project) => ({
+    id: p.id,
+    slug: p.slug,
+    title: p.title,
+    tagline: p.tagline,
+    description: p.description,
+    status: p.status,
+    on_website: p.status !== "draft" && p.status !== "archived",
+    year: p.year,
+    link: p.link,
+    cover_url: p.coverUrl,
+    featured: p.featured,
+    sort_order: p.sortOrder,
+    launch_date: p.launchDate,
+  });
+  const savedOut = (saved: ProjectSaved) => ({ project: { ...projectOut(saved.project), body: saved.project.body }, website: saved.website, posts_planned: saved.postsPlanned });
+
+  const projectFields = {
+    title: z.string().optional(),
+    tagline: z.string().nullable().optional().describe("One short line, under 160 characters."),
+    description: z.string().optional().describe("One or two sentences for the card on novawerk.io, under 500 characters."),
+    body: z.string().nullable().optional().describe("Long-form Markdown for the project page."),
+    status: z
+      .enum(PROJECT_STATUSES)
+      .optional()
+      .describe("draft and archived stay off the website; planning, building, launching and launched show on it."),
+    year: z.number().int().nullable().optional(),
+    link: z.string().nullable().optional().describe("The project's own site, a full https link."),
+    cover_url: z.string().nullable().optional().describe("An https link to a picture."),
+    featured: z.boolean().optional(),
+    sort_order: z.number().int().optional(),
+    launch_date: z.string().nullable().optional().describe("YYYY-MM-DD."),
+  };
+  /** MCP's snake_case to the contract's camelCase, leaving out what wasn't sent. */
+  const toProjectInput = ({ cover_url, sort_order, launch_date, ...rest }: Record<string, unknown>) => ({
+    ...rest,
+    ...(cover_url !== undefined ? { coverUrl: cover_url } : {}),
+    ...(sort_order !== undefined ? { sortOrder: sort_order } : {}),
+    ...(launch_date !== undefined ? { launchDate: launch_date } : {}),
+  });
+
+  server.registerTool(
+    "list_projects",
+    {
+      title: "List portfolio projects",
+      description: "Every portfolio project, drafts and archived ones included, in the website's order. Maintainers only (projects:write).",
+      annotations: readOnly,
+    },
+    () =>
+      run(async () => {
+        asMaintainer("read");
+        const rows = await db.select().from(projects).orderBy(desc(projects.featured), asc(projects.sortOrder), asc(projects.title));
+        return rows.map(projectOut);
+      }),
+  );
+
+  server.registerTool(
+    "create_project",
+    {
+      title: "Add a portfolio project",
+      description:
+        "Add a project to the Novawerk portfolio. It starts as a draft, off the website, unless you give a status. Text is English, in Novawerk's voice: short sentences, \"we\", present tense. Maintainers only (projects:write).",
+      inputSchema: { slug: z.string().describe('Lowercase with dashes, e.g. "berlin-food-map". Part of the address.'), ...projectFields, title: z.string() },
+    },
+    (input) =>
+      run(async () => {
+        const { me } = asMaintainer();
+        return savedOut(await createProject(deps, projectInput.parse(toProjectInput(input)), me.id));
+      }),
+  );
+
+  server.registerTool(
+    "update_project",
+    {
+      title: "Edit a portfolio project",
+      description:
+        "Change a portfolio project, found by its slug. Send only what changes; null clears a field. Moving it out of draft puts it on the website. Maintainers only (projects:write).",
+      inputSchema: { project: z.string().describe("The project's current slug."), slug: z.string().optional().describe("A new slug."), ...projectFields },
+    },
+    ({ project, ...input }) =>
+      run(async () => {
+        const { me } = asMaintainer();
+        const row = await findProject(db, { slug: project });
+        if (!row) throw new TaskRuleError("not_found", `No project with the slug "${project}". list_projects shows them.`);
+        const saved = await updateProject(deps, row.id, projectUpdateInput.parse(toProjectInput(input)), me.id);
+        if (!saved) throw new TaskRuleError("not_found", `No project with the slug "${project}".`);
+        return savedOut(saved);
       }),
   );
 

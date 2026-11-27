@@ -11,12 +11,13 @@ import { and, count, desc, eq, gt, isNull, lt, or } from "drizzle-orm";
 import {
   TOKEN_LIMITS,
   TOKEN_SCOPES,
+  isMaintainerScope,
   type ContributorTokenInfo,
   type CreatedToken,
   type TokenScope,
   tokenCreateInput,
 } from "@nw/contracts";
-import { contributorTokens, members, type Member, type ContributorToken, type Database } from "@nw/db";
+import { contributorTokens, isMaintainer, members, type Member, type ContributorToken, type Database } from "@nw/db";
 
 import { TaskRuleError } from "./errors.js";
 import { iso } from "./people.js";
@@ -49,7 +50,7 @@ function info(t: ContributorToken, now: Date): ContributorTokenInfo {
   };
 }
 
-/** A new token. At most 10 live ones per person. */
+/** A new token. At most 10 live ones per person. Maintainer scopes (projects:write) only for maintainers. */
 export async function createToken(
   db: Database,
   contributorId: string,
@@ -62,6 +63,12 @@ export async function createToken(
     .where(and(eq(contributorTokens.contributorId, contributorId), isNull(contributorTokens.revokedAt), gt(contributorTokens.expiresAt, now)));
   if ((live?.n ?? 0) >= TOKEN_LIMITS.activePerContributor) {
     throw new TaskRuleError("rate_limited", `Up to ${TOKEN_LIMITS.activePerContributor} tokens. Revoke one first.`);
+  }
+  if (input.scopes.some(isMaintainerScope)) {
+    const [owner] = await db.select({ role: members.role }).from(members).where(eq(members.id, contributorId)).limit(1);
+    if (!owner || !isMaintainer(owner)) {
+      throw new TaskRuleError("forbidden", "Only maintainers can give a token the projects:write scope.");
+    }
   }
   const secret = `${TOKEN_PREFIX}${randomBytes(32).toString("base64url")}`;
   const scopes = TOKEN_SCOPES.filter((s) => s === "tasks:read" || input.scopes.includes(s));

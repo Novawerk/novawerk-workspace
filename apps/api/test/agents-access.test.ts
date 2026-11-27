@@ -5,7 +5,9 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { TASK_LIMITS, TOKEN_LIMITS } from "@nw/contracts";
-import { members, taskProposals, tasks, type Database } from "@nw/db";
+import { createToken } from "@nw/tasks";
+import { eq } from "drizzle-orm";
+import { members, projectStatusChanges, projects, taskProposals, tasks, type Database } from "@nw/db";
 
 import { contributorCookie, createTestDb, makeApp, resetDb, sessionCookie, TEST_MEMBERS, type TestApp } from "./helpers.js";
 
@@ -178,11 +180,13 @@ describe("/mcp", () => {
     const tools = (await rpc(app, "tools/list", {})).body.result.tools.map((t: { name: string }) => t.name);
     expect(tools.sort()).toEqual(
       [
+        "create_project",
         "create_task",
         "get_guide",
         "get_task",
         "link_pr",
         "list_contributors",
+        "list_projects",
         "list_tasks",
         "my_tasks",
         "post_comment",
@@ -191,6 +195,7 @@ describe("/mcp", () => {
         "remove_upvote",
         "suggest_task",
         "update_profile",
+        "update_project",
         "upvote_task",
         "whoami",
       ].sort(),
@@ -284,6 +289,44 @@ describe("/mcp", () => {
     const rest = await call(app, "POST", "/contrib/tasks", { bearer: token.secret }, { ...input, title: "Filter the wall", size: "XL" });
     expect(rest).toMatchObject({ status: 429, body: { error: expect.stringContaining(`${TASK_LIMITS.tasksCreatedPerDay} new tasks a day`) } });
     expect((await call(app, "POST", "/contrib/tasks", { bearer: readOnly.secret }, { ...input, size: "S" })).status).toBe(403);
+  });
+
+  it("adds and edits portfolio projects for maintainers only, starting as a draft", async () => {
+    const { app } = makeApp(db);
+    const input = { slug: "kiez-pantry", title: "Kiez Pantry", description: "A shared pantry map." };
+
+    // A member can't put projects:write on a token, and a token without it can't use the tools.
+    const denied = await call(app, "POST", "/contrib/tokens", { cookie }, { name: "x", scopes: ["projects:write"], expiresInDays: 30 });
+    expect(denied).toMatchObject({ status: 403, body: { error: expect.stringContaining("maintainers") } });
+    const lenas = await makeToken(app, ["tasks:work"]);
+    expect((await tool(app, "create_project", input, lenas.secret)).text).toMatch(/projects:write/);
+    expect((await tool(app, "create_project", input)).text).toMatch(/personal access token/);
+
+    await db.update(members).set({ githubId: 1 }).where(eq(members.id, "ada"));
+    const ada = await createToken(db, "ada", { name: "ada-laptop", scopes: ["projects:write"], expiresInDays: 30 });
+    expect(ada.scopes).toContain("projects:write");
+
+    const made = await tool(app, "create_project", { ...input, cover_url: null, year: 2026 }, ada.secret);
+    expect(made.json.project).toMatchObject({ slug: "kiez-pantry", status: "draft", on_website: false, year: 2026 });
+    expect((await call(app, "GET", "/public/projects", {})).body).toEqual([]);
+    expect((await tool(app, "create_project", input, ada.secret)).text).toMatch(/slug: Another project/);
+    expect((await tool(app, "create_project", { ...input, slug: "Not A Slug" }, ada.secret)).isError).toBe(true);
+
+    const edited = await tool(app, "update_project", { project: "kiez-pantry", status: "building", tagline: "Food, shared." }, ada.secret);
+    expect(edited.json.project).toMatchObject({ status: "building", on_website: true, tagline: "Food, shared." });
+    expect((await call(app, "GET", "/public/projects", {})).body).toMatchObject([{ slug: "kiez-pantry" }]);
+    const timeline = await db.select().from(projectStatusChanges);
+    expect(timeline.map((t) => [t.fromStatus, t.toStatus, t.changedBy])).toEqual([
+      [null, "draft", "ada"],
+      ["draft", "building", "ada"],
+    ]);
+    expect((await tool(app, "update_project", { project: "nope", title: "x" }, ada.secret)).text).toMatch(/No project/);
+    expect((await tool(app, "list_projects", {}, ada.secret)).json.map((p: { slug: string }) => p.slug)).toEqual(["kiez-pantry"]);
+
+    // The role counts on every call: a maintainer who steps down can't use the token any more.
+    await db.update(members).set({ role: "member" }).where(eq(members.id, "ada"));
+    expect((await tool(app, "list_projects", {}, ada.secret)).text).toMatch(/Only maintainers/);
+    expect(await db.select().from(projects)).toHaveLength(1);
   });
 
   it("refuses a bad token outright", async () => {

@@ -91,7 +91,7 @@ describe("every /admin route (NB-ADR-0014)", () => {
     await db.update(members).set({ githubId: 1 }).where(eq(members.id, "ada"));
     const { secret } = await createToken(db, "ada", {
       name: "Script",
-      scopes: ["tasks:read", "proposals:write", "discussion:write", "tasks:work", "suggestions:write", "profile:write"],
+      scopes: ["tasks:read", "proposals:write", "discussion:write", "tasks:work", "suggestions:write", "profile:write", "projects:write"],
       expiresInDays: 30,
     });
     for (const [method, path] of adminRoutes(app)) {
